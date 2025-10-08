@@ -1,0 +1,1883 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- CSP: Chặn script lạ, cho phép CDN cần thiết. Tinh chỉnh thêm nếu cần -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' data: https://source.unsplash.com; font-src 'self' https://cdnjs.cloudflare.com; connect-src 'self' http://localhost:3000;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thư viện Khoa học Tổng hợp Đà Nẵng</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://unpkg.com/cropperjs/dist/cropper.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="gradient-bg text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-8 h-8 text-white" fill="currentColor" aria-hidden="true">
+                            <path d="M3 6.75A2.25 2.25 0 0 1 5.25 4.5h4.5a2.25 2.25 0 0 1 2.25 2.25v12a.75.75 0 0 1-1.177.624L7.5 17.25l-3.323 2.124A.75.75 0 0 1 3 18.75v-12Z"/>
+                            <path d="M12 6.75A2.25 2.25 0 0 1 14.25 4.5h4.5A2.25 2.25 0 0 1 21 6.75v12a.75.75 0 0 1-1.177.624L16.5 17.25l-3.323 2.124A.75.75 0 0 1 12 18.75v-12Z"/>
+                        </svg>
+                        <span class="text-lg md:text-xl font-bold tracking-tight">Thư viện Khoa học Tổng hợp Đà Nẵng</span>
+                    </div>
+                </div>
+                <div class="hidden md:flex items-center space-x-6">
+                    <button data-nav="home" class="nav-btn hover:text-blue-200 transition-colors">Trang chủ</button>
+                    <button data-nav="catalog" class="nav-btn hover:text-blue-200 transition-colors">Danh mục sách</button>
+                    <button data-nav="services" class="nav-btn hover:text-blue-200 transition-colors">Dịch vụ</button>
+                    <button data-nav="cardRegistration" class="nav-btn hover:text-blue-200 transition-colors">Đăng ký thẻ</button>
+                    <button data-nav="member" class="nav-btn hover:text-blue-200 transition-colors">Thành viên</button>
+                    <button data-nav="admin" class="nav-btn hover:text-blue-200 transition-colors">Quản lý</button>
+                </div>
+                <div class="md:hidden">
+                    <button data-action="toggle-mobile" class="text-white">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- Mobile Menu -->
+        <div id="mobileMenu" class="hidden md:hidden bg-purple-800">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <button data-nav="home" class="block px-3 py-2 text-white hover:bg-purple-700 rounded">Trang chủ</button>
+                <button data-nav="catalog" class="block px-3 py-2 text-white hover:bg-purple-700 rounded">Danh mục sách</button>
+                <button data-nav="services" class="block px-3 py-2 text-white hover:bg-purple-700 rounded">Dịch vụ</button>
+                <button data-nav="cardRegistration" class="block px-3 py-2 text-white hover:bg-purple-700 rounded">Đăng ký thẻ</button>
+                <button data-nav="member" class="block px-3 py-2 text-white hover:bg-purple-700 rounded">Thành viên</button>
+                <button data-nav="admin" class="block px-3 py-2 text-white hover:bg-purple-700 rounded">Quản lý</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Home Page -->
+    <div id="homePage" class="page-content">
+                        <!-- Hero Section: Simple pre-landmark hero (title + CTAs only) -->
+                        <section class="relative text-white py-12 md:py-16 lg:py-20 overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-br from-indigo-700 via-purple-700 to-cyan-600"></div>
+                            <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                                <div class="max-w-3xl mx-auto text-center">
+                                    <h1 class="text-3xl md:text-5xl lg:text-6xl font-extrabold mb-4 fade-in tracking-tight">
+                                        THƯ VIỆN KHOA HỌC<br/>TỔNG HỢP ĐÀ NẴNG
+                                    </h1>
+                                    <p class="text-base md:text-lg lg:text-xl mb-8 fade-in opacity-90">
+                                        Không gian tri thức mở cho mọi bạn đọc.
+                                    </p>
+                                    <div class="flex flex-col sm:flex-row gap-4 justify-center fade-in">
+                                        <button data-nav="catalog" class="bg-white text-purple-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors shadow-lg">📚 Tìm kiếm sách</button>
+                                        <button data-nav="cardRegistration" class="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-purple-700 transition-colors">🎫 Đăng ký thẻ bạn đọc</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+        <!-- Breaking News Ticker -->
+        <section class="bg-red-600 text-white py-2 overflow-hidden">
+            <div class="flex items-center">
+                <div class="bg-red-800 px-4 py-1 font-bold text-sm whitespace-nowrap">
+                    🔥 TIN NỔI BẬT
+                </div>
+                <div class="flex-1 overflow-hidden">
+                    <div class="animate-marquee whitespace-nowrap py-1 text-sm">
+                        📢 Khai trương phòng đọc 24/7 từ ngày 15/12 • 🎉 Triển lám "Đà Nẵng - 25 năm thành lập" • 📚 Ra mắt ứng dụng di động mới • 🎓 Khóa học kỹ năng số miễn phí
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main News Section -->
+        <section class="py-12 bg-gray-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid lg:grid-cols-3 gap-8">
+                    <!-- Featured News -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-8 cursor-pointer" data-article="main">
+                            <div class="relative">
+                                <div class="h-64 bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                                    <div class="text-center text-white">
+                                        <div class="text-6xl mb-4">🏛️</div>
+                                        <h3 class="text-xl font-bold">Khai trương phòng đọc 24/7</h3>
+                                    </div>
+                                </div>
+                                <div class="absolute top-4 left-4">
+                                    <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">TIN HOT</span>
+                                </div>
+                            </div>
+                            <div class="p-6">
+                                <h2 class="text-2xl font-bold mb-3 text-gray-800">Thư viện chính thức khai trương phòng đọc 24/7</h2>
+                                <p class="text-gray-600 mb-4">Từ ngày 15/12/2024, Thư viện Khoa học Tổng hợp Đà Nẵng chính thức khai trương phòng đọc hoạt động 24/7, phục vụ nhu cầu học tập và nghiên cứu của bạn đọc...</p>
+                                <div class="flex items-center justify-between text-sm text-gray-500">
+                                    <span>📅 10/12/2024</span>
+                                    <span>👁️ 1,247 lượt xem</span>
+                                    <button class="text-purple-600 hover:text-purple-800 font-semibold">Đọc tiếp →</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- News Grid -->
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <article class="bg-white rounded-lg shadow-lg overflow-hidden card-hover cursor-pointer" data-article="exhibition">
+                                <div class="h-48 bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center">
+                                    <div class="text-center text-white">
+                                        <div class="text-4xl mb-2">🎨</div>
+                                        <h4 class="font-bold">Triển lãm "Đà Nẵng - 25 năm"</h4>
+                                    </div>
+                                </div>
+                                <div class="p-4">
+                                    <h3 class="font-semibold mb-2">Triển lãm "Đà Nẵng - 25 năm thành lập thành phố trực thuộc TW"</h3>
+                                    <p class="text-gray-600 text-sm mb-3">Triển lãm ảnh và tư liệu quý về quá trình phát triển của thành phố Đà Nẵng...</p>
+                                    <div class="flex justify-between items-center text-xs text-gray-500">
+                                        <span>📅 08/12/2024</span>
+                                        <span>👁️ 892 lượt xem</span>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article class="bg-white rounded-lg shadow-lg overflow-hidden card-hover cursor-pointer" data-article="app">
+                                <div class="h-48 bg-gradient-to-r from-purple-400 to-pink-500 flex items-center justify-center">
+                                    <div class="text-center text-white">
+                                        <div class="text-4xl mb-2">📱</div>
+                                        <h4 class="font-bold">Ứng dụng di động mới</h4>
+                                    </div>
+                                </div>
+                                <div class="p-4">
+                                    <h3 class="font-semibold mb-2">Ra mắt ứng dụng thư viện thông minh</h3>
+                                    <p class="text-gray-600 text-sm mb-3">Ứng dụng mới với nhiều tính năng hiện đại: tìm kiếm AI, đặt chỗ online...</p>
+                                    <div class="flex justify-between items-center text-xs text-gray-500">
+                                        <span>📅 05/12/2024</span>
+                                        <span>👁️ 1,156 lượt xem</span>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article class="bg-white rounded-lg shadow-lg overflow-hidden card-hover cursor-pointer" data-article="course">
+                                <div class="h-48 bg-gradient-to-r from-orange-400 to-red-500 flex items-center justify-center">
+                                    <div class="text-center text-white">
+                                        <div class="text-4xl mb-2">🎓</div>
+                                        <h4 class="font-bold">Khóa học kỹ năng số</h4>
+                                    </div>
+                                </div>
+                                <div class="p-4">
+                                    <h3 class="font-semibold mb-2">Khóa học kỹ năng số miễn phí cho người cao tuổi</h3>
+                                    <p class="text-gray-600 text-sm mb-3">Chương trình đào tạo sử dụng máy tính, internet cơ bản dành cho người cao tuổi...</p>
+                                    <div class="flex justify-between items-center text-xs text-gray-500">
+                                        <span>📅 03/12/2024</span>
+                                        <span>👁️ 634 lượt xem</span>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article class="bg-white rounded-lg shadow-lg overflow-hidden card-hover cursor-pointer" data-article="newbooks">
+                                <div class="h-48 bg-gradient-to-r from-teal-400 to-green-500 flex items-center justify-center">
+                                    <div class="text-center text-white">
+                                        <div class="text-4xl mb-2">📚</div>
+                                        <h4 class="font-bold">Sách mới tháng 12</h4>
+                                    </div>
+                                </div>
+                                <div class="p-4">
+                                    <h3 class="font-semibold mb-2">Cập nhật 500+ đầu sách mới tháng 12</h3>
+                                    <p class="text-gray-600 text-sm mb-3">Bổ sung nhiều đầu sách hay trong các lĩnh vực khoa học, công nghệ, văn học...</p>
+                                    <div class="flex justify-between items-center text-xs text-gray-500">
+                                        <span>📅 01/12/2024</span>
+                                        <span>👁️ 789 lượt xem</span>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar -->
+                    <div class="space-y-6">
+                        <!-- Quick Stats -->
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <h3 class="text-lg font-bold mb-4 text-gray-800">📊 Thống kê nhanh</h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">📚 Tổng sách:</span>
+                                    <span id="totalBooksCount" class="font-bold text-blue-600">0</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">👥 Thành viên:</span>
+                                    <span id="totalMembersCount" class="font-bold text-green-600">0</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">📖 Đang mượn:</span>
+                                    <span id="loansActiveCount" class="font-bold text-orange-600">0</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600">🌐 Truy cập hôm nay:</span>
+                                    <span id="visitsTodayCount" class="font-bold text-purple-600">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Upcoming Events -->
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <h3 class="text-lg font-bold mb-4 text-gray-800">📅 Sự kiện sắp tới</h3>
+                            <div class="space-y-4">
+                                <button class="w-full text-left border-l-4 border-purple-500 pl-4 hover:bg-gray-50 rounded" data-event="ai">
+                                    <h4 class="font-semibold text-sm">Hội thảo "AI trong thư viện"</h4>
+                                    <p class="text-xs text-gray-600">📅 15/12/2024 - 14:00</p>
+                                    <p class="text-xs text-gray-500">🏛️ Hội trường A</p>
+                                </button>
+                                <button class="w-full text-left border-l-4 border-blue-500 pl-4 hover:bg-gray-50 rounded" data-event="club">
+                                    <h4 class="font-semibold text-sm">Câu lạc bộ đọc sách</h4>
+                                    <p class="text-xs text-gray-600">📅 18/12/2024 - 19:00</p>
+                                    <p class="text-xs text-gray-500">📚 Phòng đọc 2</p>
+                                </button>
+                                <button class="w-full text-left border-l-4 border-green-500 pl-4 hover:bg-gray-50 rounded" data-event="cv">
+                                    <h4 class="font-semibold text-sm">Workshop viết CV</h4>
+                                    <p class="text-xs text-gray-600">📅 20/12/2024 - 15:30</p>
+                                    <p class="text-xs text-gray-500">💻 Phòng máy tính</p>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Popular Books -->
+                        <div class="bg-white rounded-lg shadow-lg p-6">
+                            <h3 class="text-lg font-bold mb-4 text-gray-800">🔥 Sách được quan tâm</h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-bold text-sm">1</div>
+                                    <div class="flex-1">
+                                        <h4 class="font-semibold text-sm">Đắc Nhân Tâm</h4>
+                                        <p class="text-xs text-gray-500">Dale Carnegie</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm">2</div>
+                                    <div class="flex-1">
+                                        <h4 class="font-semibold text-sm">Sapiens</h4>
+                                        <p class="text-xs text-gray-500">Yuval Noah Harari</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold text-sm">3</div>
+                                    <div class="flex-1">
+                                        <h4 class="font-semibold text-sm">Atomic Habits</h4>
+                                        <p class="text-xs text-gray-500">James Clear</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Weather Widget (Sidebar peer) -->
+                        <div class="bg-white rounded-lg shadow-lg p-4 sm:p-6" data-weather-widget>
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="text-base sm:text-lg font-bold text-gray-800">Thời tiết Đà Nẵng</h3>
+                                    <div class="text-xs text-gray-500" data-updated>Đang cập nhật...</div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button data-unit="c" class="px-2 py-1 text-xs rounded bg-blue-50 text-blue-700 font-medium">°C</button>
+                                    <button data-unit="f" class="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600">°F</button>
+                                </div>
+                            </div>
+                            <div class="grid gap-4">
+                                <!-- Current + Forecast -->
+                                <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-4">
+                                    <div class="flex items-start justify-between">
+                                        <div>
+                                            <div class="text-4xl sm:text-5xl font-bold text-gray-900" data-temp>--°</div>
+                                            <div class="text-sm text-gray-700" data-cond>Đang tải...</div>
+                                            <div class="text-xs text-gray-500 mt-1">Cao <span data-high>--</span>° · Thấp <span data-low>--</span>°</div>
+                                        </div>
+                                        <div class="text-5xl" data-icon>⏳</div>
+                                    </div>
+                                    <!-- Forecast row: horizontally scrollable, responsive min 1 item -->
+                                    <div class="mt-4">
+                                        <div class="flex items-center gap-3 overflow-x-auto" data-forecast></div>
+                                    </div>
+                                </div>
+                                <!-- Tiles -->
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="bg-blue-50 rounded-lg p-3">
+                                        <div class="text-xs text-gray-600">Tầm nhìn</div>
+                                        <div class="text-lg font-semibold text-gray-800" data-visibility>-- km</div>
+                                        <div class="text-xs text-green-700" data-visibility-text></div>
+                                    </div>
+                                    <div class="bg-blue-50 rounded-lg p-3">
+                                        <div class="text-xs text-gray-600">Áp suất</div>
+                                        <div class="text-lg font-semibold text-gray-800"><span data-pressure>--</span> hPa</div>
+                                        <div class="text-xs text-gray-600" data-pressure-trend></div>
+                                    </div>
+                                    <div class="bg-blue-50 rounded-lg p-3 col-span-2">
+                                        <div>
+                                            <div class="text-xs text-gray-600">Gió</div>
+                                            <div class="text-lg font-semibold text-gray-800"><span data-wind-speed>--</span> km/h</div>
+                                            <div class="text-xs text-gray-600">Giật <span data-wind-gust>--</span> km/h · <span data-wind-dir>--</span>°</div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-blue-50 rounded-lg p-3">
+                                        <div class="text-xs text-gray-600">Độ ẩm</div>
+                                        <div class="text-lg font-semibold text-gray-800"><span data-humidity>--</span>%</div>
+                                        <div class="text-xs text-gray-600">Điểm sương <span data-dewpoint>--</span>°</div>
+                                    </div>
+                                    <div class="bg-blue-50 rounded-lg p-3">
+                                        <div class="text-xs text-gray-600">Chỉ số UV</div>
+                                        <div class="text-lg font-semibold text-gray-800" data-uv>--</div>
+                                        <div class="text-xs" data-uv-text></div>
+                                    </div>
+                                    <div class="bg-blue-50 rounded-lg p-3 col-span-2">
+                                        <div class="text-xs text-gray-600">Giờ nắng</div>
+                                        <div class="flex items-center justify-between text-sm text-gray-700">
+                                            <div><span data-daylength>--h --m</span></div>
+                                            <div class="flex gap-6">
+                                                <span>Bình minh <span data-sunrise>--:--</span></span>
+                                                <span>Hoàng hôn <span data-sunset>--:--</span></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-blue-50 rounded-lg p-3 col-span-2">
+                                        <div class="text-xs text-gray-600">Chất lượng không khí (AQI)</div>
+                                        <div class="text-lg font-semibold"><span data-aqi>--</span> <span class="text-sm" data-aqi-text></span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        
+
+        <!-- Quick Actions -->
+        <section class="py-12 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="text-2xl font-bold text-center mb-8 text-gray-800">🚀 Truy cập nhanh</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <button data-nav="catalog" class="bg-purple-50 hover:bg-purple-100 p-6 rounded-lg text-center transition-colors card-hover">
+                        <div class="text-3xl mb-2">📚</div>
+                        <h3 class="font-semibold text-purple-800">Tìm sách</h3>
+                    </button>
+                    <button data-nav="cardRegistration" class="bg-blue-50 hover:bg-blue-100 p-6 rounded-lg text-center transition-colors card-hover">
+                        <div class="text-3xl mb-2">🎫</div>
+                        <h3 class="font-semibold text-blue-800">Làm thẻ</h3>
+                    </button>
+                    <button data-nav="services" class="bg-green-50 hover:bg-green-100 p-6 rounded-lg text-center transition-colors card-hover">
+                        <div class="text-3xl mb-2">🛠️</div>
+                        <h3 class="font-semibold text-green-800">Dịch vụ</h3>
+                    </button>
+                    <button data-nav="member" class="bg-orange-50 hover:bg-orange-100 p-6 rounded-lg text-center transition-colors card-hover">
+                        <div class="text-3xl mb-2">👤</div>
+                        <h3 class="font-semibold text-orange-800">Thành viên</h3>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Assistant: Recommendations & Forecast -->
+        <section class="py-12 bg-gradient-to-b from-white to-blue-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid lg:grid-cols-3 gap-6">
+                    <!-- Personalized Recommendations -->
+                    <div class="lg:col-span-2 bg-white rounded-lg shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-bold text-gray-800">🤖 Gợi ý tài liệu cho bạn</h3>
+                            <button data-ai-action="refresh-recos" class="text-sm text-blue-600 hover:text-blue-800">Làm mới</button>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-4">Dựa trên hành vi tra cứu và lịch sử mượn, AI đề xuất tài liệu phù hợp cho bạn.</p>
+                        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" id="aiRecommendations">
+                            <!-- JS renders recommendation cards -->
+                        </div>
+                    </div>
+
+                    <!-- Demand Forecast -->
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-bold text-gray-800">📈 Dự báo nhu cầu</h3>
+                            <button data-ai-action="refresh-forecast" class="text-sm text-blue-600 hover:text-blue-800">Làm mới</button>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-4">AI dự báo nhu cầu sử dụng dịch vụ để tối ưu vận hành.</p>
+                        <div class="space-y-3" id="aiForecast">
+                            <!-- JS renders forecast bullets: chỗ ngồi, mượn sách, trả sách, gia hạn -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Floating Chatbot Button -->
+        <button id="aiChatFab" class="fixed bottom-6 right-6 bg-purple-600 hover:bg-purple-700 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg" title="Chat với AI">
+            💬
+        </button>
+
+        <!-- AI Chat Modal -->
+        <div id="aiChatModal" class="hidden fixed inset-0 bg-black/40 z-50 items-center justify-center">
+            <div class="bg-white w-[92vw] max-w-2xl max-h-[80vh] rounded-lg shadow-xl flex flex-col">
+                <div class="px-4 py-3 border-b flex items-center justify-between">
+                    <h3 class="font-bold">Trợ lý AI thư viện</h3>
+                    <button data-modal="close" data-target="aiChatModal" class="text-gray-500 hover:text-gray-700">✖</button>
+                </div>
+                <div id="aiChatBody" class="flex-1 overflow-auto p-4 space-y-3 bg-gray-50">
+                    <!-- Messages rendered here -->
+                </div>
+                <form id="aiChatForm" class="p-3 border-t flex items-center gap-2">
+                    <input id="aiChatInput" type="text" class="flex-1 border rounded px-3 py-2" placeholder="Hỏi về dịch vụ, thủ tục, tra cứu..." required />
+                    <button class="bg-purple-600 text-white px-4 py-2 rounded">Gửi</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Registration Page -->
+    <div id="cardRegistrationPage" class="page-content hidden">
+        <!-- Welcome Section -->
+        <div id="cardWelcome" class="card-section">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                    <div class="gradient-bg text-white p-8 text-center">
+                        <h1 class="text-3xl font-bold mb-4">Đăng ký thẻ bạn đọc</h1>
+                        <p class="text-xl">Thư viện Thành phố Đà Nẵng</p>
+                    </div>
+                    
+                    <div class="p-8">
+                        <h2 class="text-2xl font-semibold mb-6 text-center">Quy trình đăng ký thẻ bạn đọc</h2>
+                        
+                        <!-- Steps -->
+                        <div class="grid md:grid-cols-4 gap-6 mb-8">
+                            <div class="text-center">
+                                <div class="w-16 h-16 bg-purple-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">1</div>
+                                <h3 class="font-semibold mb-2">Điền thông tin</h3>
+                                <p class="text-gray-600 text-sm">Hoàn thành form đăng ký với đầy đủ thông tin cá nhân</p>
+                            </div>
+                            <div class="text-center">
+                                <div class="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">2</div>
+                                <h3 class="font-semibold mb-2">Upload ảnh</h3>
+                                <p class="text-gray-600 text-sm">Tải lên ảnh chân dung theo đúng quy cách</p>
+                            </div>
+                            <div class="text-center">
+                                <div class="w-16 h-16 bg-green-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">3</div>
+                                <h3 class="font-semibold mb-2">Thanh toán</h3>
+                                <p class="text-gray-600 text-sm">Thanh toán phí làm thẻ qua QR code hoặc khi nhận thẻ</p>
+                            </div>
+                            <div class="text-center">
+                                <div class="w-16 h-16 bg-orange-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">4</div>
+                                <h3 class="font-semibold mb-2">Nhận thẻ</h3>
+                                <p class="text-gray-600 text-sm">Nhận thẻ tại thư viện hoặc giao hàng tận nơi</p>
+                            </div>
+                        </div>
+
+                        <!-- Card Types Info -->
+                        <div class="bg-gray-50 p-6 rounded-lg mb-8">
+                            <h3 class="text-xl font-semibold mb-4">Các loại thẻ bạn đọc</h3>
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div class="bg-white p-4 rounded-lg">
+                                    <h4 class="font-semibold text-purple-600 mb-2">Thẻ đọc</h4>
+                                    <p class="text-sm text-gray-600">Chỉ được đọc sách tại thư viện</p>
+                                    <p class="text-sm font-semibold text-green-600">Miễn phí</p>
+                                </div>
+                                <div class="bg-white p-4 rounded-lg">
+                                    <h4 class="font-semibold text-blue-600 mb-2">Thẻ mượn</h4>
+                                    <p class="text-sm text-gray-600">Được mượn sách về nhà</p>
+                                    <p class="text-sm font-semibold text-green-600">50,000 VNĐ/năm</p>
+                                </div>
+                                <div class="bg-white p-4 rounded-lg">
+                                    <h4 class="font-semibold text-orange-600 mb-2">Thẻ thiếu nhi</h4>
+                                    <p class="text-sm text-gray-600">Dành cho trẻ em từ 1-15 tuổi</p>
+                                    <p class="text-sm font-semibold text-green-600">20,000 VNĐ/năm</p>
+                                </div>
+                                <div class="bg-white p-4 rounded-lg">
+                                    <h4 class="font-semibold text-red-600 mb-2">Thẻ Shub</h4>
+                                    <p class="text-sm text-gray-600">Thẻ cao cấp với nhiều ưu đãi</p>
+                                    <p class="text-sm font-semibold text-green-600">200,000 VNĐ/năm</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-center space-y-4">
+                            <button data-card-section="form" class="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors">
+                                Bắt đầu đăng ký
+                            </button>
+                            <div class="flex justify-center space-x-4">
+                                <button data-card-section="lookup" class="text-purple-600 hover:text-purple-800 underline">
+                                    Tra cứu thông tin thẻ
+                                </button>
+                                <button data-card-section="rules" class="text-blue-600 hover:text-blue-800 underline">
+                                    Xem nội quy làm thẻ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registration Form -->
+        <div id="cardForm" class="card-section hidden">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="bg-white rounded-lg shadow-lg p-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <h1 class="text-2xl font-bold">Đăng ký thẻ bạn đọc</h1>
+                        <button data-card-section="welcome" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-arrow-left mr-2"></i>Quay lại
+                        </button>
+                    </div>
+
+                    <form id="registrationForm">
+                        <!-- Card Type Selection -->
+                        <div class="grid md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Loại thẻ *</label>
+                                <select id="cardType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                                    <option value="">Chọn loại thẻ</option>
+                                    <option value="doc" data-price="0">Thẻ đọc (Miễn phí)</option>
+                                    <option value="muon" data-price="50000">Thẻ mượn (50,000 VNĐ)</option>
+                                    <option value="thieunhi" data-price="20000">Thẻ thiếu nhi (20,000 VNĐ)</option>
+                                    <option value="shub" data-price="200000">Thẻ Shub (200,000 VNĐ)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Loại bạn đọc *</label>
+                                <select id="readerType" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                                    <option value="">Chọn loại bạn đọc</option>
+                                    <option value="canbo" data-discount="0">Cán bộ</option>
+                                    <option value="sinhvien" data-discount="20">Sinh viên (Giảm 20%)</option>
+                                    <option value="hocsinh" data-discount="30">Học sinh (Giảm 30%)</option>
+                                    <option value="thieunhi" data-discount="50">Thiếu nhi (Giảm 50%)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Personal Information -->
+                        <div class="grid md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Họ và tên *</label>
+                                <input type="text" id="fullName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Giới tính *</label>
+                                <select id="gender" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                                    <option value="">Chọn giới tính</option>
+                                    <option value="nam">Nam</option>
+                                    <option value="nu">Nữ</option>
+                                    <option value="khac">Khác</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Ngày sinh *</label>
+                                <input type="date" id="birthDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                                <div id="ageError" class="text-red-500 text-sm mt-1 hidden"></div>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">CMND/CCCD *</label>
+                                <input type="text" id="idNumber" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                                <div id="idError" class="text-red-500 text-sm mt-1 hidden"></div>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Địa chỉ *</label>
+                            <textarea id="address" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required></textarea>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Email *</label>
+                                <input type="email" id="email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                                <div id="emailError" class="text-red-500 text-sm mt-1 hidden"></div>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Điện thoại *</label>
+                                <input type="tel" id="phone" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                                <div id="phoneError" class="text-red-500 text-sm mt-1 hidden"></div>
+                            </div>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Nghề nghiệp</label>
+                                <input type="text" id="occupation" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Nơi làm việc</label>
+                                <input type="text" id="workplace" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Quốc tịch *</label>
+                            <select id="nationality" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                                <option value="">Chọn quốc tịch</option>
+                                <option value="vietnam">Việt Nam</option>
+                                <option value="other">Khác</option>
+                            </select>
+                        </div>
+
+                        <!-- Photo Upload -->
+                        <div class="mb-6">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Ảnh làm thẻ (3x4) *</label>
+                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                                <div class="text-center">
+                                    <input type="file" id="photoUpload" accept="image/*" class="hidden">
+                                    <div id="photoPreview" class="hidden mb-4">
+                                        <img id="previewImage" class="image-preview mx-auto rounded-lg" loading="lazy">
+                                        <div class="mt-4 space-x-2">
+                                            <button type="button" data-photo="crop" class="bg-blue-500 text-white px-4 py-2 rounded text-sm">Cắt ảnh</button>
+                                            <button type="button" data-photo="remove" class="bg-red-500 text-white px-4 py-2 rounded text-sm">Xóa ảnh</button>
+                                        </div>
+                                    </div>
+                                    <div id="uploadArea">
+                                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                                        <p class="text-gray-600 mb-2">Nhấn để chọn ảnh hoặc kéo thả ảnh vào đây</p>
+                                        <button type="button" data-photo="pick" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">
+                                            Chọn ảnh
+                                        </button>
+                                    </div>
+                                    <div id="photoError" class="text-red-500 text-sm mt-3 hidden"></div>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-sm text-gray-600">
+                                <p><strong>Yêu cầu ảnh:</strong></p>
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li>Ảnh chụp không quá 6 tháng</li>
+                                    <li>Chân dung sơ mi trắng, phông xanh dương</li>
+                                    <li>Mắt nhìn thẳng, rõ mặt, rõ nét</li>
+                                    <li>Kích thước 3x4 cm</li>
+                                    <li>Chấp nhận ảnh chụp bằng máy ảnh và điện thoại</li>
+                                </ul>
+                            </div>
+                            <!-- Sample Photo -->
+                            <div class="mt-4 p-4 bg-blue-50 rounded-lg">
+                                <p class="text-sm font-semibold text-blue-800 mb-2">Ảnh mẫu:</p>
+                                <div class="w-24 h-32 bg-blue-200 rounded border-2 border-blue-300 flex items-center justify-center">
+                                    <div class="text-center text-blue-600">
+                                        <i class="fas fa-user text-2xl mb-1"></i>
+                                        <p class="text-xs">Ảnh mẫu<br>3x4</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Delivery Options -->
+                        <div class="mb-6">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Nơi nhận thẻ *</label>
+                            <div class="space-y-3">
+                                <label class="flex items-center">
+                                    <input type="radio" name="delivery" value="library" class="mr-3" required>
+                                    <span>Nhận tại thư viện (Miễn phí)</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="delivery" value="home" class="mr-3">
+                                    <span>Giao hàng tận nơi (+30,000 VNĐ)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Total Cost -->
+                        <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                            <div class="flex justify-between items-center">
+                                <span class="font-semibold">Tổng tiền:</span>
+                                <span id="totalCost" class="text-2xl font-bold text-purple-600">0 VNĐ</span>
+                            </div>
+                            <p class="text-sm text-gray-600 mt-2">* Phí đã bao gồm cước vận chuyển (nếu có)</p>
+                        </div>
+
+                        <!-- Captcha -->
+                        <div class="mb-6">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Mã xác thực *</label>
+                            <div class="flex items-center space-x-4">
+                                <div class="bg-gray-200 px-4 py-2 rounded border text-lg font-mono" id="captchaCode">
+                                    <!-- Captcha will be generated by JS -->
+                                </div>
+                                <button type="button" data-captcha="refresh" class="text-purple-600 hover:text-purple-800">
+                                    <i class="fas fa-refresh"></i>
+                                </button>
+                                <input type="text" id="captchaInput" placeholder="Nhập mã xác thực" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors">
+                                Đăng ký thẻ bạn đọc
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registration Success -->
+        <div id="cardSuccess" class="card-section hidden">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="bg-white rounded-lg shadow-lg p-8 text-center">
+                    <div class="text-green-500 text-6xl mb-4">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h1 class="text-3xl font-bold text-green-600 mb-4">Đăng ký thành công!</h1>
+                    
+                    <div class="bg-gray-50 p-6 rounded-lg mb-6">
+                        <h2 class="text-xl font-semibold mb-4">Thông tin đăng ký</h2>
+                        <div class="text-left space-y-2">
+                            <p><strong>Mã đăng ký thẻ:</strong> <span id="registrationCode" class="text-purple-600 font-mono">DK2024001234</span></p>
+                            <p><strong>Họ tên:</strong> <span id="successName"></span></p>
+                            <p><strong>Loại thẻ:</strong> <span id="successCardType"></span></p>
+                            <p><strong>Tổng tiền:</strong> <span id="successTotal" class="text-green-600 font-semibold"></span></p>
+                        </div>
+                    </div>
+
+                    <!-- Payment Options -->
+                    <div id="bankPayment" class="mb-6">
+                        <div class="bg-blue-50 p-6 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-4">Thanh toán qua ngân hàng</h3>
+                            <p class="mb-4">Quý khách quét mã QR để thanh toán với nội dung chuyển khoản là: "<span id="transferContent" class="font-semibold"></span>"</p>
+                            
+                            <div class="qr-code mx-auto mb-4"></div>
+                            
+                            <div class="space-x-4">
+                                <button data-card="download-qr" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                                    <i class="fas fa-download mr-2"></i>Tải mã QR
+                                </button>
+                                <button data-card="preview" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700">
+                                    <i class="fas fa-eye mr-2"></i>Xem trước thẻ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <button data-card-section="welcome" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700">
+                            Về trang chủ
+                        </button>
+                        <div>
+                            <button data-card-section="lookup" class="text-purple-600 hover:text-purple-800 underline">
+                                Tra cứu trạng thái thẻ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Lookup -->
+        <div id="cardLookup" class="card-section hidden">
+            <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="bg-white rounded-lg shadow-lg p-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <h1 class="text-2xl font-bold">Tra cứu thông tin thẻ</h1>
+                        <button data-card-section="welcome" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-arrow-left mr-2"></i>Quay lại
+                        </button>
+                    </div>
+
+                    <form id="cardLookupForm">
+                        <div class="space-y-4 mb-6">
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Họ và tên *</label>
+                                <input type="text" id="lookupName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Ngày sinh *</label>
+                                <input type="date" id="lookupBirth" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Số điện thoại *</label>
+                                <input type="tel" id="lookupPhone" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors">
+                            Tra cứu thông tin
+                        </button>
+                    </form>
+
+                    <!-- Lookup Results -->
+                    <div id="lookupResults" class="hidden mt-8">
+                        <div class="border-t pt-6">
+                            <h3 class="text-lg font-semibold mb-4">Kết quả tra cứu</h3>
+                            <div id="lookupContent">
+                                <!-- Results will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rules Page -->
+        <div id="cardRules" class="card-section hidden">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="bg-white rounded-lg shadow-lg p-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <h1 class="text-2xl font-bold">Nội quy làm thẻ bạn đọc</h1>
+                        <button data-card-section="welcome" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-arrow-left mr-2"></i>Quay lại
+                        </button>
+                    </div>
+
+                    <div class="space-y-6">
+                        <section>
+                            <h2 class="text-xl font-semibold mb-4 text-purple-600">1. Điều kiện làm thẻ</h2>
+                            <ul class="list-disc list-inside space-y-2 text-gray-700">
+                                <li>Công dân Việt Nam từ đủ 1 tuổi trở lên</li>
+                                <li>Người nước ngoài có giấy tờ hợp lệ tại Việt Nam</li>
+                                <li>Cung cấp đầy đủ thông tin cá nhân chính xác</li>
+                                <li>Có ảnh chân dung theo đúng quy cách</li>
+                            </ul>
+                        </section>
+
+                        <section>
+                            <h2 class="text-xl font-semibold mb-4 text-blue-600">2. Phí làm thẻ</h2>
+                            <div class="overflow-x-auto">
+                                <table class="w-full border-collapse border border-gray-300">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="border border-gray-300 px-4 py-2 text-left">Loại thẻ</th>
+                                            <th class="border border-gray-300 px-4 py-2 text-left">Phí (VNĐ)</th>
+                                            <th class="border border-gray-300 px-4 py-2 text-left">Thời hạn</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="border border-gray-300 px-4 py-2">Thẻ đọc</td>
+                                            <td class="border border-gray-300 px-4 py-2">Miễn phí</td>
+                                            <td class="border border-gray-300 px-4 py-2">1 năm</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="border border-gray-300 px-4 py-2">Thẻ mượn</td>
+                                            <td class="border border-gray-300 px-4 py-2">50,000</td>
+                                            <td class="border border-gray-300 px-4 py-2">1 năm</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="border border-gray-300 px-4 py-2">Thẻ thiếu nhi</td>
+                                            <td class="border border-gray-300 px-4 py-2">20,000</td>
+                                            <td class="border border-gray-300 px-4 py-2">1 năm</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="border border-gray-300 px-4 py-2">Thẻ Shub</td>
+                                            <td class="border border-gray-300 px-4 py-2">200,000</td>
+                                            <td class="border border-gray-300 px-4 py-2">1 năm</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section>
+                            <h2 class="text-xl font-semibold mb-4 text-green-600">3. Ưu đãi theo đối tượng</h2>
+                            <ul class="list-disc list-inside space-y-2 text-gray-700">
+                                <li>Sinh viên: Giảm 20% phí làm thẻ</li>
+                                <li>Học sinh: Giảm 30% phí làm thẻ</li>
+                                <li>Thiếu nhi (1-15 tuổi): Giảm 50% phí làm thẻ</li>
+                                <li>Người khuyết tật: Miễn phí</li>
+                                <li>Người cao tuổi (trên 60): Giảm 50%</li>
+                            </ul>
+                        </section>
+
+                        <section>
+                            <h2 class="text-xl font-semibold mb-4 text-orange-600">4. Quy định về ảnh</h2>
+                            <ul class="list-disc list-inside space-y-2 text-gray-700">
+                                <li>Ảnh chân dung, kích thước 3x4 cm</li>
+                                <li>Chụp không quá 6 tháng</li>
+                                <li>Mặc áo sơ mi trắng, nền xanh dương</li>
+                                <li>Mắt nhìn thẳng, không đeo kính râm</li>
+                                <li>Rõ mặt, rõ nét, không mờ</li>
+                                <li>Không chỉnh sửa quá mức</li>
+                            </ul>
+                        </section>
+
+                        <section>
+                            <h2 class="text-xl font-semibold mb-4 text-red-600">5. Thời gian xử lý</h2>
+                            <ul class="list-disc list-inside space-y-2 text-gray-700">
+                                <li>Xét duyệt hồ sơ: 1-2 ngày làm việc</li>
+                                <li>In thẻ: 2-3 ngày làm việc</li>
+                                <li>Giao hàng tận nơi: 1-2 ngày (trong nội thành Đà Nẵng)</li>
+                                <li>Tổng thời gian: 4-7 ngày làm việc</li>
+                            </ul>
+                        </section>
+
+                        <section>
+                            <h2 class="text-xl font-semibold mb-4 text-purple-600">6. Liên hệ hỗ trợ</h2>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <p><strong>Hotline:</strong> 0236.3822.346</p>
+                                <p><strong>Email:</strong> thuvien@danang.gov.vn</p>
+                                <p><strong>Địa chỉ:</strong> 25 Lê Duẩn, Hải Châu, Đà Nẵng</p>
+                                <p><strong>Giờ làm việc:</strong> 7:30 - 21:30 (Thứ 2 - Chủ nhật)</p>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cropper Modal -->
+    <div id="cropperModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 overflow-y-auto" role="dialog" aria-modal="true">
+        <div class="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
+                <h3 class="text-lg font-semibold">Cắt ảnh 3x4</h3>
+                        <button data-modal="close" data-target="cropperModal" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 overflow-hidden">
+                <div class="relative w-full max-h-[70vh] overflow-auto">
+                    <img id="cropperImage" class="block max-w-full h-auto mx-auto" loading="lazy" />
+                </div>
+                <div class="mt-4 flex justify-end gap-3">
+                    <button data-photo="cancel" class="px-4 py-2 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">Hủy</button>
+                    <button data-photo="apply" class="px-4 py-2 rounded bg-purple-600 text-white hover:bg-purple-700">Áp dụng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Catalog Page -->
+    <!-- Event Details Modal -->
+    <div id="eventModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg max-w-lg w-full">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 id="eventTitle" class="text-lg font-semibold">Chi tiết sự kiện</h3>
+                <button data-modal="close" data-target="eventModal" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 space-y-2" id="eventContent">
+                <!-- Event details injected here -->
+            </div>
+            <div class="p-4 border-t text-right">
+                <button data-modal="close" data-target="eventModal" class="px-4 py-2 rounded bg-purple-600 text-white hover:bg-purple-700">Đóng</button>
+            </div>
+        </div>
+    </div>
+    <div id="catalogPage" class="page-content hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <h1 class="text-3xl font-bold mb-8 text-gray-800">Danh mục sách</h1>
+            
+            <!-- Search and Filter -->
+            <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+                <div class="grid md:grid-cols-4 gap-4">
+                    <div class="md:col-span-2">
+                        <input type="text" id="searchInput" placeholder="Tìm kiếm sách, tác giả..." 
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    </div>
+                    <select id="categoryFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        <option value="">Tất cả thể loại</option>
+                        <option value="văn học">Văn học</option>
+                        <option value="khoa học">Khoa học</option>
+                        <option value="lịch sử">Lịch sử</option>
+                        <option value="kinh tế">Kinh tế</option>
+                        <option value="thiếu nhi">Thiếu nhi</option>
+                    </select>
+                    <button data-action="search-books" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors">
+                        <i class="fas fa-search mr-2"></i>Tìm kiếm
+                    </button>
+                </div>
+
+                <!-- Advanced search and help -->
+                <details class="mt-4">
+                    <summary class="cursor-pointer text-sm text-purple-700 hover:underline">Tìm kiếm nâng cao & Hướng dẫn</summary>
+                    <div class="mt-3 p-4 bg-gray-50 rounded-lg space-y-4">
+                        <div class="grid md:grid-cols-3 gap-4">
+                            <div>
+                                <h4 class="font-semibold text-sm mb-2">Cách khớp</h4>
+                                <div class="space-y-1 text-sm text-gray-700">
+                                    <label class="flex items-center gap-2"><input type="radio" name="searchMode" value="contains" checked> <span>Chứa cụm (khuyến nghị)</span></label>
+                                    <label class="flex items-center gap-2"><input type="radio" name="searchMode" value="starts"> <span>Bắt đầu bằng</span></label>
+                                    <label class="flex items-center gap-2"><input type="radio" name="searchMode" value="exact"> <span>Chính xác</span></label>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-sm mb-2">Trường cần tìm</h4>
+                                <div class="grid grid-cols-2 gap-2 text-sm text-gray-700">
+                                    <label class="flex items-center gap-2"><input type="checkbox" name="searchField" value="title" checked> <span>Tiêu đề</span></label>
+                                    <label class="flex items-center gap-2"><input type="checkbox" name="searchField" value="author" checked> <span>Tác giả</span></label>
+                                    <label class="flex items-center gap-2"><input type="checkbox" name="searchField" value="code"> <span>Mã sách</span></label>
+                                    <label class="flex items-center gap-2"><input type="checkbox" name="searchField" value="category"> <span>Thể loại</span></label>
+                                </div>
+                                <div class="mt-2 text-sm text-gray-700">
+                                    <label class="inline-flex items-center gap-2"><input type="checkbox" id="noDiacritics" checked> <span>Bỏ dấu khi tìm</span></label>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-sm mb-2">Hướng dẫn tra cứu</h4>
+                                <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
+                                    <li>Không cần gõ dấu: "suy nghi nhanh va cham" sẽ tìm được “Thinking, Fast and Slow”.</li>
+                                    <li>Dùng mã sách: nhập "BK001" để tìm nhanh theo mã.</li>
+                                    <li>Lọc theo thể loại ở ô bên cạnh thanh tìm kiếm.</li>
+                                    <li>Chọn "Bắt đầu bằng" nếu bạn nhớ từ đầu của tiêu đề.</li>
+                                    <li>Chọn "Chính xác" để khớp đúng cụm từ đã nhập.</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="pt-2 border-t text-sm text-gray-600">
+                            Mẹo: Bạn có thể kết hợp từ khóa và lọc thể loại để thu hẹp kết quả. Nhấn nút "Tìm kiếm" để áp dụng.
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <!-- Book Grid -->
+            <div id="bookGrid" class="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Books will be populated by JavaScript -->
+            </div>
+
+            <!-- Pagination (dynamic) -->
+            <div id="pagination" class="flex justify-center mt-8"></div>
+        </div>
+    </div>
+
+    <!-- Services Page -->
+    <div id="servicesPage" class="page-content hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <h1 class="text-3xl font-bold mb-8 text-gray-800">Dịch vụ thư viện</h1>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Library Services -->
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-2xl font-semibold mb-6 text-purple-600">Dịch vụ cơ bản</h2>
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-book text-purple-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Mượn sách tại chỗ và về nhà</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-laptop text-purple-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Sử dụng máy tính và internet miễn phí</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-print text-purple-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">In ấn và photocopy</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-wifi text-purple-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Wifi miễn phí toàn thư viện</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Digital Services -->
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-2xl font-semibold mb-6 text-blue-600">Dịch vụ số</h2>
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-tablet text-blue-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Thư viện điện tử</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-headphones text-blue-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Sách nói và podcast</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-database text-blue-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Cơ sở dữ liệu học thuật</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-mobile-alt text-blue-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Ứng dụng di động</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Study Spaces -->
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-2xl font-semibold mb-6 text-green-600">Không gian học tập</h2>
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-users text-green-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Phòng học nhóm (2-8 người)</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-user text-green-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Khu vực học tập cá nhân</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-volume-mute text-green-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Phòng yên tĩnh tuyệt đối</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-coffee text-green-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Khu vực thư giãn</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Events -->
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-2xl font-semibold mb-6 text-orange-600">Sự kiện & Hoạt động</h2>
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-calendar text-orange-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Câu lạc bộ đọc sách</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-chalkboard-teacher text-orange-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Hội thảo và workshop</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-child text-orange-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Hoạt động cho trẻ em</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-microphone text-orange-600 text-2xl w-7 text-center shrink-0"></i>
+                            <span class="text-gray-800 text-base leading-6">Buổi giao lưu tác giả</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Booking Section -->
+            <div class="mt-8 bg-gradient-to-r from-purple-600 to-blue-600 text-white p-8 rounded-lg">
+                <h2 class="text-2xl font-bold mb-4">Đặt lịch sử dụng dịch vụ</h2>
+                <p class="mb-6">Đặt trước phòng học nhóm, máy tính hoặc tham gia các hoạt động</p>
+                    <button data-action="open-booking" class="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                    Đặt lịch ngay
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Member Page -->
+    <div id="memberPage" class="page-content hidden">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <h1 class="text-3xl font-bold mb-8 text-gray-800">Thông tin thành viên</h1>
+            
+            <!-- Login/Register Toggle -->
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="flex border-b">
+                    <button id="loginTab" class="flex-1 py-4 px-6 text-center font-semibold bg-purple-600 text-white">
+                        Đăng nhập
+                    </button>
+                    <button id="registerTab" class="flex-1 py-4 px-6 text-center font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">
+                        Đăng ký
+                    </button>
+                </div>
+
+                <!-- Login Form -->
+                <div id="loginForm" class="p-8">
+                    <h2 class="text-2xl font-semibold mb-6">Đăng nhập tài khoản</h2>
+                    <form onsubmit="handleLogin(event)">
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Số thẻ thư viện hoặc Email</label>
+                            <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
+                        </div>
+                        <div class="mb-6">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Mật khẩu</label>
+                            <input type="password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
+                        </div>
+                        <button type="submit" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors">
+                            Đăng nhập
+                        </button>
+                    </form>
+                    <p class="text-center mt-4 text-gray-600">
+                        <a href="#" class="text-purple-600 hover:underline">Quên mật khẩu?</a>
+                    </p>
+                </div>
+
+                <!-- Register Form -->
+                <div id="registerForm" class="p-8 hidden">
+                    <h2 class="text-2xl font-semibold mb-6">Đăng ký thành viên mới</h2>
+                    <form onsubmit="handleRegister(event)">
+                        <div class="grid md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Họ và tên</label>
+                                <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Số điện thoại</label>
+                                <input type="tel" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                            <input type="email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Địa chỉ</label>
+                            <textarea class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" rows="3" required></textarea>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Ngày sinh</label>
+                                <input type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2">Nghề nghiệp</label>
+                                <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent" required>
+                                    <option value="">Chọn nghề nghiệp</option>
+                                    <option value="student">Học sinh/Sinh viên</option>
+                                    <option value="teacher">Giáo viên</option>
+                                    <option value="office">Nhân viên văn phòng</option>
+                                    <option value="other">Khác</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors">
+                            Đăng ký thành viên
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+                <!-- Member Dashboard (Hidden by default) -->
+            <div id="memberDashboard" class="hidden">
+                <div class="bg-white rounded-lg shadow-lg p-8 mb-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-2xl font-semibold">Xin chào, <span id="memberName">Nguyễn Văn A</span>!</h2>
+                        <button data-member="logout" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Đăng xuất
+                        </button>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-4 gap-6">
+                        <div class="bg-blue-50 p-4 rounded-lg text-left">
+                            <h3 class="font-semibold text-blue-800 mb-2">Sách đang mượn</h3>
+                            <div id="memberLoansCount" class="text-2xl font-bold text-blue-600">0</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg text-left">
+                            <h3 class="font-semibold text-green-800 mb-2">Sách đã đọc</h3>
+                            <div id="memberReadCount" class="text-2xl font-bold text-green-600">0</div>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg text-left">
+                            <h3 class="font-semibold text-purple-800 mb-2 flex items-center gap-2">Thông báo <span id="memberNotifBadge" class="hidden text-xs bg-purple-600 text-white px-2 py-0.5 rounded-full">0</span></h3>
+                            <div class="text-2xl font-bold text-purple-600"><i class="fas fa-bell"></i></div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg text-left">
+                            <h3 class="font-semibold text-gray-800 mb-2">Thông tin cá nhân</h3>
+                            <div class="text-2xl font-bold text-gray-600"><i class="fas fa-id-card-alt"></i></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dynamic Member Panel -->
+                <div id="memberDynamicPanel" class="bg-white rounded-lg shadow-lg p-8">
+                    <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
+                        <h3 id="memberPanelTitle" class="text-xl font-semibold">Sách đang mượn</h3>
+                        <div class="flex flex-wrap gap-2 text-sm">
+                            <button data-member-panel="loans" class="px-3 py-1 rounded bg-purple-600 text-white">Đang mượn</button>
+                            <button data-member-panel="history" class="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200">Lịch sử</button>
+                            <button data-member-panel="notifications" class="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200">Thông báo</button>
+                            <button data-member-panel="profile" class="px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200">Cập nhật hồ sơ</button>
+                        </div>
+                    </div>
+                    <div id="memberPanelBody" class="space-y-6">
+                        <!-- Loans (default) -->
+                        <div data-member-section="loans" class="space-y-4">
+                            <div class="text-sm text-gray-600">Danh sách tài liệu bạn đang mượn. Chọn một tài liệu để trả hoặc gia hạn.</div>
+                            <div id="memberLoansList" class="divide-y"></div>
+                        </div>
+                        <!-- History -->
+                        <div data-member-section="history" class="hidden space-y-4">
+                            <div class="text-sm text-gray-600">Lịch sử mượn/trả tài liệu gần đây.</div>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full text-sm">
+                                    <thead>
+                                        <tr class="bg-gray-50 text-gray-700">
+                                            <th class="px-3 py-2 text-left font-semibold">Tài liệu</th>
+                                            <th class="px-3 py-2 text-left font-semibold">Mã</th>
+                                            <th class="px-3 py-2 text-left font-semibold">Mượn</th>
+                                            <th class="px-3 py-2 text-left font-semibold">Trả</th>
+                                            <th class="px-3 py-2 text-left font-semibold">Trạng thái</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="memberHistoryTable" class="divide-y"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- Notifications -->
+                        <div data-member-section="notifications" class="hidden space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-semibold text-gray-800">Thông báo của bạn</h4>
+                                <div class="flex items-center gap-3 text-xs">
+                                    <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="notifDue" class="rounded"> <span>Sắp đến hạn</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="notifEvents" class="rounded"> <span>Sự kiện</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="notifSystem" class="rounded"> <span>Hệ thống</span></label>
+                                </div>
+                            </div>
+                            <div id="memberNotificationsList" class="space-y-3"></div>
+                        </div>
+                        <!-- Profile Update -->
+                        <div data-member-section="profile" class="hidden space-y-4">
+                            <div class="text-sm text-gray-600">Cập nhật thông tin cá nhân để giữ hồ sơ chính xác.</div>
+                            <form id="memberProfileForm" class="grid md:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <label class="block text-gray-700 font-medium mb-1">Họ và tên</label>
+                                    <input id="profileFullName" type="text" class="w-full border rounded px-3 py-2" required>
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 font-medium mb-1">Email</label>
+                                    <input id="profileEmail" type="email" class="w-full border rounded px-3 py-2" required>
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 font-medium mb-1">Điện thoại</label>
+                                    <input id="profilePhone" type="tel" class="w-full border rounded px-3 py-2" required>
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 font-medium mb-1">Địa chỉ</label>
+                                    <input id="profileAddress" type="text" class="w-full border rounded px-3 py-2" required>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-gray-700 font-medium mb-1">Sở thích đọc (từ khóa)</label>
+                                    <input id="profileTags" type="text" class="w-full border rounded px-3 py-2" placeholder="ví dụ: kỹ năng, công nghệ, lịch sử">
+                                </div>
+                                <div class="md:col-span-2 flex justify-end">
+                                    <button class="bg-purple-600 text-white px-5 py-2 rounded hover:bg-purple-700">Lưu thay đổi</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Page -->
+    <div id="adminPage" class="page-content hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <h1 class="text-3xl font-bold mb-8 text-gray-800">Quản lý thư viện</h1>
+            
+            <!-- Admin Stats -->
+            <div class="grid md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600">Tổng sách</p>
+                            <p class="text-2xl font-bold text-blue-600">50,247</p>
+                        </div>
+                        <i class="fas fa-books text-3xl text-blue-600"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600">Thành viên</p>
+                            <p class="text-2xl font-bold text-green-600">15,432</p>
+                        </div>
+                        <i class="fas fa-users text-3xl text-green-600"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600">Đang mượn</p>
+                            <p class="text-2xl font-bold text-orange-600">3,247</p>
+                        </div>
+                        <i class="fas fa-hand-holding text-3xl text-orange-600"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600">Quá hạn</p>
+                            <p class="text-2xl font-bold text-red-600">127</p>
+                        </div>
+                        <i class="fas fa-exclamation-triangle text-3xl text-red-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Functional Menu -->
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="flex border-b overflow-x-auto" role="tablist" aria-label="Chức năng quản trị / nhân viên">
+                    <button id="booksTab" class="admin-tab px-6 py-4 font-semibold bg-purple-600 text-white whitespace-nowrap">
+                        Quản lý sách
+                    </button>
+                    <button id="membersTab" class="admin-tab px-6 py-4 font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap">
+                        Quản lý thành viên
+                    </button>
+                    <button id="loansTab" class="admin-tab px-6 py-4 font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap">
+                        Quản lý mượn trả
+                    </button>
+                    <button id="approvalsTab" class="admin-tab px-6 py-4 font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap">
+                        Phê duyệt thẻ
+                    </button>
+                    <button id="reservationsTab" class="admin-tab px-6 py-4 font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap">
+                        Đặt chỗ
+                    </button>
+                    <button id="violationsTab" class="admin-tab px-6 py-4 font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap">
+                        Vi phạm
+                    </button>
+                    <button id="notifyTab" class="admin-tab px-6 py-4 font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap">
+                        Thông báo
+                    </button>
+                    <button id="reportsTab" class="admin-tab px-6 py-4 font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap">
+                        Báo cáo
+                    </button>
+                    <button id="monitorTab" class="admin-tab px-6 py-4 font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap">Giám sát</button>
+                    <button id="configTab" class="admin-tab px-6 py-4 font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap">Cấu hình</button>
+                </div>
+
+                <!-- Books Management -->
+                <div id="booksAdmin" class="admin-content p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-semibold">Quản lý sách</h2>
+                        <button data-admin="add-book" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">
+                            <i class="fas fa-plus mr-2"></i>Thêm sách mới
+                        </button>
+                    </div>
+                    
+                    <!-- Monitoring (future) -->
+                    <div id="monitorAdmin" class="admin-content p-10 hidden text-center text-gray-600">
+                        <p class="text-lg">Các chức năng này sẽ sớm xuất hiện trong tương lai</p>
+                    </div>
+
+                    <!-- System Configuration (future) -->
+                    <div id="configAdmin" class="admin-content p-10 hidden text-center text-gray-600">
+                        <p class="text-lg">Các chức năng này sẽ sớm xuất hiện trong tương lai</p>
+                    </div>
+                                        <button class="text-red-600 hover:text-red-800">Khóa</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Loans Management -->
+                <div id="loansAdmin" class="admin-content p-6 hidden">
+                    <h2 class="text-xl font-semibold mb-6">Quản lý mượn trả</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full table-auto">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left">Mã mượn</th>
+                                    <th class="px-4 py-3 text-left">Thành viên</th>
+                                    <th class="px-4 py-3 text-left">Sách</th>
+                                    <th class="px-4 py-3 text-left">Ngày mượn</th>
+                                    <th class="px-4 py-3 text-left">Hạn trả</th>
+                                    <th class="px-4 py-3 text-left">Trạng thái</th>
+                                    <th class="px-4 py-3 text-left">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-4 py-3">LN001</td>
+                                    <td class="px-4 py-3">Nguyễn Văn A</td>
+                                    <td class="px-4 py-3">Đắc Nhân Tâm</td>
+                                    <td class="px-4 py-3">01/12/2024</td>
+                                    <td class="px-4 py-3">15/12/2024</td>
+                                    <td class="px-4 py-3"><span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-sm">Đang mượn</span></td>
+                                    <td class="px-4 py-3">
+                                        <button class="text-green-600 hover:text-green-800 mr-2">Trả sách</button>
+                                        <button class="text-blue-600 hover:text-blue-800">Gia hạn</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Card Approvals -->
+                <div id="approvalsAdmin" class="admin-content p-6 hidden">
+                    <h2 class="text-xl font-semibold mb-6">Phê duyệt đăng ký thẻ</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full table-auto text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Mã hồ sơ</th>
+                                    <th class="px-3 py-2 text-left">Họ tên</th>
+                                    <th class="px-3 py-2 text-left">Loại thẻ</th>
+                                    <th class="px-3 py-2 text-left">Ngày đăng ký</th>
+                                    <th class="px-3 py-2 text-left">Trạng thái</th>
+                                    <th class="px-3 py-2 text-left">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="approvalsTable" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Seat / Room Reservations -->
+                <div id="reservationsAdmin" class="admin-content p-6 hidden">
+                    <h2 class="text-xl font-semibold mb-6">Xác nhận đặt chỗ / phòng</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full table-auto text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Mã đặt</th>
+                                    <th class="px-3 py-2 text-left">Thành viên</th>
+                                    <th class="px-3 py-2 text-left">Loại</th>
+                                    <th class="px-3 py-2 text-left">Thời gian</th>
+                                    <th class="px-3 py-2 text-left">Trạng thái</th>
+                                    <th class="px-3 py-2 text-left">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reservationsTable" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Violations Management -->
+                <div id="violationsAdmin" class="admin-content p-6 hidden">
+                    <h2 class="text-xl font-semibold mb-6">Quản lý vi phạm</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full table-auto text-sm">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Mã</th>
+                                    <th class="px-3 py-2 text-left">Thành viên</th>
+                                    <th class="px-3 py-2 text-left">Loại vi phạm</th>
+                                    <th class="px-3 py-2 text-left">Ngày</th>
+                                    <th class="px-3 py-2 text-left">Xử lý</th>
+                                    <th class="px-3 py-2 text-left">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="violationsTable" class="divide-y"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Notifications -->
+                <div id="notifyAdmin" class="admin-content p-6 hidden">
+                    <h2 class="text-xl font-semibold mb-6">Gửi thông báo</h2>
+                    <form id="notifyForm" class="space-y-4 max-w-xl">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Chủ đề</label>
+                            <input id="notifySubject" type="text" class="w-full border rounded px-3 py-2" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nội dung</label>
+                            <textarea id="notifyBody" rows="4" class="w-full border rounded px-3 py-2" required></textarea>
+                        </div>
+                        <div class="flex flex-wrap gap-4 text-sm">
+                            <label class="flex items-center gap-2"><input type="checkbox" id="notifyTargetDue"> <span>Sắp đến hạn</span></label>
+                            <label class="flex items-center gap-2"><input type="checkbox" id="notifyTargetEvents"> <span>Sự kiện</span></label>
+                            <label class="flex items-center gap-2"><input type="checkbox" id="notifyTargetAll"> <span>Tất cả thành viên</span></label>
+                        </div>
+                        <div class="flex gap-3">
+                            <button class="bg-purple-600 text-white px-5 py-2 rounded hover:bg-purple-700">Gửi</button>
+                            <button type="reset" class="border px-5 py-2 rounded hover:bg-gray-50">Làm mới</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Monitoring -->
+                <div id="monitorAdmin" class="admin-content p-6 hidden">
+                    <h2 class="text-xl font-semibold mb-6">Giám sát hoạt động hệ thống</h2>
+                    <div class="grid md:grid-cols-3 gap-6 mb-6">
+                        <div class="bg-gray-50 p-4 rounded">
+                            <h4 class="font-semibold mb-2 text-sm">Phiên đăng nhập đang hoạt động</h4>
+                            <div id="monitorSessions" class="text-xs space-y-1"></div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded">
+                            <h4 class="font-semibold mb-2 text-sm">Hành động gần đây</h4>
+                            <div id="monitorActions" class="text-xs space-y-1"></div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded">
+                            <h4 class="font-semibold mb-2 text-sm">Cảnh báo</h4>
+                            <div id="monitorAlerts" class="text-xs space-y-1"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white border rounded p-4">
+                        <h4 class="font-semibold mb-3 text-sm">Nhật ký hệ thống</h4>
+                        <div id="monitorLog" class="h-48 overflow-auto text-xs font-mono bg-gray-50 p-2 rounded"></div>
+                    </div>
+                </div>
+
+                <!-- System Configuration -->
+                <div id="configAdmin" class="admin-content p-6 hidden">
+                    <h2 class="text-xl font-semibold mb-6">Cấu hình hệ thống</h2>
+                    <form id="configForm" class="space-y-6 max-w-2xl">
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Thời hạn mượn mặc định (ngày)</label>
+                                <input id="cfgLoanDays" type="number" min="1" class="w-full border rounded px-3 py-2" value="14" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Số lần gia hạn tối đa</label>
+                                <input id="cfgExtendMax" type="number" min="0" class="w-full border rounded px-3 py-2" value="2" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Giờ mở cửa (từ)</label>
+                                <input id="cfgOpenHour" type="time" class="w-full border rounded px-3 py-2" value="08:00" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Giờ đóng cửa (đến)</label>
+                                <input id="cfgCloseHour" type="time" class="w-full border rounded px-3 py-2" value="21:00" required>
+                            </div>
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Ngưỡng cảnh báo quá hạn (ngày)</label>
+                                <input id="cfgOverdueWarn" type="number" min="0" class="w-full border rounded px-3 py-2" value="3" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Bật thông báo email</label>
+                                <select id="cfgEmailNotif" class="w-full border rounded px-3 py-2">
+                                    <option value="on">Bật</option>
+                                    <option value="off">Tắt</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <button class="bg-purple-600 text-white px-5 py-2 rounded hover:bg-purple-700">Lưu cấu hình</button>
+                            <button type="reset" class="border px-5 py-2 rounded hover:bg-gray-50">Khôi phục</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Reports -->
+                <div id="reportsAdmin" class="admin-content p-6 hidden">
+                    <h2 class="text-xl font-semibold mb-6">Báo cáo thống kê</h2>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <h3 class="font-semibold mb-4">Thống kê theo tháng</h3>
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span>Sách mượn mới:</span>
+                                    <span class="font-semibold">1,247</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Sách trả:</span>
+                                    <span class="font-semibold">1,156</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Thành viên mới:</span>
+                                    <span class="font-semibold">89</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 p-6 rounded-lg">
+                            <h3 class="font-semibold mb-4">Sách phổ biến</h3>
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span>1. Đắc Nhân Tâm</span>
+                                    <span class="font-semibold">47 lượt</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>2. Sapiens</span>
+                                    <span class="font-semibold">42 lượt</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>3. Atomic Habits</span>
+                                    <span class="font-semibold">38 lượt</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Article Page -->
+    <div id="articlePage" class="page-content hidden">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+          <div id="articleImage" class="h-64 md:h-80 bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white">
+            <div class="text-center">
+              <div id="articleIcon" class="text-6xl mb-2">📰</div>
+              <h2 id="articleImageTitle" class="text-xl font-bold"></h2>
+            </div>
+          </div>
+          <div class="p-6">
+            <h1 id="articleTitle" class="text-3xl font-bold mb-2 text-gray-800"></h1>
+            <p id="articleSummary" class="text-gray-600 mb-4"></p>
+            <div class="flex flex-wrap gap-4 text-sm text-gray-500 mb-6">
+              <span>📅 <span id="articleDate"></span></span>
+              <span>✍️ <span id="articleAuthor"></span></span>
+              <span>👁️ <span id="articleViews"></span></span>
+              <span class="bg-purple-100 text-purple-700 px-2 py-1 rounded"># <span id="articleCategory"></span></span>
+              <span class="bg-red-100 text-red-700 px-2 py-1 rounded" id="articleTag"></span>
+            </div>
+            <div id="articleContent" class="prose max-w-none text-gray-700"></div>
+            <div class="mt-6 flex gap-3">
+              <button data-article-action="print" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">In bài viết</button>
+              <button data-nav="home" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300">← Quay lại Trang chủ</button>
+            </div>
+            <div class="mt-8 border-t pt-6">
+              <h3 class="text-lg font-semibold mb-4">Bình luận</h3>
+              <form onsubmit="handleComment(event)" class="space-y-3">
+                <input type="text" placeholder="Họ và tên" class="w-full px-3 py-2 border border-gray-300 rounded-lg" required>
+                <textarea placeholder="Nội dung bình luận" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg" required></textarea>
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Gửi bình luận</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Book Detail Modal -->
+    <div id="bookModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <h2 id="bookTitle" class="text-2xl font-bold text-gray-800"></h2>
+                        <button data-modal="close" data-target="bookModal" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                                <div id="bookDetails" class="space-y-4">
+                    <!-- Book details will be populated by JavaScript -->
+                </div>
+                                <!-- action buttons now rendered by JS inside bookDetails -->
+            </div>
+        </div>
+    </div>
+
+        <!-- Borrow Modal -->
+        <div id="borrowModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-lg max-w-md w-full">
+                <div class="p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <h2 class="text-xl font-bold text-gray-800">Mượn sách</h2>
+                        <button data-modal="close" data-target="borrowModal" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button>
+                    </div>
+                    <form id="borrowForm">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Mã bạn đọc</label>
+                                <input id="borrowReaderId" type="text" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="VD: TVDN123456" required />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Ngày mượn</label>
+                                <input id="borrowDate" type="date" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500" required />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Số ngày mượn</label>
+                                <input id="borrowDays" type="number" min="1" max="30" value="14" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500" required />
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full mt-6 bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700">Xác nhận mượn</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reserve Modal -->
+        <div id="reserveModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-lg max-w-md w-full">
+                <div class="p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <h2 class="text-xl font-bold text-gray-800">Đặt trước</h2>
+                        <button data-modal="close" data-target="reserveModal" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button>
+                    </div>
+                    <form id="reserveForm">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Mã bạn đọc</label>
+                                <input id="reserveReaderId" type="text" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="VD: TVDN123456" required />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Ngày mong muốn nhận</label>
+                                <input id="reserveDate" type="date" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500" required />
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full mt-6 bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-900">Xác nhận đặt trước</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Extend Modal -->
+        <div id="extendModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-lg max-w-md w-full">
+                <div class="p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <h2 class="text-xl font-bold text-gray-800">Gia hạn mượn</h2>
+                        <button data-modal="close" data-target="extendModal" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times text-xl"></i></button>
+                    </div>
+                    <form id="extendForm">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Mã bạn đọc</label>
+                                <input id="extendReaderId" type="text" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="VD: TVDN123456" required />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Gia hạn thêm (ngày)</label>
+                                <input id="extendDays" type="number" min="1" max="30" value="7" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" required />
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full mt-6 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700">Xác nhận gia hạn</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    <!-- Booking Modal -->
+    <div id="bookingModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg w-full max-w-xl max-h-[90vh] flex flex-col">
+            <div class="p-6 border-b sticky top-0 bg-white z-10">
+                <div class="flex justify-between items-start">
+                    <h2 class="text-2xl font-bold text-gray-800">Đặt lịch dịch vụ</h2>
+                    <button data-modal="close" data-target="bookingModal" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <form id="bookingForm" class="flex-1 flex flex-col overflow-hidden">
+                <div class="p-6 space-y-4 overflow-y-auto">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Dịch vụ</label>
+                            <select id="bookingService" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                                <option value="">Chọn dịch vụ</option>
+                                <option value="study-room">Phòng học nhóm</option>
+                                <option value="computer">Máy tính</option>
+                                <option value="workshop">Workshop</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Ngày</label>
+                            <input id="bookingDate" type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Giờ</label>
+                            <select id="bookingTime" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" required>
+                                <option value="">Chọn giờ</option>
+                                <option value="08:00">08:00 - 10:00</option>
+                                <option value="10:00">10:00 - 12:00</option>
+                                <option value="14:00">14:00 - 16:00</option>
+                                <option value="16:00">16:00 - 18:00</option>
+                            </select>
+                        </div>
+                        <!-- Seat/room map -->
+                        <div id="seatMapSection" class="hidden">
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="font-semibold text-gray-800">Sơ đồ phòng</h3>
+                                <div id="bookingCountdown" class="text-sm text-orange-600" aria-live="polite"></div>
+                            </div>
+                            <div id="seatMapContainer" class="border rounded-lg p-3 bg-gray-50 max-h-[40vh] overflow-auto">
+                                <!-- Rendered by JS based on service -->
+                            </div>
+                            <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+                                <div class="flex items-center gap-2"><span class="inline-block w-4 h-4 rounded border border-gray-400 bg-white"></span> Chỗ trống</div>
+                                <div class="flex items-center gap-2"><span class="inline-block w-4 h-4 rounded bg-yellow-200 border border-yellow-500"></span> Đang giữ chỗ (tối đa 5 phút)</div>
+                                <div class="flex items-center gap-2"><span class="inline-block w-4 h-4 rounded bg-red-200 border border-red-500"></span> Đã đặt</div>
+                                <div class="flex items-center gap-2"><span class="inline-block w-4 h-4 rounded bg-blue-200 border border-blue-500"></span> Chỗ bạn chọn</div>
+                                <div class="flex items-center gap-2 col-span-2"><span class="inline-block w-4 h-4 rounded bg-green-100 border border-green-500"></span> Cửa vào</div>
+                                <div class="flex items-center gap-2 col-span-2"><span class="inline-block w-4 h-4 rounded bg-amber-100 border border-amber-500"></span> Kệ sách</div>
+                            </div>
+                        </div>
+                </div>
+                <div class="p-6 border-t sticky bottom-0 bg-white z-10">
+                    <button type="submit" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors">
+                        Đặt lịch
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Card Preview Modal -->
+    <div id="cardPreviewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg max-w-md w-full">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">Xem trước thẻ bạn đọc</h2>
+                    <button data-modal="close" data-target="cardPreviewModal" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <!-- Dynamic card canvas: filled by modules/card.js using card_image.png and user data -->
+                <div id="cardPreviewCanvas" class="flex items-center justify-center">
+                    <!-- JS will inject the composed card HTML here -->
+                </div>
+                <div class="mt-4 text-center">
+                    <button data-modal="close" data-target="cardPreviewModal" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700">
+                        Đóng
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/cropperjs@1.6.2/dist/cropper.min.js"></script>
+    <!-- Old app.js is superseded by modules; kept for reference but not loaded. -->
+    <script type="module" src="main.js"></script>
+</body>
+</html>
