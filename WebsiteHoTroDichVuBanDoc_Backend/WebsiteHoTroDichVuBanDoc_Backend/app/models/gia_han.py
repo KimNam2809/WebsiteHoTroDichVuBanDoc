@@ -11,6 +11,10 @@ class GiaHanBase(DBModel):
 class GiaHanCreate(GiaHanBase):
     pass
 
+class GiaHanUpdate(DBModel):
+    ngayTraMoi: Optional[date] = None
+    lyDoGiaHan: Optional[str] = None
+
 class GiaHan(GiaHanBase):
     maGiaHan: int
     thoiDiemGiaHan: Optional[datetime] = None

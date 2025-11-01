@@ -31,3 +31,6 @@ class MuonTra(MuonTraBase):
     maMuonTra: int
     thoiGianMuon: Optional[datetime] = None
     ngayTraThucTe: Optional[datetime] = None
+
+class MuonTraTraSach(DBModel):
+    maNhanVien: int # Nhân viên nhận sách trả
