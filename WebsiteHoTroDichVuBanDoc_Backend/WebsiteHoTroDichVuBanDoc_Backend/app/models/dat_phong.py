@@ -23,3 +23,7 @@ class DatPhongUpdate(DBModel):
 class DatPhong(DatPhongBase):
     maDatPhong: int
     ngayKhoiTao: Optional[datetime] = None
+
+class DatPhongDuyet(DBModel):
+    """Model input cho hành động duyệt phòng."""
+    maNhanVien: int

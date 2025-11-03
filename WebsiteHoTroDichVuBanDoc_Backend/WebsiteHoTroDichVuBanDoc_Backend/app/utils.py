@@ -1,9 +1,14 @@
 import datetime
 import json
 from decimal import Decimal
+from pytz import timezone
+
+VIETNAM_TZ = timezone("Asia/Ho_Chi_Minh")
 
 def custom_json_encoder(obj):
     if isinstance(obj, (datetime.date, datetime.datetime)):
+        if obj.tzinfo is None or obj.tzinfo.utcoffset(obj) is None:
+            obj = VIETNAM_TZ.localize(obj)
         return obj.isoformat()
     if isinstance(obj, Decimal):
         return float(obj)

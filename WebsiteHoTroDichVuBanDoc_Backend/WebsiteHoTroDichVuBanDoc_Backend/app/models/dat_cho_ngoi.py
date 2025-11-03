@@ -28,3 +28,10 @@ class DatChoNgoiUpdate(DBModel):
 class DatChoNgoi(DatChoNgoiBase):
     maDatCho: int
     ngayKhoiTao: Optional[datetime] = None
+
+class DatChoNgoiCheckIn(DBModel):
+    """
+    Model input cho hành động "check-in" tại quầy.
+    Chỉ cần biết nhân viên nào xử lý.
+    """
+    maNhanVien: int

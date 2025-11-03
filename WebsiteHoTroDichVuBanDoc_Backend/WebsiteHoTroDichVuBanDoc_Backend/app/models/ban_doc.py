@@ -29,3 +29,5 @@ class BanDocUpdate(DBModel):
 class BanDoc(BanDocBase):
     maBanDoc: int
     ngayDangKy: Optional[datetime] = None
+    soLanVangMat: Optional[int] = 0
+    ngayHetHanCamDat: Optional[datetime] = None
