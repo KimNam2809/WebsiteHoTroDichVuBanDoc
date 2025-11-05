@@ -4,7 +4,7 @@ from app.api.v1.endpoints import (
     ban_sao_api, nguoi_dung_api, ban_doc_api, nhan_vien_api, muon_tra_api, gia_han_api,
     dat_truoc_api, loai_the_api, phong_api, thiet_bi_api, bai_viet_api, yeu_cau_the_api,
     van_chuyen_api, the_ban_doc_api, cho_ngoi_api, dat_cho_ngoi_api, dat_phong_api,
-    tinh_thanh_pho_api, phuong_xa_api, thong_bao_api, yeu_cau_giao_api
+    tinh_thanh_pho_api, phuong_xa_api, thong_bao_api, yeu_cau_giao_api, auth_api
 )
 
 api_router = APIRouter()
@@ -34,3 +34,4 @@ api_router.include_router(tinh_thanh_pho_api.router, prefix="/tinh-thanh-pho", t
 api_router.include_router(phuong_xa_api.router, prefix="/phuong-xa", tags=["Phường/Xã"])
 api_router.include_router(thong_bao_api.router, prefix="/thong-bao", tags=["Thông Báo"])
 api_router.include_router(yeu_cau_giao_api.router, prefix="/yeu-cau-giao", tags=["Yêu Cầu Giao Sách"])
+api_router.include_router(auth_api.router, prefix="/auth", tags=["Xác Thực"])

@@ -24,7 +24,10 @@ python -m pip install --upgrade pip
 # python-dotenv và pydantic-settings: dùng để quản lý các biến môi trường như API Keys, ...
 # passLib[bcrypt]: thư viện hashing (băm) mật khẩu
 # argon2-cffi: thư viện hashing (băm) mật khẩu tiêu chuẩn vàng hiện nay, giải quyết vấn đề chỉ băm đc tối đa 72 ký tự của bcrypt
-pip install fastapi "uvicorn[standard]" supabase python-dotenv pydantic-settings passlib[bcrypt] pydantic[email] argon2-cffi
+pip install fastapi "uvicorn[standard]" supabase python-dotenv pydantic-settings passlib[bcrypt] pydantic[email] argon2-cffi python-jose[cryptography] sendgrid python-multipart
+
+# Install file requirements.txt tự động:
+pip freeze > requirements.txt
 
 # File Expoler
 /du_an_tot_nghiep/

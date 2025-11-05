@@ -7,5 +7,9 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_SERVICE_ROLE_KEY: str
 
+    JWT_SECRET_KEY: str
+    JWT_ALGORITHM: str
+    SENDGRID_API_KEY: str
+
 # Tạo đối tượng settings để sử dụng trong ứng dụng
 settings = Settings()
