@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from app.models.cho_ngoi import ChoNgoi, ChoNgoiCreate, ChoNgoiUpdate
 from app.connect.db import supabase_client
+from app.connect.auth import get_current_staff_profile
 from app.utils import to_json_safe
 import logging, ast
 
@@ -17,7 +18,7 @@ TABLE_NAME = "chongoi"
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một chỗ ngồi mới"
 )
-def create_cho_ngoi(cho_ngoi_in: ChoNgoiCreate):
+def create_cho_ngoi(cho_ngoi_in: ChoNgoiCreate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Tạo một chỗ ngồi mới, liên kết với một 'Phong' đã có.
     """
@@ -83,7 +84,7 @@ def get_cho_ngoi_by_id(maChoNgoi: int):
     status_code=status.HTTP_200_OK,
     summary="Cập nhật thông tin chỗ ngồi"
 )
-def update_cho_ngoi(maChoNgoi: int, cho_ngoi_in: ChoNgoiUpdate):
+def update_cho_ngoi(maChoNgoi: int, cho_ngoi_in: ChoNgoiUpdate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Cập nhật thông tin cho một chỗ ngồi
     (ví dụ: đổi `trangThai` thành 'dangSuDung' hoặc 'coSan').
@@ -111,7 +112,7 @@ def update_cho_ngoi(maChoNgoi: int, cho_ngoi_in: ChoNgoiUpdate):
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa một chỗ ngồi"
 )
-def delete_cho_ngoi(maChoNgoi: int):
+def delete_cho_ngoi(maChoNgoi: int, current_staff: dict = Depends(get_current_staff_profile)):
     """Xóa một chỗ ngồi. (Sẽ thất bại nếu đang có lượt đặt chỗ)."""
     try:
         response = supabase_client.table(TABLE_NAME).delete().eq("machongoi", maChoNgoi).execute()

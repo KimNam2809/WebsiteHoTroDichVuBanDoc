@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from app.models.bai_viet import BaiViet, BaiVietCreate, BaiVietUpdate
 from app.connect.db import supabase_client
+from app.connect.auth import get_current_staff_profile
 from app.utils import to_json_safe # Import tiện ích của bạn
 import logging, ast
 
@@ -15,9 +16,9 @@ TABLE_NAME = "baiviet"
     "/",
     response_model=BaiViet,
     status_code=status.HTTP_201_CREATED,
-    summary="Tạo một bài viết mới"
+    summary="Tạo một bài viết mới" # Chỉ nhân viên mới được tạo bài viết
 )
-def create_bai_viet(bai_viet_in: BaiVietCreate):
+def create_bai_viet(bai_viet_in: BaiVietCreate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Tạo một bài viết (tin tức, thông báo) mới.
     `ngayDang` sẽ tự động được đặt bởi database.
@@ -92,7 +93,7 @@ def get_bai_viet_by_id(maBaiViet: int):
     status_code=status.HTTP_200_OK,
     summary="Cập nhật thông tin bài viết"
 )
-def update_bai_viet(maBaiViet: int, bai_viet_in: BaiVietUpdate):
+def update_bai_viet(maBaiViet: int, bai_viet_in: BaiVietUpdate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Cập nhật thông tin cho một bài viết (tiêu đề, nội dung, trạng thái...).
     Sẽ tự động cập nhật `ngayCapNhat` nếu có trong model (hiện DB tự xử lý).
@@ -120,7 +121,7 @@ def update_bai_viet(maBaiViet: int, bai_viet_in: BaiVietUpdate):
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa một bài viết"
 )
-def delete_bai_viet(maBaiViet: int):
+def delete_bai_viet(maBaiViet: int, current_staff: dict = Depends(get_current_staff_profile)):
     """Xóa một bài viết."""
     try:
         response = supabase_client.table(TABLE_NAME).delete().eq("mabaiviet", maBaiViet).execute()

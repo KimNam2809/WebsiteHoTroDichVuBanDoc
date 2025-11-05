@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
 
 api_router = APIRouter()
 # api_router.include_router(books.router, prefix="/books", tags=["Books"])
+api_router.include_router(auth_api.router, prefix="/auth", tags=["Xác Thực"])
 api_router.include_router(tac_pham_api.router, prefix="/tac-pham", tags=["Tác Phẩm"])
 api_router.include_router(danh_muc_api.router, prefix="/danh-muc", tags=["Danh Mục"])
 api_router.include_router(tu_khoa_api.router, prefix="/tu-khoa", tags=["Từ Khóa"])
@@ -34,4 +35,3 @@ api_router.include_router(tinh_thanh_pho_api.router, prefix="/tinh-thanh-pho", t
 api_router.include_router(phuong_xa_api.router, prefix="/phuong-xa", tags=["Phường/Xã"])
 api_router.include_router(thong_bao_api.router, prefix="/thong-bao", tags=["Thông Báo"])
 api_router.include_router(yeu_cau_giao_api.router, prefix="/yeu-cau-giao", tags=["Yêu Cầu Giao Sách"])
-api_router.include_router(auth_api.router, prefix="/auth", tags=["Xác Thực"])

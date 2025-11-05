@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from app.models.ban_sao import BanSao, BanSaoCreate, BanSaoUpdate
 from app.connect.db import supabase_client
+from app.connect.auth import get_current_staff_profile
 
 router = APIRouter()
 
@@ -12,7 +13,7 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một bản sao mới (nhập sách mới)"
 )
-def create_ban_sao(ban_sao_in: BanSaoCreate):
+def create_ban_sao(ban_sao_in: BanSaoCreate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Tạo một bản sao mới, liên kết với một tác phẩm đã có.
     - **maTacPham**: ID của tác phẩm (bắt buộc).
@@ -90,7 +91,7 @@ def get_ban_sao_by_id(maBanSao: int):
     status_code=status.HTTP_200_OK,
     summary="Cập nhật thông tin bản sao"
 )
-def update_ban_sao(maBanSao: int, ban_sao_in: BanSaoUpdate):
+def update_ban_sao(maBanSao: int, ban_sao_in: BanSaoUpdate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Cập nhật thông tin cho một bản sao.
     Thường dùng để thay đổi Vị trí, Trạng thái vật lý,
@@ -118,7 +119,7 @@ def update_ban_sao(maBanSao: int, ban_sao_in: BanSaoUpdate):
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa một bản sao (thanh lý sách)"
 )
-def delete_ban_sao(maBanSao: int):
+def delete_ban_sao(maBanSao: int, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Xóa một bản sao (ví dụ: sách hỏng, thanh lý).
     """

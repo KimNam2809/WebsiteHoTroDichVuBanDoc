@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 # Import DatChoNgoiUpdate
 from app.models.dat_cho_ngoi import DatChoNgoi, DatChoNgoiCreate, DatChoNgoiUpdate, DatChoNgoiCheckIn
 from app.connect.db import supabase_client
+from app.connect.auth import get_current_staff_profile, get_current_user_from_db, get_owner_or_staff
 from app.utils import to_json_safe
 import logging, ast
 
@@ -18,17 +19,59 @@ TABLE_NAME = "datchongoi"
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một lượt đặt chỗ ngồi mới (Đã có logic nghiệp vụ)"
 )
-def create_dat_cho_ngoi(dat_cho_in: DatChoNgoiCreate):
+def create_dat_cho_ngoi(dat_cho_in: DatChoNgoiCreate, current_user: dict = Depends(get_current_user_from_db)):
     """
     Gọi RPC fn_dat_cho để tạo một lượt đặt chỗ mới.
     Hàm này sẽ tự động:
     1. Kiểm tra thời gian hợp lệ.
     2. Kiểm tra xung đột (overlap) thời gian với các lượt đặt khác.
     3. Tạo bản ghi `DatChoNgoi` mới.
+
+    - Bạn đọc: Chỉ được tự đặt cho chính mình.
+    - Nhân viên: Được phép đặt cho bất kỳ bạn đọc nào.
     """
+    user_role = current_user.get("vaitro")
+    user_id_from_token = current_user.get("manguoidung")
+    mabandoc_from_body = dat_cho_in.maBanDoc
+
+    if user_role == "nhanVien":
+        # Nhân viên được phép đặt cho bất kỳ ai (kể cả chính họ
+        # nếu họ cũng là bạn đọc), không cần kiểm tra thêm.
+        pass
+
+    elif user_role == "nguoiDung":
+        # Bạn đọc phải tự đặt cho chính mình
+        try:
+            # Lấy hồ sơ bạn đọc của người đang đăng nhập
+            profile_res = supabase_client.table("bandoc") \
+                .select("mabandoc") \
+                .eq("manguoidung", user_id_from_token) \
+                .single() \
+                .execute()
+
+            if not profile_res.data:
+                raise HTTPException(status_code=403, detail="Bạn không có hồ sơ bạn đọc hợp lệ.")
+
+            own_maBanDoc = profile_res.data["mabandoc"]
+
+            # So sánh maBanDoc từ token VỚI maBanDoc từ body
+            if own_maBanDoc != mabandoc_from_body:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Bạn đọc chỉ được phép đặt chỗ cho chính mình."
+                )
+
+        except Exception as e:
+            if isinstance(e, HTTPException): raise e
+            logger.error(f"Lỗi khi xác thực quyền Bạn đọc: {e}")
+            raise HTTPException(status_code=500, detail="Lỗi khi xác thực hồ sơ bạn đọc.")
+    else:
+        # Nếu vai trò không phải 'nhanVien' hay 'nguoiDung'
+        raise HTTPException(status_code=403, detail="Vai trò của bạn không được phép đặt chỗ.")
+
     params = {
         "p_ma_cho_ngoi": dat_cho_in.maChoNgoi,
-        "p_ma_ban_doc": dat_cho_in.maBanDoc,
+        "p_ma_ban_doc": mabandoc_from_body,
         # Đảm bảo Pydantic model dùng `datetime` để parse
         "p_thoi_gian_bat_dau": dat_cho_in.thoiGianBatDau,
         "p_thoi_gian_ket_thuc": dat_cho_in.thoiGianKetThuc
@@ -98,13 +141,54 @@ def create_dat_cho_ngoi(dat_cho_in: DatChoNgoiCreate):
     status_code=status.HTTP_200_OK,
     summary="Lấy tất cả các lượt đặt chỗ"
 )
-def get_all_dat_cho_ngoi():
-    """Lấy danh sách tất cả các lượt đặt chỗ trong hệ thống."""
+def get_all_dat_cho_ngoi(current_user: dict = Depends(get_current_user_from_db)):
+    """
+    Lấy danh sách đặt chỗ dựa trên vai trò:
+    - Nhân viên: Thấy TẤT CẢ.
+    - Bạn đọc: Chỉ thấy CỦA MÌNH.
+    """
     try:
-        response = supabase_client.table(TABLE_NAME).select("*").order("madatcho", desc=True).execute()
-        if response.data:
-            return response.data
-        return []
+        user_role = current_user.get("vaitro")
+        user_id = current_user.get("manguoidung")
+
+        # 2. Xây dựng câu query cơ bản
+        query = supabase_client.table(TABLE_NAME).select("*")
+
+        # 3. Phân nhánh logic
+        if user_role == "nhanVien":
+            # Nhân viên thấy tất cả, không cần lọc thêm
+            pass
+
+        elif user_role == "nguoiDung":
+            # Bạn đọc chỉ thấy của mình. Cần lấy maBanDoc của họ.
+            try:
+                profile_res = supabase_client.table("bandoc") \
+                    .select("mabandoc") \
+                    .eq("manguoidung", user_id) \
+                    .single() \
+                    .execute()
+
+                if not profile_res.data:
+                    return [] # User này có token nhưng không có hồ sơ bạn đọc
+
+                ma_ban_doc = profile_res.data["mabandoc"]
+
+                # Thêm bộ lọc "CHÍNH CHỦ" vào query
+                query = query.eq("mabandoc", ma_ban_doc)
+
+            except Exception as profile_e:
+                logger.error(f"Lỗi khi lấy hồ sơ bạn đọc (ID: {user_id}): {profile_e}")
+                raise HTTPException(status_code=500, detail="Lỗi khi truy xuất hồ sơ bạn đọc.")
+
+        else:
+            # Vai trò khác (nếu có)
+            return []
+
+        # 4. Thực thi câu query đã được xây dựng
+        response = query.order("madatcho", desc=True).execute()
+
+        return response.data or []
+
     except Exception as e:
         logger.error("Lỗi khi lấy tất cả DatChoNgoi: %s", e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -116,7 +200,7 @@ def get_all_dat_cho_ngoi():
     status_code=status.HTTP_200_OK,
     summary="Lấy chi tiết một lượt đặt chỗ"
 )
-def get_dat_cho_ngoi_by_id(maDatCho: int):
+def get_dat_cho_ngoi_by_id(maDatCho: int, current_user: dict = Depends(get_owner_or_staff)):
     """Lấy chi tiết một lượt đặt chỗ bằng ID."""
     try:
         response = supabase_client.table(TABLE_NAME).select("*").eq("madatcho", maDatCho).single().execute()
@@ -133,7 +217,7 @@ def get_dat_cho_ngoi_by_id(maDatCho: int):
     status_code=status.HTTP_200_OK,
     summary="Cập nhật trạng thái đặt chỗ (ví dụ: Hủy)"
 )
-def update_dat_cho_ngoi(maDatCho: int, dat_cho_in: DatChoNgoiUpdate):
+def update_dat_cho_ngoi(maDatCho: int, dat_cho_in: DatChoNgoiUpdate, current_user: dict = Depends(get_owner_or_staff)):
     """
     Cập nhật trạng thái của một lượt đặt chỗ.
     Thường dùng để chuyển `trangThaiDatCho` thành 'daHuy'.
@@ -160,7 +244,7 @@ def update_dat_cho_ngoi(maDatCho: int, dat_cho_in: DatChoNgoiUpdate):
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa một lượt đặt chỗ"
 )
-def delete_dat_cho_ngoi(maDatCho: int):
+def delete_dat_cho_ngoi(maDatCho: int, current_user: dict = Depends(get_owner_or_staff)):
     """(Hành chính) Xóa một bản ghi đặt chỗ."""
     try:
         response = supabase_client.table(TABLE_NAME).delete().eq("madatcho", maDatCho).execute()
@@ -178,7 +262,7 @@ def delete_dat_cho_ngoi(maDatCho: int):
     status_code=status.HTTP_200_OK, # 200 OK vì là cập nhật
     summary="Nhân viên xác nhận (check-in) một lượt đặt chỗ"
 )
-def check_in_cho_ngoi(maDatCho: int, check_in_in: DatChoNgoiCheckIn):
+def check_in_cho_ngoi(maDatCho: int, check_in_in: DatChoNgoiCheckIn, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Gọi RPC fn_check_in_cho_ngoi để nhân viên xác nhận lượt đặt.
     Hàm này sẽ tự động:

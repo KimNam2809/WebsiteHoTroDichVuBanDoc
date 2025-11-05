@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from app.models.danh_muc import DanhMuc, DanhMucCreate, DanhMucUpdate
 from app.connect.db import supabase_client
+from app.connect.auth import get_current_staff_profile
 
 router = APIRouter()
 
@@ -13,7 +14,7 @@ router = APIRouter()
     summary="Tạo mới danh mục",
 )
 
-def create_danh_muc(danh_muc_in: DanhMucCreate):
+def create_danh_muc(danh_muc_in: DanhMucCreate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Tạo một danh mục mới.
     - **tenDanhMuc**: Tên danh mục (bắt buộc).
@@ -89,7 +90,7 @@ def get_danh_muc_by_id(maDanhMuc: int):
     summary="Cập nhật thông tin danh mục",
 )
 
-def update_danh_muc(maDanhMuc: int, danh_muc_in: DanhMucUpdate):
+def update_danh_muc(maDanhMuc: int, danh_muc_in: DanhMucUpdate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Cập nhật thông tin của một danh mục.
     - **ma_danh_muc**: ID của danh mục cần cập nhật.
@@ -123,7 +124,7 @@ def update_danh_muc(maDanhMuc: int, danh_muc_in: DanhMucUpdate):
     summary="Xóa danh mục",
 )
 
-def delete_danh_muc(maDanhMuc: int):
+def delete_danh_muc(maDanhMuc: int, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Xóa một danh mục dựa trên ID.
     - **ma_danh_muc**: ID của danh mục cần xóa.

@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from app.models.ban_doc import BanDoc, BanDocCreate, BanDocUpdate
 from app.connect.db import supabase_client
+from app.connect.auth import get_current_staff_profile, get_current_reader_profile, get_owner_or_staff
 from app.utils import to_json_safe
 
 router = APIRouter()
@@ -13,7 +14,7 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
     summary="Tạo hồ sơ Bạn đọc mới"
 )
-def create_ban_doc(ban_doc_in: BanDocCreate):
+def create_ban_doc(ban_doc_in: BanDocCreate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Tạo một hồ sơ bạn đọc mới, liên kết với một `NguoiDung` đã có.
     - **maNguoiDung**: ID của `NguoiDung` (bắt buộc).
@@ -50,7 +51,7 @@ def create_ban_doc(ban_doc_in: BanDocCreate):
     status_code=status.HTTP_200_OK,
     summary="Lấy danh sách tất cả bạn đọc"
 )
-def get_all_ban_doc():
+def get_all_ban_doc(current_staff: dict = Depends(get_current_staff_profile)):
     """
     Lấy danh sách tất cả hồ sơ bạn đọc.
     """
@@ -71,7 +72,7 @@ def get_all_ban_doc():
     status_code=status.HTTP_200_OK,
     summary="Lấy thông tin chi tiết một bạn đọc"
 )
-def get_ban_doc_by_id(maBanDoc: int):
+def get_ban_doc_by_id(maBanDoc: int, current_user: dict = Depends(get_owner_or_staff)):
     """
     Lấy thông tin chi tiết của một bạn đọc bằng `maBanDoc`.
     """
@@ -91,7 +92,7 @@ def get_ban_doc_by_id(maBanDoc: int):
     status_code=status.HTTP_200_OK,
     summary="Cập nhật thông tin bạn đọc"
 )
-def update_ban_doc(maBanDoc: int, ban_doc_in: BanDocUpdate):
+def update_ban_doc(maBanDoc: int, ban_doc_in: BanDocUpdate, current_reader: dict = Depends(get_current_reader_profile)):
     """
     Cập nhật thông tin hồ sơ cho một bạn đọc (ví dụ: địa chỉ, nghề nghiệp...).
     Không cho phép cập nhật `maNguoiDung`.
@@ -118,7 +119,7 @@ def update_ban_doc(maBanDoc: int, ban_doc_in: BanDocUpdate):
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa hồ sơ một bạn đọc"
 )
-def delete_ban_doc(maBanDoc: int):
+def delete_ban_doc(maBanDoc: int, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Xóa hồ sơ một bạn đọc.
     Lưu ý: Nên xóa `NguoiDung` liên quan sau đó.
