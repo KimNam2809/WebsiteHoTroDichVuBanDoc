@@ -3,7 +3,7 @@ from typing import List, Optional
 # Import DatChoNgoiUpdate
 from app.models.dat_cho_ngoi import DatChoNgoi, DatChoNgoiCreate, DatChoNgoiUpdate, DatChoNgoiCheckIn
 from app.connect.db import supabase_client
-from app.connect.auth import get_current_staff_profile, get_current_user_from_db, get_owner_or_staff
+from app.connect.auth import get_booking_seat_owner_or_staff, get_current_staff_profile, get_current_user_from_db
 from app.utils import to_json_safe
 import logging, ast
 
@@ -200,7 +200,7 @@ def get_all_dat_cho_ngoi(current_user: dict = Depends(get_current_user_from_db))
     status_code=status.HTTP_200_OK,
     summary="Lấy chi tiết một lượt đặt chỗ"
 )
-def get_dat_cho_ngoi_by_id(maDatCho: int, current_user: dict = Depends(get_owner_or_staff)):
+def get_dat_cho_ngoi_by_id(maDatCho: int, current_user: dict = Depends(get_booking_seat_owner_or_staff)):
     """Lấy chi tiết một lượt đặt chỗ bằng ID."""
     try:
         response = supabase_client.table(TABLE_NAME).select("*").eq("madatcho", maDatCho).single().execute()
@@ -217,7 +217,7 @@ def get_dat_cho_ngoi_by_id(maDatCho: int, current_user: dict = Depends(get_owner
     status_code=status.HTTP_200_OK,
     summary="Cập nhật trạng thái đặt chỗ (ví dụ: Hủy)"
 )
-def update_dat_cho_ngoi(maDatCho: int, dat_cho_in: DatChoNgoiUpdate, current_user: dict = Depends(get_owner_or_staff)):
+def update_dat_cho_ngoi(maDatCho: int, dat_cho_in: DatChoNgoiUpdate, current_user: dict = Depends(get_booking_seat_owner_or_staff)):
     """
     Cập nhật trạng thái của một lượt đặt chỗ.
     Thường dùng để chuyển `trangThaiDatCho` thành 'daHuy'.
@@ -244,7 +244,7 @@ def update_dat_cho_ngoi(maDatCho: int, dat_cho_in: DatChoNgoiUpdate, current_use
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa một lượt đặt chỗ"
 )
-def delete_dat_cho_ngoi(maDatCho: int, current_user: dict = Depends(get_owner_or_staff)):
+def delete_dat_cho_ngoi(maDatCho: int, current_user: dict = Depends(get_current_staff_profile)):
     """(Hành chính) Xóa một bản ghi đặt chỗ."""
     try:
         response = supabase_client.table(TABLE_NAME).delete().eq("madatcho", maDatCho).execute()

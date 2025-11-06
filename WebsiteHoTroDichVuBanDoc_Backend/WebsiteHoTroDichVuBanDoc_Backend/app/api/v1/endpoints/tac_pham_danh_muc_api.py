@@ -1,12 +1,15 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 
-from app.models.danh_muc import DanhMuc, DanhMucCreate, DanhMucUpdate
-from app.models.tac_pham import TacPham, TacPhamCreate, TacPhamUpdate
+from app.connect.auth import get_current_staff_profile
+from app.models.danh_muc import DanhMuc
+from app.models.tac_pham import TacPham
 from app.models.tac_pham_danh_muc import TacPhamDanhMuc
 from app.connect.db import supabase_client
 
 router = APIRouter()
+
+TABLE_NAME = "tacpham_danhmuc"
 
 # 1. Gán danh mục cho tác phẩm (Tạo mới)
 @router.post(
@@ -16,7 +19,7 @@ router = APIRouter()
     summary="Gán danh mục cho tác phẩm",
 )
 
-def assign_danh_muc_to_tac_pham(tac_pham_danh_muc_in: TacPhamDanhMuc):
+def assign_danh_muc_to_tac_pham(tac_pham_danh_muc_in: TacPhamDanhMuc, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Tạo một liên kết Nhiều-Nhiều giữa Tác phẩm và Danh mục.
     - **maTacPham**: ID của tác phẩm
@@ -25,7 +28,7 @@ def assign_danh_muc_to_tac_pham(tac_pham_danh_muc_in: TacPhamDanhMuc):
     try:
         data = tac_pham_danh_muc_in.model_dump(by_alias=True)
 
-        response = supabase_client.table("tacpham_danhmuc").insert(data).execute()
+        response = supabase_client.table(TABLE_NAME).insert(data).execute()
 
         if response.data:
             return response.data[0]
@@ -64,7 +67,7 @@ def get_danh_muc_of_tac_pham(maTacPham: int):
         # 1. Chọn bảng trung gian: table(TABLE_NAME)
         # 2. Chỉ định cột muốn JOIN và các cột muốn lấy: select("danhmuc(*)")
         # 3. Điều kiện lọc: eq("matacpham", maTacPham)
-        response = supabase_client.table("tacpham_danhmuc")\
+        response = supabase_client.table(TABLE_NAME)\
             .select("danhmuc(*)")\
             .eq("matacpham", maTacPham)\
             .execute()
@@ -102,7 +105,7 @@ def get_tac_pham_of_danh_muc(maDanhMuc: int):
     từ ID của một Danh Mục.
     """
     try:
-        response = supabase_client.table("tacpham_danhmuc")\
+        response = supabase_client.table(TABLE_NAME)\
             .select("tacpham(*)")\
             .eq("madanhmuc", maDanhMuc)\
             .execute()
@@ -121,14 +124,14 @@ def get_tac_pham_of_danh_muc(maDanhMuc: int):
     summary="Xoá liên kết danh mục của một tác phẩm",
 )
 
-def remove_danh_muc_from_tac_pham(maTacPham: int, maDanhMuc: int):
+def remove_danh_muc_from_tac_pham(maTacPham: int, maDanhMuc: int, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Xoá liên kết giữa tác phẩm và danh mục.
     - **maTacPham**: ID của tác phẩm
     - **maDanhMuc**: ID của danh mục
     """
     try:
-        response = supabase_client.table("tacpham_danhmuc")\
+        response = supabase_client.table(TABLE_NAME)\
             .delete()\
             .eq("matacpham", maTacPham)\
             .eq("madanhmuc", maDanhMuc)\

@@ -1,11 +1,14 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from app.models.van_chuyen import VanChuyen, VanChuyenCreate, VanChuyenUpdate
 from app.connect.db import supabase_client
+from app.connect.auth import get_current_staff_profile, get_delivery_owner_or_staff
 from app.utils import to_json_safe
 import logging, ast
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(get_current_staff_profile)]
+)
 logger = logging.getLogger(__name__)
 
 TABLE_NAME = "vanchuyen"
@@ -71,7 +74,8 @@ def get_all_van_chuyen():
     "/{maVanChuyen}",
     response_model=VanChuyen,
     status_code=status.HTTP_200_OK,
-    summary="Lấy chi tiết một đơn vận chuyển"
+    summary="Lấy chi tiết một đơn vận chuyển",
+    dependencies=[Depends(get_delivery_owner_or_staff)]
 )
 def get_van_chuyen_by_id(maVanChuyen: int):
     """Lấy thông tin chi tiết của một đơn vận chuyển bằng ID."""

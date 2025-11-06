@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from app.models.phong import Phong, PhongCreate, PhongUpdate
 from app.connect.db import supabase_client
+from app.connect.auth import get_current_staff_profile, get_current_admin_profile
 from app.utils import to_json_safe # Dùng cho nhất quán
 import logging, ast
 
@@ -18,7 +19,7 @@ TABLE_NAME = "phong"
     summary="Tạo một phòng mới"
 )
 
-def create_phong(phong_in: PhongCreate):
+def create_phong(phong_in: PhongCreate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Tạo một phòng mới trong thư viện.
     """
@@ -100,7 +101,7 @@ def get_phong_by_id(maPhong: int):
     summary="Cập nhật thông tin một phòng"
 )
 
-def update_phong(maPhong: int, phong_in: PhongUpdate):
+def update_phong(maPhong: int, phong_in: PhongUpdate, current_staff: dict = Depends(get_current_staff_profile)):
     """Cập nhật thông tin một phòng theo mã phòng."""
     try:
         data = to_json_safe(phong_in.model_dump(exclude_unset=True, by_alias=True))
@@ -133,7 +134,7 @@ def update_phong(maPhong: int, phong_in: PhongUpdate):
     summary="Xóa một phòng theo mã phòng"
 )
 
-def delete_phong(maPhong: int):
+def delete_phong(maPhong: int, current_admin: dict = Depends(get_current_admin_profile)):
     """Xóa một phòng theo mã phòng."""
     try:
         response = supabase_client.table(TABLE_NAME).delete().eq("maphong", maPhong).execute()

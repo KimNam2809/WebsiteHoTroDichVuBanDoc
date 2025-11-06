@@ -1,10 +1,13 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
+from app.connect.auth import get_current_staff_profile
 from app.models.tac_pham import TacPham, TacPhamCreate, TacPhamUpdate
 from app.models.ban_sao import BanSao
 from app.connect.db import supabase_client
 
 router = APIRouter()
+
+TABLE_NAME = "tacpham"
 
 # 1. Tạo mới tác phẩm
 @router.post(
@@ -14,7 +17,7 @@ router = APIRouter()
     summary="Tạo mới tác phẩm",
 )
 
-def create_tac_pham(tac_pham_in: TacPhamCreate):
+def create_tac_pham(tac_pham_in: TacPhamCreate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Tạo một tác phẩm mới.
     - **tenTacPham**: Tên của tác phẩm (bắt buộc).
@@ -27,7 +30,7 @@ def create_tac_pham(tac_pham_in: TacPhamCreate):
         data = tac_pham_in.model_dump(by_alias=True)
 
         # Gửi lệnh insert đến Supabase
-        response = supabase_client.table("tacpham").insert(data).execute()
+        response = supabase_client.table(TABLE_NAME).insert(data).execute()
 
         # Supabase sẽ trả về một list data, ta lấy phần tử đầu tiên
         if response.data:
@@ -50,7 +53,7 @@ def get_all_tac_pham():
     Lấy danh sách tất cả tác phẩm, sắp xếp theo ID tăng dần.
     """
     try:
-        response = supabase_client.table("tacpham").select("*").order("matacpham", desc=False).execute()
+        response = supabase_client.table(TABLE_NAME).select("*").order("matacpham", desc=False).execute()
 
         if response.data:
             return response.data
@@ -74,7 +77,7 @@ def get_tac_pham_by_id(maTacPham: int):
     try:
         # .eq() là "equals"
         # .single() để yêu cầu Supabase trả về 1 object, nếu ko tìm thấy sẽ báo lỗi
-        response = supabase_client.table("tacpham").select("*").eq("matacpham", maTacPham).single().execute()
+        response = supabase_client.table(TABLE_NAME).select("*").eq("matacpham", maTacPham).single().execute()
 
         if response.data:
             return response.data
@@ -92,7 +95,7 @@ def get_tac_pham_by_id(maTacPham: int):
     summary="Cập nhật thông tin tác phẩm",
 )
 
-def update_tac_pham(maTacPham: int, tac_pham_in: TacPhamUpdate):
+def update_tac_pham(maTacPham: int, tac_pham_in: TacPhamUpdate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Cập nhật thông tin cho một tác phẩm đã có.
     Gửi lên trường nào thì trường đó sẽ bị ghi đè.
@@ -106,7 +109,7 @@ def update_tac_pham(maTacPham: int, tac_pham_in: TacPhamUpdate):
         if not data:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không có thông tin nào được gửi để cập nhật.")
 
-        response = supabase_client.table("tacpham").update(data).eq("matacpham", maTacPham).execute()
+        response = supabase_client.table(TABLE_NAME).update(data).eq("matacpham", maTacPham).execute()
 
         if response.data:
             return response.data[0]
@@ -122,13 +125,13 @@ def update_tac_pham(maTacPham: int, tac_pham_in: TacPhamUpdate):
     summary="Xóa tác phẩm",
 )
 
-def delete_tac_pham(maTacPham: int):
+def delete_tac_pham(maTacPham: int, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Xóa một tác phẩm khỏi cơ sở dữ liệu bằng maTacPham.
     Lưu ý: Nếu có khóa ngoại trỏ đến, có thể gây lỗi.
     """
     try:
-        response = supabase_client.table("tacpham").delete().eq("matacpham", maTacPham).execute()
+        response = supabase_client.table(TABLE_NAME).delete().eq("matacpham", maTacPham).execute()
 
         if not response.data:
             # Nếu data rỗng, tức là không tìm thấy tác phẩm để xoá

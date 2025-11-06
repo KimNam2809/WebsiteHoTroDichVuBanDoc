@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
+from app.connect.auth import get_current_admin_profile
 from app.models.tinh_thanh_pho import TinhThanhPho, TinhThanhPhoCreate, TinhThanhPhoUpdate
 from app.connect.db import supabase_client
 import logging
@@ -10,8 +11,14 @@ logger = logging.getLogger(__name__)
 TABLE_NAME = "tinhthanhpho"
 
 # 1. CREATE
-@router.post("/", response_model=TinhThanhPho, status_code=status.HTTP_201_CREATED, summary="Tạo Tỉnh/Thành phố mới")
-def create_tinh_thanh_pho(tinh_thanh_pho_in: TinhThanhPhoCreate):
+@router.post(
+    "/",
+    response_model=TinhThanhPho,
+    status_code=status.HTTP_201_CREATED,
+    summary="Tạo Tỉnh/Thành phố mới"
+)
+
+def create_tinh_thanh_pho(tinh_thanh_pho_in: TinhThanhPhoCreate, current_admin: dict = Depends(get_current_admin_profile)):
     try:
         data = tinh_thanh_pho_in.model_dump(by_alias=True)
         response = supabase_client.table(TABLE_NAME).insert(data).execute()
@@ -25,7 +32,12 @@ def create_tinh_thanh_pho(tinh_thanh_pho_in: TinhThanhPhoCreate):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 # 2. READ ALL
-@router.get("/", response_model=List[TinhThanhPho], summary="Lấy tất cả Tỉnh/Thành phố")
+@router.get(
+    "/",
+    response_model=List[TinhThanhPho],
+    summary="Lấy tất cả Tỉnh/Thành phố"
+)
+
 def get_all_tinh_thanh_pho():
     try:
         response = supabase_client.table(TABLE_NAME).select("*").order("matinhthanhpho").execute()
@@ -35,7 +47,12 @@ def get_all_tinh_thanh_pho():
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 # 3. READ ONE
-@router.get("/{maTinhThanhPho}", response_model=TinhThanhPho, summary="Lấy chi tiết Tỉnh/Thành phố")
+@router.get(
+    "/{maTinhThanhPho}",
+    response_model=TinhThanhPho,
+    summary="Lấy chi tiết Tỉnh/Thành phố"
+)
+
 def get_tinh_thanh_pho_by_id(maTinhThanhPho: int):
     try:
         response = supabase_client.table(TABLE_NAME).select("*").eq("matinhthanhpho", maTinhThanhPho).single().execute()
@@ -46,8 +63,13 @@ def get_tinh_thanh_pho_by_id(maTinhThanhPho: int):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy Tỉnh/Thành phố với id={maTinhThanhPho}")
 
 # 4. UPDATE
-@router.put("/{maTinhThanhPho}", response_model=TinhThanhPho, summary="Cập nhật Tỉnh/Thành phố")
-def update_tinh_thanh_pho(maTinhThanhPho: int, tinh_thanh_pho_in: TinhThanhPhoUpdate):
+@router.put(
+    "/{maTinhThanhPho}",
+    response_model=TinhThanhPho,
+    summary="Cập nhật Tỉnh/Thành phố"
+)
+
+def update_tinh_thanh_pho(maTinhThanhPho: int, tinh_thanh_pho_in: TinhThanhPhoUpdate, current_admin: dict = Depends(get_current_admin_profile)):
     try:
         data = tinh_thanh_pho_in.model_dump(exclude_unset=True, by_alias=True)
         if not data:
@@ -63,8 +85,13 @@ def update_tinh_thanh_pho(maTinhThanhPho: int, tinh_thanh_pho_in: TinhThanhPhoUp
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 # 5. DELETE
-@router.delete("/{maTinhThanhPho}", status_code=status.HTTP_204_NO_CONTENT, summary="Xóa Tỉnh/Thành phố")
-def delete_tinh_thanh_pho(maTinhThanhPho: int):
+@router.delete(
+    "/{maTinhThanhPho}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Xóa Tỉnh/Thành phố"
+)
+
+def delete_tinh_thanh_pho(maTinhThanhPho: int, current_admin: dict = Depends(get_current_admin_profile)):
     try:
         response = supabase_client.table(TABLE_NAME).delete().eq("matinhthanhpho", maTinhThanhPho).execute()
         if not response.data:

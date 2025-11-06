@@ -6,6 +6,8 @@ from app.connect.auth import get_current_staff_profile
 
 router = APIRouter()
 
+TABLE_NAME = "danhmuc"
+
 # 1. Tạo mới danh mục
 @router.post(
     "/",
@@ -23,7 +25,7 @@ def create_danh_muc(danh_muc_in: DanhMucCreate, current_staff: dict = Depends(ge
     try:
         data = danh_muc_in.model_dump(by_alias=True)
 
-        response = supabase_client.table("danhmuc").insert(data).execute()
+        response = supabase_client.table(TABLE_NAME).insert(data).execute()
 
         if response.data:
             return response.data[0]
@@ -51,7 +53,7 @@ def get_all_danh_muc():
     Lấy danh sách tất cả danh mục, sắp xếp theo ID tăng dần.
     """
     try:
-        response = supabase_client.table("danhmuc").select("*").order("madanhmuc", desc=False).execute()
+        response = supabase_client.table(TABLE_NAME).select("*").order("madanhmuc", desc=False).execute()
 
         if response.data:
             return response.data
@@ -73,7 +75,7 @@ def get_danh_muc_by_id(maDanhMuc: int):
     - **ma_danh_muc**: ID của danh mục cần lấy thông tin.
     """
     try:
-        response = supabase_client.table("danhmuc").select("*").eq("madanhmuc", maDanhMuc).execute()
+        response = supabase_client.table(TABLE_NAME).select("*").eq("madanhmuc", maDanhMuc).execute()
 
         if response.data:
             return response.data[0]
@@ -102,7 +104,7 @@ def update_danh_muc(maDanhMuc: int, danh_muc_in: DanhMucUpdate, current_staff: d
         if not data:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không có dữ liệu nào được gửi để cập nhật.")
 
-        response = supabase_client.table("danhmuc").update(data).eq("madanhmuc", maDanhMuc).execute()
+        response = supabase_client.table(TABLE_NAME).update(data).eq("madanhmuc", maDanhMuc).execute()
 
         if response.data:
             return response.data[0]
@@ -131,7 +133,7 @@ def delete_danh_muc(maDanhMuc: int, current_staff: dict = Depends(get_current_st
     Lưu ý: Nếu danh mục này đang được tham chiếu bởi các bản ghi khác, việc xóa có thể thất bại do ràng buộc khoá ngoại.
     """
     try:
-        response = supabase_client.table("danhmuc").delete().eq("madanhmuc", maDanhMuc).execute()
+        response = supabase_client.table(TABLE_NAME).delete().eq("madanhmuc", maDanhMuc).execute()
 
         if not response.data:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Danh mục không tồn tại.")

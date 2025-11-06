@@ -1,10 +1,13 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from app.models.nhan_vien import NhanVien, NhanVienCreate, NhanVienUpdate
 from app.connect.db import supabase_client
+from app.connect.auth import get_current_admin_profile, get_staff_self_or_admin
 from app.utils import to_json_safe
 
 router = APIRouter()
+
+TABLE_NAME = "nhanvien"
 
 # 1. CREATE
 @router.post(
@@ -13,7 +16,7 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
     summary="Tạo hồ sơ Nhân viên mới"
 )
-def create_nhan_vien(nhan_vien_in: NhanVienCreate):
+def create_nhan_vien(nhan_vien_in: NhanVienCreate, current_admin: dict = Depends(get_current_admin_profile)):
     """
     Tạo một hồ sơ nhân viên mới, liên kết với một `NguoiDung` đã có.
     - **maNguoiDung**: ID của `NguoiDung` (bắt buộc).
@@ -22,7 +25,7 @@ def create_nhan_vien(nhan_vien_in: NhanVienCreate):
     try:
         data = to_json_safe(nhan_vien_in.model_dump(exclude_unset=True, by_alias=True))
 
-        response = supabase_client.table("nhanvien").insert(data).execute()
+        response = supabase_client.table(TABLE_NAME).insert(data).execute()
 
         if response.data:
             return response.data[0]
@@ -50,12 +53,12 @@ def create_nhan_vien(nhan_vien_in: NhanVienCreate):
     status_code=status.HTTP_200_OK,
     summary="Lấy danh sách tất cả nhân viên"
 )
-def get_all_nhan_vien():
+def get_all_nhan_vien(current_admin: dict = Depends(get_current_admin_profile)):
     """
     Lấy danh sách tất cả hồ sơ nhân viên.
     """
     try:
-        response = supabase_client.table("nhanvien").select("*").order("manhanvien", desc=False).execute()
+        response = supabase_client.table(TABLE_NAME).select("*").order("manhanvien", desc=False).execute()
 
         if response.data:
             return response.data
@@ -71,12 +74,14 @@ def get_all_nhan_vien():
     status_code=status.HTTP_200_OK,
     summary="Lấy thông tin chi tiết một nhân viên"
 )
-def get_nhan_vien_by_id(maNhanVien: int):
+def get_nhan_vien_by_id(maNhanVien: int, current_user: dict = Depends(get_staff_self_or_admin)):
     """
-    Lấy thông tin chi tiết của một nhân viên bằng `maNhanVien`.
+    Lấy thông tin chi tiết của một nhân viên.
+    - Admin: Xem bất kỳ.
+    - Nhân viên: Chỉ xem của chính mình.
     """
     try:
-        response = supabase_client.table("nhanvien").select("*").eq("manhanvien", maNhanVien).single().execute()
+        response = supabase_client.table(TABLE_NAME).select("*").eq("manhanvien", maNhanVien).single().execute()
 
         if response.data:
             return response.data
@@ -91,10 +96,11 @@ def get_nhan_vien_by_id(maNhanVien: int):
     status_code=status.HTTP_200_OK,
     summary="Cập nhật thông tin nhân viên"
 )
-def update_nhan_vien(maNhanVien: int, nhan_vien_in: NhanVienUpdate):
+def update_nhan_vien(maNhanVien: int, nhan_vien_in: NhanVienUpdate, current_user: dict = Depends(get_staff_self_or_admin)):
     """
-    Cập nhật thông tin hồ sơ cho một nhân viên (ví dụ: địa chỉ, nghề nghiệp...).
-    Không cho phép cập nhật `maNguoiDung`.
+    Cập nhật thông tin hồ sơ cho một nhân viên.
+    - Admin: Cập nhật bất kỳ.
+    - Nhân viên: Chỉ cập nhật của chính mình.
     """
     try:
         data = to_json_safe(nhan_vien_in.model_dump(exclude_unset=True, by_alias=True))
@@ -102,7 +108,7 @@ def update_nhan_vien(maNhanVien: int, nhan_vien_in: NhanVienUpdate):
         if not data:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không có thông tin nào được gửi để cập nhật")
 
-        response = supabase_client.table("nhanvien").update(data).eq("manhanvien", maNhanVien).execute()
+        response = supabase_client.table(TABLE_NAME).update(data).eq("manhanvien", maNhanVien).execute()
 
         if response.data:
             return response.data[0]
@@ -118,7 +124,7 @@ def update_nhan_vien(maNhanVien: int, nhan_vien_in: NhanVienUpdate):
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa hồ sơ một nhân viên"
 )
-def delete_nhan_vien(maNhanVien: int):
+def delete_nhan_vien(maNhanVien: int, current_admin: dict = Depends(get_current_admin_profile)):
     """
     Xóa hồ sơ một nhân viên.
     Lưu ý: Nên xóa `NguoiDung` liên quan sau đó.

@@ -1,9 +1,12 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
+from app.connect.auth import get_current_staff_profile
 from app.models.tu_khoa import TuKhoa, TuKhoaCreate, TuKhoaUpdate
 from app.connect.db import supabase_client
 
 router = APIRouter()
+
+TABLE_NAME = "tukhoa"
 
 # 1. Tạo mới từ khóa
 @router.post(
@@ -13,7 +16,7 @@ router = APIRouter()
     summary="Tạo mới từ khóa",
 )
 
-def create_tu_khoa(tu_khoa_in: TuKhoaCreate):
+def create_tu_khoa(tu_khoa_in: TuKhoaCreate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Tạo một từ khóa mới.
     - **tenTuKhoa**: Tên của từ khóa (bắt buộc).
@@ -22,7 +25,7 @@ def create_tu_khoa(tu_khoa_in: TuKhoaCreate):
     try:
         data = tu_khoa_in.model_dump(by_alias=True)
 
-        response = supabase_client.table("tukhoa").insert(data).execute()
+        response = supabase_client.table(TABLE_NAME).insert(data).execute()
 
         if response.data:
             return response.data[0]
@@ -49,7 +52,7 @@ def get_all_tu_khoa():
     Lấy danh sách tất cả từ khóa, sắp xếp theo ID tăng dần.
     """
     try:
-        response = supabase_client.table("tukhoa").select("*").order("matukhoa", desc=False).execute()
+        response = supabase_client.table(TABLE_NAME).select("*").order("matukhoa", desc=False).execute()
 
         if response.data:
             return response.data
@@ -71,7 +74,7 @@ def get_tu_khoa(maTuKhoa: int):
     - **maTuKhoa**: ID của từ khóa cần lấy thông tin.
     """
     try:
-        response = supabase_client.table("tukhoa").select("*").eq("matukhoa", maTuKhoa).execute()
+        response = supabase_client.table(TABLE_NAME).select("*").eq("matukhoa", maTuKhoa).execute()
 
         if response.data and len(response.data) > 0:
             return response.data[0]
@@ -88,7 +91,7 @@ def get_tu_khoa(maTuKhoa: int):
     summary="Cập nhật thông tin từ khóa",
 )
 
-def update_tu_khoa(maTuKhoa: int, tu_khoa_in: TuKhoaUpdate):
+def update_tu_khoa(maTuKhoa: int, tu_khoa_in: TuKhoaUpdate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Cập nhật thông tin của một từ khóa.
     - **maTuKhoa**: ID của từ khóa cần cập nhật.
@@ -101,7 +104,7 @@ def update_tu_khoa(maTuKhoa: int, tu_khoa_in: TuKhoaUpdate):
         if not data:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không có dữ liệu để cập nhật.")
 
-        response = supabase_client.table("tukhoa").update(data).eq("matukhoa", maTuKhoa).execute()
+        response = supabase_client.table(TABLE_NAME).update(data).eq("matukhoa", maTuKhoa).execute()
 
         if response.data and len(response.data) > 0:
             return response.data[0]
@@ -122,13 +125,13 @@ def update_tu_khoa(maTuKhoa: int, tu_khoa_in: TuKhoaUpdate):
     summary="Xóa từ khóa",
 )
 
-def delete_tu_khoa(maTuKhoa: int):
+def delete_tu_khoa(maTuKhoa: int, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Xóa một từ khóa khỏi cơ sở dữ liệu bằng ID.
     - **maTuKhoa**: ID của từ khóa cần xóa.
     """
     try:
-        response = supabase_client.table("tukhoa").delete().eq("matukhoa", maTuKhoa).execute()
+        response = supabase_client.table(TABLE_NAME).delete().eq("matukhoa", maTuKhoa).execute()
 
         if not response.data:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Từ khóa không tồn tại.")

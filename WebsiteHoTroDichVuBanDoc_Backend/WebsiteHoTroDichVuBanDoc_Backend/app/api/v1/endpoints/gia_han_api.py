@@ -1,14 +1,16 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from app.models.gia_han import GiaHan, GiaHanCreate, GiaHanUpdate
 from app.connect.db import supabase_client
+from app.connect.auth import get_current_staff_profile, get_current_reader_profile, get_current_user_from_db, get_renewal_owner_or_staff, get_loan_owner_or_staff
 from app.utils import to_json_safe
 import logging, ast
-# Ép chuỗi lỗi thành dict an toàn: ast. Ví dụ: "{'message': 'Lỗi...'}" -> {'message': 'Lỗi...'}
 
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+TABLE_NAME = "giahan"
 
 @router.post(
     "/",
@@ -16,21 +18,64 @@ logger = logging.getLogger(__name__)
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một lượt gia hạn mượn sách mới"
 )
-def create_gia_han(gia_han_in: GiaHanCreate):
+def create_gia_han(gia_han_in: GiaHanCreate, current_user: dict = Depends(get_current_user_from_db)):
     """
-    Gọi RPC fn_gia_han. Xử lý response/error từ supabase chính xác.
+    Tạo một lượt gia hạn mới (gọi RPC fn_gia_han).
+    - Nhân viên: Được phép tạo (với maNhanVien của họ).
+    - Bạn đọc: Chỉ được phép tạo cho lượt mượn CỦA CHÍNH MÌNH.
     """
-    params = {
-        "p_ma_muon_tra": gia_han_in.maMuonTra,
-        "p_ma_nhan_vien": gia_han_in.maNhanVien,
-        "p_ngay_tra_moi": gia_han_in.ngayTraMoi,
-        "p_ly_do_gia_han": gia_han_in.lyDoGiaHan
-    }
-
-    # chuyển datetime/Decimal trước khi gửi
-    safe_params = to_json_safe(params)
 
     try:
+        user_role = current_user.get("vaitro")
+        user_id_from_token = current_user.get("manguoidung")
+        ma_muon_tra_can_gia_han = gia_han_in.maMuonTra
+
+        if user_role == "nhanVien":
+                # Nhân viên được phép, nhưng phải dùng maNhanVien của mình
+                # (Chúng ta giả định Nhân viên tự truyền maNhanVien của họ vào body)
+                pass
+
+        elif user_role == "nguoiDung":
+            # Bạn đọc phải là chủ của lượt mượn
+            profile_res = supabase_client.table("bandoc") \
+                .select("mabandoc") \
+                .eq("manguoidung", user_id_from_token) \
+                .single().execute()
+
+            if not profile_res.data:
+                raise HTTPException(status_code=403, detail="Bạn không có hồ sơ bạn đọc hợp lệ.")
+
+            own_maBanDoc = profile_res.data["mabandoc"]
+
+            # Kiểm tra xem lượt mượn có thuộc về họ không
+            loan_res = supabase_client.table("muontra") \
+                .select("mabandoc") \
+                .eq("mamuontra", ma_muon_tra_can_gia_han) \
+                .single().execute()
+
+            if not loan_res.data:
+                raise HTTPException(status_code=404, detail="Không tìm thấy lượt mượn để gia hạn.")
+
+            loan_owner_id = loan_res.data["mabandoc"]
+
+            if own_maBanDoc != loan_owner_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Bạn đọc chỉ được phép gia hạn cho lượt mượn của chính mình."
+                )
+        else:
+            raise HTTPException(status_code=403, detail="Vai trò của bạn không được phép gia hạn.")
+
+        params = {
+            "p_ma_muon_tra": gia_han_in.maMuonTra,
+            "p_ma_nhan_vien": gia_han_in.maNhanVien,
+            "p_ngay_tra_moi": gia_han_in.ngayTraMoi,
+            "p_ly_do_gia_han": gia_han_in.lyDoGiaHan
+        }
+
+        # chuyển datetime/Decimal trước khi gửi
+        safe_params = to_json_safe(params)
+
         response = supabase_client.rpc("fn_gia_han", safe_params).execute()
         # Debug logging (giúp debug nếu cần)
         logger.debug("RPC response: status=%s, data=%s, error=%s", getattr(response, "status_code", None), getattr(response, "data", None), getattr(response, "error", None))
@@ -103,17 +148,18 @@ def create_gia_han(gia_han_in: GiaHanCreate):
     status_code=status.HTTP_200_OK,
     summary="Lấy lịch sử gia hạn của một lượt mượn"
 )
-def get_gia_han_by_muon_tra(maMuonTra: int):
+def get_gia_han_by_muon_tra(maMuonTra: int, current_user: dict = Depends(get_loan_owner_or_staff)):
     """
-    Lấy danh sách tất cả các lần gia hạn
-    thuộc về một bản ghi mượn/trả (muontra).
+    Lấy danh sách các lần gia hạn của 1 lượt mượn.
+    - Nhân viên: Thấy tất cả.
+    - Bạn đọc: Chỉ thấy của mình.
     """
     try:
         response = (
-            supabase_client.table("giahan")
+            supabase_client.table(TABLE_NAME)
             .select("*")
             .eq("mamuontra", maMuonTra)
-            .order("thoidiemgiahan", desc=False) # Sắp xếp theo thứ tự gia hạn
+            .order("thoidiemgiahan", desc=False)
             .execute()
         )
 
@@ -132,16 +178,46 @@ def get_gia_han_by_muon_tra(maMuonTra: int):
     status_code=status.HTTP_200_OK,
     summary="Lấy tất cả các lượt gia hạn"
 )
-def get_all_gia_han():
+def get_all_gia_han(current_user: dict = Depends(get_current_user_from_db)):
     """
-    Lấy danh sách tất cả các lượt gia hạn trong hệ thống.
+    Lấy danh sách tất cả các lượt gia hạn.
+    - Nhân viên: Thấy tất cả.
+    - Bạn đọc: Chỉ thấy của mình.
     """
     try:
-        response = supabase_client.table("giahan").select("*").order("magiahan", desc=True).execute()
+        user_role = current_user.get("vaitro")
+        current_id = current_user.get("manguoidung")
 
-        if response.data:
-            return response.data
-        return []
+        # Cần JOIN 2 cấp: GiaHan -> MuonTra -> BanDoc
+        query = supabase_client.table(TABLE_NAME).select("*, muontra!inner(mabandoc)")
+
+        if user_role == "nhanVien":
+            pass # Nhân viên thấy tất cả
+
+        elif user_role == "nguoiDung":
+            try:
+                profile_response = supabase_client.table("bandoc") \
+                    .select("mabandoc") \
+                    .eq("manguoidung", current_id) \
+                    .single().execute()
+
+                if not profile_response.data:
+                    return [] # Không có hồ sơ
+
+                ma_ban_doc = profile_response.data.get("mabandoc")
+
+                # Lọc: chỉ lấy các lượt gia hạn
+                # có `muontra.mabandoc` khớp
+                query = query.eq("muontra.mabandoc", ma_ban_doc)
+
+            except Exception as profile_e:
+                logger.error(f"Lỗi khi lấy hồ sơ bạn đọc (ID: {current_id}): {profile_e}")
+                raise HTTPException(status_code=500, detail="Lỗi khi truy xuất hồ sơ bạn đọc.")
+        else:
+            return [] # Vai trò không xác định
+
+        response = query.order("magiahan", desc=True).execute()
+        return response.data or []
 
     except Exception as e:
         logger.error("Lỗi khi lấy tất cả GiaHan: %s", e)
@@ -154,12 +230,14 @@ def get_all_gia_han():
     status_code=status.HTTP_200_OK,
     summary="Lấy chi tiết một lượt gia hạn"
 )
-def get_gia_han_by_id(maGiaHan: int):
+def get_gia_han_by_id(maGiaHan: int, current_user: dict = Depends(get_renewal_owner_or_staff)):
     """
-    Lấy thông tin chi tiết của một lượt gia hạn bằng ID (magiahan).
+    Lấy thông tin chi tiết của một lượt gia hạn bằng ID.
+    - Nhân viên: Thấy tất cả.
+    - Bạn đọc: Chỉ thấy của mình.
     """
     try:
-        response = supabase_client.table("giahan").select("*").eq("magiahan", maGiaHan).single().execute()
+        response = supabase_client.table(TABLE_NAME).select("*").eq("magiahan", maGiaHan).single().execute()
 
         if response.data:
             return response.data
@@ -175,19 +253,19 @@ def get_gia_han_by_id(maGiaHan: int):
     status_code=status.HTTP_200_OK,
     summary="Cập nhật thông tin một lượt gia hạn (ví dụ: sửa lý do)"
 )
-def update_gia_han(maGiaHan: int, gia_han_in: GiaHanUpdate):
+def update_gia_han(maGiaHan: int, gia_han_in: GiaHanUpdate, current_user: dict = Depends(get_renewal_owner_or_staff)):
     """
-    Cập nhật thông tin cho một lượt gia hạn (ví dụ: sửa lỗi chính tả lý do).
-    Hàm này không chứa logic nghiệp vụ, chỉ cập nhật dữ liệu.
+    Cập nhật thông tin cho một lượt gia hạn (ví dụ: sửa lý do).
+    - Nhân viên: Cập nhật.
+    - Bạn đọc: Chỉ cập nhật của mình.
     """
     try:
-        # Dùng to_json_safe phòng trường hợp update ngày (dù model hiện tại ko có)
         data = to_json_safe(gia_han_in.model_dump(exclude_unset=True, by_alias=True))
 
         if not data:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không có thông tin nào được gửi để cập nhật")
 
-        response = supabase_client.table("giahan").update(data).eq("magiahan", maGiaHan).execute()
+        response = supabase_client.table(TABLE_NAME).update(data).eq("magiahan", maGiaHan).execute()
 
         if response.data:
             return response.data[0]
@@ -204,13 +282,13 @@ def update_gia_han(maGiaHan: int, gia_han_in: GiaHanUpdate):
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa một lượt gia hạn"
 )
-def delete_gia_han(maGiaHan: int):
+def delete_gia_han(maGiaHan: int, current_user: dict = Depends(get_current_staff_profile)):
     """
     (Hành chính) Xóa một bản ghi gia hạn.
     Lưu ý: Việc này không tự động cập nhật lại soLanGiaHan trong 'muontra'.
     """
     try:
-        response = supabase_client.table("giahan").delete().eq("magiahan", maGiaHan).execute()
+        response = supabase_client.table(TABLE_NAME).delete().eq("magiahan", maGiaHan).execute()
 
         if not response.data:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy lượt gia hạn với id={maGiaHan} để xóa")

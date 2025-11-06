@@ -1,12 +1,15 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from app.models.muon_tra import MuonTra, MuonTraCreate, MuonTraUpdate, MuonTraTraSach
 from app.connect.db import supabase_client
+from app.connect.auth import get_current_staff_profile, get_current_user_from_db, get_loan_owner_or_staff
 from app.utils import to_json_safe
-import logging, ast # <-- Import đầy đủ
+import logging, ast
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+TABLE_NAME = "muontra"
 
 # 1. CREATE (ĐÃ SỬA LỖI EXCEPT)
 @router.post(
@@ -15,7 +18,7 @@ logger = logging.getLogger(__name__)
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một lượt mượn sách mới (Đã có logic nghiệp vụ)"
 )
-def create_muon_tra(muon_tra_in: MuonTraCreate):
+def create_muon_tra(muon_tra_in: MuonTraCreate, current_staff: dict = Depends(get_current_staff_profile)):
     params = {
         "p_ma_ban_sao": muon_tra_in.maBanSao,
         "p_ma_ban_doc": muon_tra_in.maBanDoc,
@@ -91,17 +94,42 @@ def create_muon_tra(muon_tra_in: MuonTraCreate):
     status_code=status.HTTP_200_OK,
     summary="Lấy tất cả lịch sử mượn/trả"
 )
-def get_all_muon_tra():
+def get_all_muon_tra(current_user: dict = Depends(get_current_user_from_db)):
     """
-    Lấy danh sách tất cả các lượt mượn/trả trong hệ thống,
-    mới nhất lên trước.
+    Lấy danh sách các lượt mượn/trả.
+    - Nhân viên: Thấy TẤT CẢ.
+    - Bạn đọc: Chỉ thấy CỦA MÌNH.
     """
     try:
-        response = supabase_client.table("muontra").select("*").order("mamuontra", desc=True).execute()
+        user_role = current_user.get("vaitro")
+        user_id = current_user.get("manguoidung")
 
-        if response.data:
-            return response.data
-        return []
+        query = supabase_client.table(TABLE_NAME).select("*")
+
+        if user_role == "nhanVien":
+            pass # Nhân viên thấy tất cả
+
+        elif user_role == "nguoiDung":
+            try:
+                profile_res = supabase_client.table("bandoc") \
+                    .select("mabandoc") \
+                    .eq("manguoidung", user_id) \
+                    .single().execute()
+
+                if not profile_res.data:
+                    return [] # Không có hồ sơ
+
+                ma_ban_doc = profile_res.data["mabandoc"]
+                query = query.eq("mabandoc", ma_ban_doc)
+
+            except Exception as profile_e:
+                logger.error(f"Lỗi khi lấy hồ sơ bạn đọc (ID: {user_id}): {profile_e}")
+                raise HTTPException(status_code=500, detail="Lỗi khi truy xuất hồ sơ bạn đọc.")
+        else:
+            return []
+
+        response = query.order("mamuontra", desc=True).execute()
+        return response.data or []
 
     except Exception as e:
         logger.error("Lỗi khi lấy tất cả MuonTra: %s", e)
@@ -114,12 +142,14 @@ def get_all_muon_tra():
     status_code=status.HTTP_200_OK,
     summary="Lấy chi tiết một lượt mượn/trả"
 )
-def get_muon_tra_by_id(maMuonTra: int):
+def get_muon_tra_by_id(maMuonTra: int, current_user: dict = Depends(get_loan_owner_or_staff)):
     """
-    Lấy thông tin chi tiết của một lượt mượn bằng ID (mamuontra).
+    Lấy thông tin chi tiết của một lượt mượn.
+    - Nhân viên: Thấy bất kỳ.
+    - Bạn đọc: Chỉ thấy của mình.
     """
     try:
-        response = supabase_client.table("muontra").select("*").eq("mamuontra", maMuonTra).single().execute()
+        response = supabase_client.table(TABLE_NAME).select("*").eq("mamuontra", maMuonTra).single().execute()
 
         if response.data:
             return response.data
@@ -136,7 +166,7 @@ def get_muon_tra_by_id(maMuonTra: int):
     status_code=status.HTTP_200_OK,
     summary="Cập nhật một lượt mượn (ví dụ: ghi phạt, ghi chú)"
 )
-def update_muon_tra(maMuonTra: int, muon_tra_in: MuonTraUpdate):
+def update_muon_tra(maMuonTra: int, muon_tra_in: MuonTraUpdate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Cập nhật thông tin cho một lượt mượn (ví dụ: thêm tiền phạt, ghi chú).
 
@@ -151,7 +181,7 @@ def update_muon_tra(maMuonTra: int, muon_tra_in: MuonTraUpdate):
         if not data:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không có thông tin nào được gửi để cập nhật")
 
-        response = supabase_client.table("muontra").update(data).eq("mamuontra", maMuonTra).execute()
+        response = supabase_client.table(TABLE_NAME).update(data).eq("mamuontra", maMuonTra).execute()
 
         if response.data:
             return response.data[0]
@@ -168,12 +198,12 @@ def update_muon_tra(maMuonTra: int, muon_tra_in: MuonTraUpdate):
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa một lượt mượn/trả"
 )
-def delete_muon_tra(maMuonTra: int):
+def delete_muon_tra(maMuonTra: int, current_staff: dict = Depends(get_current_staff_profile)):
     """
     (Hành chính) Xóa một bản ghi mượn/trả.
     """
     try:
-        response = supabase_client.table("muontra").delete().eq("mamuontra", maMuonTra).execute()
+        response = supabase_client.table(TABLE_NAME).delete().eq("mamuontra", maMuonTra).execute()
 
         # .delete() trả về data của bản ghi đã xóa
         if not response.data:
@@ -199,7 +229,7 @@ def delete_muon_tra(maMuonTra: int):
     status_code=status.HTTP_200_OK, # Trả về 200 OK vì đây là cập nhật
     summary="Xử lý nghiệp vụ trả sách"
 )
-def tra_sach(maMuonTra: int, tra_sach_in: MuonTraTraSach):
+def tra_sach(maMuonTra: int, tra_sach_in: MuonTraTraSach, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Gọi RPC fn_tra_sach để xử lý nghiệp vụ trả sách.
     Hàm này sẽ tự động:

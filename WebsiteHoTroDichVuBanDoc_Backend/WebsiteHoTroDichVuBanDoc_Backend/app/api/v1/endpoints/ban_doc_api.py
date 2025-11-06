@@ -7,6 +7,8 @@ from app.utils import to_json_safe
 
 router = APIRouter()
 
+TABLE_NAME = "bandoc"
+
 # 1. CREATE
 @router.post(
     "/",
@@ -23,7 +25,7 @@ def create_ban_doc(ban_doc_in: BanDocCreate, current_staff: dict = Depends(get_c
     try:
         data = to_json_safe(ban_doc_in.model_dump(exclude_unset=True, by_alias=True))
 
-        response = supabase_client.table("bandoc").insert(data).execute()
+        response = supabase_client.table(TABLE_NAME).insert(data).execute()
 
         if response.data:
             return response.data[0]
@@ -56,7 +58,7 @@ def get_all_ban_doc(current_staff: dict = Depends(get_current_staff_profile)):
     Lấy danh sách tất cả hồ sơ bạn đọc.
     """
     try:
-        response = supabase_client.table("bandoc").select("*").order("mabandoc", desc=False).execute()
+        response = supabase_client.table(TABLE_NAME).select("*").order("mabandoc", desc=False).execute()
 
         if response.data:
             return response.data
@@ -77,7 +79,7 @@ def get_ban_doc_by_id(maBanDoc: int, current_user: dict = Depends(get_owner_or_s
     Lấy thông tin chi tiết của một bạn đọc bằng `maBanDoc`.
     """
     try:
-        response = supabase_client.table("bandoc").select("*").eq("mabandoc", maBanDoc).single().execute()
+        response = supabase_client.table(TABLE_NAME).select("*").eq("mabandoc", maBanDoc).single().execute()
 
         if response.data:
             return response.data
@@ -103,7 +105,7 @@ def update_ban_doc(maBanDoc: int, ban_doc_in: BanDocUpdate, current_reader: dict
         if not data:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không có thông tin nào được gửi để cập nhật")
 
-        response = supabase_client.table("bandoc").update(data).eq("mabandoc", maBanDoc).execute()
+        response = supabase_client.table(TABLE_NAME).update(data).eq("mabandoc", maBanDoc).execute()
 
         if response.data:
             return response.data[0]
@@ -125,7 +127,7 @@ def delete_ban_doc(maBanDoc: int, current_staff: dict = Depends(get_current_staf
     Lưu ý: Nên xóa `NguoiDung` liên quan sau đó.
     """
     try:
-        response = supabase_client.table("bandoc").delete().eq("mabandoc", maBanDoc).execute()
+        response = supabase_client.table(TABLE_NAME).delete().eq("mabandoc", maBanDoc).execute()
 
         if not response.data:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy bạn đọc với id={maBanDoc} để xóa")

@@ -1,15 +1,20 @@
-from fastapi import APIRouter, HTTPException, status
+import logging
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from app.models.nguoi_dung import NguoiDung, NguoiDungCreate, NguoiDungUpdate
 from app.connect.db import supabase_client
-from app.connect.security import get_password_hash, verify_password
+from app.connect.auth import get_current_staff_profile, get_user_owner_or_staff
+from app.connect.security import get_password_hash
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+TABLE_NAME = "nguoidung"
 
 # 1. CREATE (Tạo người dùng MỚI)
 @router.post(
     "/",
-    response_model=NguoiDung, # <-- Trả về NguoiDung (không có mật khẩu)
+    response_model=NguoiDung, # <-- Trả về NguoiDung (không     có mật khẩu)
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một người dùng mới (đã băm mật khẩu)"
 )
@@ -29,7 +34,7 @@ def create_nguoi_dung(nguoi_dung_in: NguoiDungCreate): # <-- Nhận NguoiDungCre
         data["matkhau"] = hashed_password
 
         # 4. Gửi dữ liệu đã băm vào DB
-        response = supabase_client.table("nguoidung").insert(data).execute()
+        response = supabase_client.table(TABLE_NAME).insert(data).execute()
 
         if response.data:
             return response.data[0]
@@ -57,13 +62,13 @@ def create_nguoi_dung(nguoi_dung_in: NguoiDungCreate): # <-- Nhận NguoiDungCre
     status_code=status.HTTP_200_OK,
     summary="Lấy danh sách tất cả người dùng"
 )
-def get_all_nguoi_dung():
+def get_all_nguoi_dung(current_staff: dict = Depends(get_current_staff_profile)):
     """
     Lấy danh sách tất cả người dùng.
     **Mật khẩu sẽ không được trả về.**
     """
     try:
-        response = supabase_client.table("nguoidung").select("*").order("manguoidung", desc=False).execute()
+        response = supabase_client.table(TABLE_NAME).select("*").order("manguoidung", desc=False).execute()
 
         if response.data:
             return response.data
@@ -79,13 +84,14 @@ def get_all_nguoi_dung():
     status_code=status.HTTP_200_OK,
     summary="Lấy thông tin chi tiết một người dùng"
 )
-def get_nguoi_dung_by_id(maNguoiDung: int):
+def get_nguoi_dung_by_id(maNguoiDung: int, current_user: dict = Depends(get_user_owner_or_staff)):
     """
-    Lấy thông tin chi tiết của một người dùng bằng ID.
-    **Mật khẩu sẽ không được trả về.**
+    Lấy thông tin chi tiết của một người dùng.
+    - Nhân viên: Được xem bất kỳ.
+    - Người dùng: Chỉ được xem của chính mình.
     """
     try:
-        response = supabase_client.table("nguoidung").select("*").eq("manguoidung", maNguoiDung).single().execute()
+        response = supabase_client.table(TABLE_NAME).select("*").eq("manguoidung", maNguoiDung).single().execute()
 
         if response.data:
             return response.data
@@ -100,7 +106,7 @@ def get_nguoi_dung_by_id(maNguoiDung: int):
     status_code=status.HTTP_200_OK,
     summary="Cập nhật thông tin người dùng"
 )
-def update_nguoi_dung(maNguoiDung: int, nguoi_dung_in: NguoiDungUpdate):
+def update_nguoi_dung(maNguoiDung: int, nguoi_dung_in: NguoiDungUpdate, current_user: dict = Depends(get_user_owner_or_staff)):
     """
     Cập nhật thông tin người dùng.
     Nếu `matKhau` được cung cấp, nó sẽ được băm lại.
@@ -108,21 +114,31 @@ def update_nguoi_dung(maNguoiDung: int, nguoi_dung_in: NguoiDungUpdate):
     try:
         data = nguoi_dung_in.model_dump(exclude_unset=True, by_alias=True)
 
-        # **Xử lý nếu có cập nhật mật khẩu**
+        # === BẢN VÁ BẢO MẬT QUAN TRỌNG ===
+        # Nếu người dùng cố gắng thay đổi vai trò
+        if "vaitro" in data:
+            # Và người đó KHÔNG PHẢI là Nhân viên
+            if current_user.get("vaitro") != "nhanVien":
+                logger.warning(f"Từ chối: User {current_user.get('manguoidung')} cố tự ý đổi vai trò.")
+                raise HTTPException(status_code=403, detail="Bạn không có quyền thay đổi vai trò.")
+
+        # Xử lý nếu có cập nhật mật khẩu
         if "matkhau" in data:
             data["matkhau"] = get_password_hash(data["matkhau"])
 
         if not data:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không có thông tin nào được gửi để cập nhật")
 
-        response = supabase_client.table("nguoidung").update(data).eq("manguoidung", maNguoiDung).execute()
+        response = supabase_client.table(TABLE_NAME).update(data).eq("manguoidung", maNguoiDung).execute()
 
         if response.data:
             return response.data[0]
         else:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy người dùng với id={maNguoiDung} để cập nhật")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy người dùng với id={maNguoiDung}")
 
     except Exception as e:
+        if isinstance(e, HTTPException): raise e # Ném lại lỗi 403
+        logger.error(f"Lỗi khi cập nhật NguoiDung {maNguoiDung}: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 # 5. DELETE
@@ -131,13 +147,13 @@ def update_nguoi_dung(maNguoiDung: int, nguoi_dung_in: NguoiDungUpdate):
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa một người dùng"
 )
-def delete_nguoi_dung(maNguoiDung: int):
+def delete_nguoi_dung(maNguoiDung: int, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Xóa một người dùng.
     Lưu ý: Sẽ thất bại nếu người dùng này đang là `BanDoc` hoặc `NhanVien`.
     """
     try:
-        response = supabase_client.table("nguoidung").delete().eq("manguoidung", maNguoiDung).execute()
+        response = supabase_client.table(TABLE_NAME).delete().eq("manguoidung", maNguoiDung).execute()
 
         if not response.data:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy người dùng với id={maNguoiDung} để xóa")

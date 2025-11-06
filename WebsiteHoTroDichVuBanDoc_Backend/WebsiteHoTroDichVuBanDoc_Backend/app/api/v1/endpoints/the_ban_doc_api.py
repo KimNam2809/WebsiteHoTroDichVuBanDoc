@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
+from app.connect.auth import get_card_owner_or_staff, get_current_staff_profile
 from app.models.the_ban_doc import TheBanDoc, TheBanDocCreate, TheBanDocUpdate
 from app.connect.db import supabase_client
 from app.utils import to_json_safe
@@ -17,7 +18,7 @@ TABLE_NAME = "thebandoc"
     status_code=status.HTTP_201_CREATED,
     summary="Phát hành một Thẻ Bạn Đọc mới"
 )
-def create_the_ban_doc(the_ban_doc_in: TheBanDocCreate):
+def create_the_ban_doc(the_ban_doc_in: TheBanDocCreate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Tạo một bản ghi Thẻ Bạn Đọc mới, hoàn tất quy trình 'YeuCauThe'.
     """
@@ -55,7 +56,7 @@ def create_the_ban_doc(the_ban_doc_in: TheBanDocCreate):
     status_code=status.HTTP_200_OK,
     summary="Lấy danh sách tất cả Thẻ Bạn Đọc"
 )
-def get_all_the_ban_doc():
+def get_all_the_ban_doc(current_staff: dict = Depends(get_current_staff_profile)):
     """Lấy danh sách tất cả các Thẻ Bạn Đọc đã được phát hành."""
     try:
         response = supabase_client.table(TABLE_NAME).select("*").order("mathe", desc=True).execute()
@@ -73,8 +74,12 @@ def get_all_the_ban_doc():
     status_code=status.HTTP_200_OK,
     summary="Lấy chi tiết một Thẻ Bạn Đọc"
 )
-def get_the_ban_doc_by_id(maThe: int):
-    """Lấy thông tin chi tiết của một Thẻ Bạn Đọc bằng ID."""
+def get_the_ban_doc_by_id(maThe: int, current_user: dict = Depends(get_card_owner_or_staff )):
+    """
+    Lấy thông tin chi tiết của một Thẻ Bạn Đọc bằng ID.
+    - Nhân viên: Được xem bất kỳ.
+    - Bạn đọc: Chỉ được xem của chính mình.
+    """
     try:
         response = supabase_client.table(TABLE_NAME).select("*").eq("mathe", maThe).single().execute()
         if response.data:
@@ -90,7 +95,7 @@ def get_the_ban_doc_by_id(maThe: int):
     status_code=status.HTTP_200_OK,
     summary="Cập nhật thông tin Thẻ Bạn Đọc"
 )
-def update_the_ban_doc(maThe: int, the_ban_doc_in: TheBanDocUpdate):
+def update_the_ban_doc(maThe: int, the_ban_doc_in: TheBanDocUpdate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Cập nhật thông tin cho một Thẻ Bạn Đọc
     (ví dụ: gia hạn `ngayHetHan`, thay đổi `trangThaiThe`).
@@ -118,7 +123,7 @@ def update_the_ban_doc(maThe: int, the_ban_doc_in: TheBanDocUpdate):
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa một Thẻ Bạn Đọc"
 )
-def delete_the_ban_doc(maThe: int):
+def delete_the_ban_doc(maThe: int, current_staff: dict = Depends(get_current_staff_profile)):
     """(Hành chính) Xóa một bản ghi Thẻ Bạn Đọc."""
     try:
         response = supabase_client.table(TABLE_NAME).delete().eq("mathe", maThe).execute()

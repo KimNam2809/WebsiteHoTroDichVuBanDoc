@@ -6,6 +6,8 @@ from app.connect.auth import get_current_staff_profile
 
 router = APIRouter()
 
+TABLE_NAME = "bansao"
+
 # 1. CREATE
 @router.post(
     "/",
@@ -22,7 +24,7 @@ def create_ban_sao(ban_sao_in: BanSaoCreate, current_staff: dict = Depends(get_c
     try:
         data = ban_sao_in.model_dump(by_alias=True)
 
-        response = supabase_client.table("bansao").insert(data).execute()
+        response = supabase_client.table(TABLE_NAME).insert(data).execute()
 
         if response.data:
             return response.data[0]
@@ -55,7 +57,7 @@ def get_all_ban_sao():
     Lấy danh sách tất cả các bản sao trong hệ thống.
     """
     try:
-        response = supabase_client.table("bansao").select("*").order("mabansao", desc=False).execute()
+        response = supabase_client.table(TABLE_NAME).select("*").order("mabansao", desc=False).execute()
 
         if response.data:
             return response.data
@@ -76,7 +78,7 @@ def get_ban_sao_by_id(maBanSao: int):
     Lấy thông tin chi tiết của một bản sao bằng ID.
     """
     try:
-        response = supabase_client.table("bansao").select("*").eq("mabansao", maBanSao).single().execute()
+        response = supabase_client.table(TABLE_NAME).select("*").eq("mabansao", maBanSao).single().execute()
 
         if response.data:
             return response.data
@@ -103,7 +105,7 @@ def update_ban_sao(maBanSao: int, ban_sao_in: BanSaoUpdate, current_staff: dict 
         if not data:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không có thông tin nào được gửi để cập nhật")
 
-        response = supabase_client.table("bansao").update(data).eq("mabansao", maBanSao).execute()
+        response = supabase_client.table(TABLE_NAME).update(data).eq("mabansao", maBanSao).execute()
 
         if response.data:
             return response.data[0]
@@ -124,7 +126,7 @@ def delete_ban_sao(maBanSao: int, current_staff: dict = Depends(get_current_staf
     Xóa một bản sao (ví dụ: sách hỏng, thanh lý).
     """
     try:
-        response = supabase_client.table("bansao").delete().eq("mabansao", maBanSao).execute()
+        response = supabase_client.table(TABLE_NAME).delete().eq("mabansao", maBanSao).execute()
 
         if not response.data:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy bản sao với id={maBanSao} để xóa")

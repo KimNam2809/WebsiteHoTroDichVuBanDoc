@@ -1,13 +1,15 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
-# Thêm DatTruocUpdate vào import
 from app.models.dat_truoc import DatTruoc, DatTruocCreate, DatTruocUpdate
 from app.connect.db import supabase_client
+from app.connect.auth import get_current_user_from_db, get_owner_or_staff, get_reservation_owner_or_staff
 from app.utils import to_json_safe
 import logging, ast
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+TABLE_NAME = "dattruoc"
 
 # 1. CREATE (Nghiệp vụ Đặt Trước)
 @router.post(
@@ -16,7 +18,7 @@ logger = logging.getLogger(__name__)
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một lượt đặt trước sách (Đã có logic nghiệp vụ)"
 )
-def create_dat_truoc(dat_truoc_in: DatTruocCreate):
+def create_dat_truoc(dat_truoc_in: DatTruocCreate, current_user: dict = Depends(get_owner_or_staff)):
     """
     Gọi RPC fn_dat_truoc để tạo một lượt đặt trước mới.
     Hàm này sẽ tự động:
@@ -24,6 +26,42 @@ def create_dat_truoc(dat_truoc_in: DatTruocCreate):
     2. Kiểm tra bạn đọc đã đặt sách này chưa.
     3. Tạo bản ghi `DatTruoc` mới.
     """
+    """
+    Tạo một lượt đặt trước mới.
+    - Bạn đọc: Chỉ được tự đặt cho chính mình.
+    - Nhân viên: Được phép đặt cho bất kỳ bạn đọc nào.
+    """
+    user_role = current_user.get("vaitro")
+    user_id_from_token = current_user.get("manguoidung")
+    mabandoc_from_body = dat_truoc_in.maBanDoc
+
+    if user_role == "nhanVien":
+        pass # Nhân viên được phép
+
+    elif user_role == "nguoiDung":
+        try:
+            profile_res = supabase_client.table("bandoc") \
+                .select("mabandoc") \
+                .eq("manguoidung", user_id_from_token) \
+                .single() \
+                .execute()
+
+            if not profile_res.data:
+                raise HTTPException(status_code=403, detail="Bạn không có hồ sơ bạn đọc hợp lệ.")
+
+            own_maBanDoc = profile_res.data["mabandoc"]
+
+            if own_maBanDoc != mabandoc_from_body:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Bạn đọc chỉ được phép đặt trước cho chính mình."
+                )
+        except Exception as e:
+            if isinstance(e, HTTPException): raise e
+            raise HTTPException(status_code=500, detail="Lỗi khi xác thực hồ sơ bạn đọc.")
+    else:
+        raise HTTPException(status_code=403, detail="Vai trò của bạn không được phép đặt trước.")
+
     params = {
         "p_ma_ban_sao": dat_truoc_in.maBanSao,
         "p_ma_ban_doc": dat_truoc_in.maBanDoc
@@ -92,13 +130,45 @@ def create_dat_truoc(dat_truoc_in: DatTruocCreate):
     status_code=status.HTTP_200_OK,
     summary="Lấy tất cả các lượt đặt trước"
 )
-def get_all_dat_truoc():
-    """Lấy danh sách tất cả các lượt đặt trước trong hệ thống."""
+def get_all_dat_truoc(current_user: dict = Depends(get_current_user_from_db)):
+    """
+    Lấy danh sách tất cả các lượt đặt trước trong hệ thống.
+    - Bạn đọc chỉ thấy lượt đặt trước của chính mình.
+    - Nhân viên thấy tất cả lượt đặt trước.
+    """
     try:
-        response = supabase_client.table("dattruoc").select("*").order("madattruoc", desc=True).execute()
-        if response.data:
-            return response.data
-        return []
+        user_role = current_user.get("vaitro")
+        current_id = current_user.get("manguoidung")
+
+        query = supabase_client.table(TABLE_NAME).select("*")
+
+        if user_role == "nhanVien":
+            pass # Nhân viên thấy tất cả
+
+        elif user_role == "nguoiDung":
+            try:
+                profile_response = supabase_client.table("bandoc") \
+                    .select("mabandoc") \
+                    .eq("manguoidung", current_id) \
+                    .single().execute()
+
+                if not profile_response.data:
+                    return [] # Không có hồ sơ
+
+                ma_ban_doc = profile_response.data.get("mabandoc") # Sửa: mabandoc
+
+                # SỬA LỖI CHÍNH: DÙNG 'mabandoc' (viết thường)
+                query = query.eq("mabandoc", ma_ban_doc)
+
+            except Exception as profile_e:
+                logger.error(f"Lỗi khi lấy hồ sơ bạn đọc (ID: {current_id}): {profile_e}")
+                raise HTTPException(status_code=500, detail="Lỗi khi truy xuất hồ sơ bạn đọc.")
+        else:
+            return [] # Vai trò không xác định
+
+        response = query.order("madattruoc", desc=True).execute()
+        return response.data or []
+
     except Exception as e:
         logger.error("Lỗi khi lấy tất cả DatTruoc: %s", e)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -110,10 +180,10 @@ def get_all_dat_truoc():
     status_code=status.HTTP_200_OK,
     summary="Lấy chi tiết một lượt đặt trước"
 )
-def get_dat_truoc_by_id(maDatTruoc: int):
+def get_dat_truoc_by_id(maDatTruoc: int, current_user: dict = Depends(get_reservation_owner_or_staff)):
     """Lấy chi tiết một lượt đặt trước bằng ID."""
     try:
-        response = supabase_client.table("dattruoc").select("*").eq("madattruoc", maDatTruoc).single().execute()
+        response = supabase_client.table(TABLE_NAME).select("*").eq("madattruoc", maDatTruoc).single().execute()
         if response.data:
             return response.data
     except Exception as e:
@@ -127,7 +197,7 @@ def get_dat_truoc_by_id(maDatTruoc: int):
     status_code=status.HTTP_200_OK,
     summary="Cập nhật trạng thái đặt trước (ví dụ: Hủy, Hoàn thành)"
 )
-def update_dat_truoc(maDatTruoc: int, dat_truoc_in: DatTruocUpdate):
+def update_dat_truoc(maDatTruoc: int, dat_truoc_in: DatTruocUpdate, current_user: dict = Depends(get_reservation_owner_or_staff)):
     """
     Cập nhật trạng thái của một lượt đặt trước.
     Thường dùng để chuyển `trangThaiDatTruoc` thành 'daHuy' hoặc 'daHoanThanh'.
@@ -135,18 +205,18 @@ def update_dat_truoc(maDatTruoc: int, dat_truoc_in: DatTruocUpdate):
     try:
         data = to_json_safe(dat_truoc_in.model_dump(exclude_unset=True, by_alias=True))
         if not data:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không có thông tin nào được gửi để cập nhật")
+            raise HTTPException(status_code=400, detail="Không có thông tin nào được gửi để cập nhật")
 
-        response = supabase_client.table("dattruoc").update(data).eq("madattruoc", maDatTruoc).execute()
+        response = supabase_client.table(TABLE_NAME).update(data).eq("madattruoc", maDatTruoc).execute()
 
         if response.data:
             return response.data[0]
         else:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy lượt đặt trước với id={maDatTruoc} để cập nhật")
+            raise HTTPException(status_code=404, detail=f"Không tìm thấy lượt đặt trước với id={maDatTruoc}")
 
     except Exception as e:
         logger.error("Lỗi khi cập nhật DatTruoc ID %s: %s", maDatTruoc, e)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 # 5. DELETE (Xóa)
 @router.delete(
@@ -154,7 +224,7 @@ def update_dat_truoc(maDatTruoc: int, dat_truoc_in: DatTruocUpdate):
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa một lượt đặt trước"
 )
-def delete_dat_truoc(maDatTruoc: int):
+def delete_dat_truoc(maDatTruoc: int, current_user: dict = Depends(get_reservation_owner_or_staff)):
     """(Hành chính) Xóa một bản ghi đặt trước."""
     try:
         response = supabase_client.table("dattruoc").delete().eq("madattruoc", maDatTruoc).execute()

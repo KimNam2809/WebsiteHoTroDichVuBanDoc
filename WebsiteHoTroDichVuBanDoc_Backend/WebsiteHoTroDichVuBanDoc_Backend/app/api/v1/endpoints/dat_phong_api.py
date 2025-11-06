@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from app.models.dat_phong import DatPhong, DatPhongCreate, DatPhongUpdate, DatPhongDuyet
 from app.connect.db import supabase_client
+from app.connect.auth import get_current_staff_profile
 from app.utils import to_json_safe
 import logging, ast
 
@@ -17,7 +18,7 @@ TABLE_NAME = "datphong"
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một lượt đặt phòng mới (Đã có logic nghiệp vụ)"
 )
-def create_dat_phong(dat_phong_in: DatPhongCreate):
+def create_dat_phong(dat_phong_in: DatPhongCreate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Gọi RPC fn_dat_phong để tạo một lượt đặt phòng mới.
     Kiểm tra xung đột thời gian và trạng thái phòng.
@@ -96,7 +97,7 @@ def create_dat_phong(dat_phong_in: DatPhongCreate):
     status_code=status.HTTP_200_OK,
     summary="Lấy tất cả các lượt đặt phòng"
 )
-def get_all_dat_phong():
+def get_all_dat_phong(currrent_staff: dict = Depends(get_current_staff_profile)):
     """Lấy danh sách tất cả các lượt đặt phòng trong hệ thống."""
     try:
         response = supabase_client.table(TABLE_NAME).select("*").order("madatphong", desc=True).execute()
@@ -114,7 +115,7 @@ def get_all_dat_phong():
     status_code=status.HTTP_200_OK,
     summary="Lấy chi tiết một lượt đặt phòng"
 )
-def get_dat_phong_by_id(maDatPhong: int):
+def get_dat_phong_by_id(maDatPhong: int, current_staff: dict = Depends(get_current_staff_profile)):
     """Lấy chi tiết một lượt đặt phòng bằng ID."""
     try:
         response = supabase_client.table(TABLE_NAME).select("*").eq("madatphong", maDatPhong).single().execute()
@@ -131,7 +132,7 @@ def get_dat_phong_by_id(maDatPhong: int):
     status_code=status.HTTP_200_OK,
     summary="Cập nhật trạng thái đặt phòng (ví dụ: Hủy, Duyệt)"
 )
-def update_dat_phong(maDatPhong: int, dat_phong_in: DatPhongUpdate):
+def update_dat_phong(maDatPhong: int, dat_phong_in: DatPhongUpdate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Cập nhật trạng thái của một lượt đặt phòng
     (ví dụ: nhân viên gán `maNhanVien` và đổi `trangThai` thành 'daDuyet' hoặc 'daHuy').
@@ -158,7 +159,7 @@ def update_dat_phong(maDatPhong: int, dat_phong_in: DatPhongUpdate):
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa một lượt đặt phòng"
 )
-def delete_dat_phong(maDatPhong: int):
+def delete_dat_phong(maDatPhong: int, current_staff: dict = Depends(get_current_staff_profile)):
     """(Hành chính) Xóa một bản ghi đặt phòng."""
     try:
         response = supabase_client.table(TABLE_NAME).delete().eq("madatphong", maDatPhong).execute()
@@ -176,7 +177,7 @@ def delete_dat_phong(maDatPhong: int):
     status_code=status.HTTP_200_OK,
     summary="Nhân viên duyệt một lượt đặt phòng"
 )
-def duyet_dat_phong(maDatPhong: int, duyet_in: DatPhongDuyet):
+def duyet_dat_phong(maDatPhong: int, duyet_in: DatPhongDuyet, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Gọi RPC fn_duyet_dat_phong để nhân viên duyệt lượt đặt.
     Hàm này sẽ tự động:

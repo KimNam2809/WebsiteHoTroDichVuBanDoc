@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
+from app.connect.auth import get_current_admin_profile
 from app.models.phuong_xa import PhuongXa, PhuongXaCreate, PhuongXaUpdate
 from app.connect.db import supabase_client
 import logging
@@ -10,8 +11,14 @@ logger = logging.getLogger(__name__)
 TABLE_NAME = "phuongxa"
 
 # 1. CREATE
-@router.post("/", response_model=PhuongXa, status_code=status.HTTP_201_CREATED, summary="Tạo Phường/Xã mới")
-def create_phuong_xa(phuong_xa_in: PhuongXaCreate):
+@router.post(
+    "/",
+    response_model=PhuongXa,
+    status_code=status.HTTP_201_CREATED,
+    summary="Tạo Phường/Xã mới"
+)
+
+def create_phuong_xa(phuong_xa_in: PhuongXaCreate, current_admin: dict = Depends(get_current_admin_profile)):
     try:
         data = phuong_xa_in.model_dump(by_alias=True)
         response = supabase_client.table(TABLE_NAME).insert(data).execute()
@@ -46,8 +53,13 @@ def get_phuong_xa_by_id(maPhuongXa: int):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy Phường/Xã với id={maPhuongXa}")
 
 # 4. UPDATE
-@router.put("/{maPhuongXa}", response_model=PhuongXa, summary="Cập nhật Phường/Xã")
-def update_phuong_xa(maPhuongXa: int, phuong_xa_in: PhuongXaUpdate):
+@router.put(
+    "/{maPhuongXa}",
+    response_model=PhuongXa,
+    summary="Cập nhật Phường/Xã"
+)
+
+def update_phuong_xa(maPhuongXa: int, phuong_xa_in: PhuongXaUpdate, current_admin: dict = Depends(get_current_admin_profile)):
     try:
         data = phuong_xa_in.model_dump(exclude_unset=True, by_alias=True)
         if not data:
@@ -61,8 +73,13 @@ def update_phuong_xa(maPhuongXa: int, phuong_xa_in: PhuongXaUpdate):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 # 5. DELETE
-@router.delete("/{maPhuongXa}", status_code=status.HTTP_204_NO_CONTENT, summary="Xóa Phường/Xã")
-def delete_phuong_xa(maPhuongXa: int):
+@router.delete(
+    "/{maPhuongXa}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Xóa Phường/Xã"
+)
+
+def delete_phuong_xa(maPhuongXa: int, current_admin: dict = Depends(get_current_admin_profile)):
     try:
         response = supabase_client.table(TABLE_NAME).delete().eq("maphuongxa", maPhuongXa).execute()
         if not response.data:
@@ -75,7 +92,12 @@ def delete_phuong_xa(maPhuongXa: int):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 # 6. API Nghiệp vụ: Lấy tất cả phường/xã của 1 tỉnh/thành phố
-@router.get("/tinh-thanh-pho/{maTinhThanhPho}", response_model=List[PhuongXa], summary="Lấy Phường/Xã theo Tỉnh/Thành phố")
+@router.get(
+    "/tinh-thanh-pho/{maTinhThanhPho}",
+    response_model=List[PhuongXa],
+    summary="Lấy Phường/Xã theo Tỉnh/Thành phố"
+)
+
 def get_phuong_xa_by_tinh_thanh_pho(maTinhThanhPho: int):
     """L..." (Giữ nguyên hàm này) ..."""
     try:

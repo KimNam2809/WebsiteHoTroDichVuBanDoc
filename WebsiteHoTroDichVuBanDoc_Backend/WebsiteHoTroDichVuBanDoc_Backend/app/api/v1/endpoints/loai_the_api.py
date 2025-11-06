@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from app.models.loai_the import LoaiThe, LoaiTheCreate, LoaiTheUpdate
 from app.connect.db import supabase_client
+from app.connect.auth import get_current_staff_profile
 from app.utils import to_json_safe # Dùng cho nhất quán
 import logging, ast
 
@@ -17,7 +18,7 @@ TABLE_NAME = "loaithe"
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một loại thẻ mới"
 )
-def create_loai_the(loai_the_in: LoaiTheCreate):
+def create_loai_the(loai_the_in: LoaiTheCreate, current_staff: dict = Depends(get_current_staff_profile)):
     """
     Tạo một loại thẻ thư viện mới (ví dụ: Thẻ Sinh viên).
     """
@@ -89,7 +90,7 @@ def get_loai_the_by_id(maLoaiThe: int):
     status_code=status.HTTP_200_OK,
     summary="Cập nhật thông tin loại thẻ"
 )
-def update_loai_the(maLoaiThe: int, loai_the_in: LoaiTheUpdate):
+def update_loai_the(maLoaiThe: int, loai_the_in: LoaiTheUpdate, current_staff: dict = Depends(get_current_staff_profile)):
     """Cập nhật thông tin cho một loại thẻ (tên, mô tả, giới hạn mượn...)."""
     try:
         data = to_json_safe(loai_the_in.model_dump(exclude_unset=True, by_alias=True))
@@ -119,7 +120,7 @@ def update_loai_the(maLoaiThe: int, loai_the_in: LoaiTheUpdate):
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Xóa một loại thẻ"
 )
-def delete_loai_the(maLoaiThe: int):
+def delete_loai_the(maLoaiThe: int, current_staff: dict = Depends(get_current_staff_profile)):
     """Xóa một loại thẻ. (Sẽ thất bại nếu đang có thẻ bạn đọc hoặc yêu cầu thẻ dùng loại này)."""
     try:
         response = supabase_client.table(TABLE_NAME).delete().eq("maloaithe", maLoaiThe).execute()
