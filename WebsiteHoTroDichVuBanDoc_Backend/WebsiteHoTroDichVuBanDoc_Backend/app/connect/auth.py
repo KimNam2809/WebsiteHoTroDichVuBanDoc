@@ -375,6 +375,62 @@ def get_card_owner_or_staff(
     logger.warning(f"Từ chối: User {user_id} cố xem Thẻ {maThe} mà không có quyền.")
     raise FORBIDDEN_EXCEPTION
 
+# Nghiệp vụ yêu cầu thẻ
+def get_card_request_owner_or_staff(
+    maYeuCauThe: int, # <-- 1. Lấy ID 'YeuCauThe' từ URL
+    current_user: dict = Depends(get_current_user_from_db) # <-- 2. Lấy user
+) -> dict:
+    """
+    Dependency Tầng 2 (Bảo vệ YeuCauThe - GET ONE):
+    Đảm bảo user là Nhân viên HOẶC là chủ của Yêu cầu thẻ.
+    """
+    user_id = current_user["manguoidung"]
+    user_role = current_user.get("vaitro")
+
+    # --- Trường hợp 1: Người dùng là Nhân viên ---
+    if user_role == "nhanVien":
+        return current_user # OK, là nhân viên
+
+    # --- Trường hợp 2: Người dùng là Bạn đọc (Kiểm tra sở hữu) ---
+    if user_role == "nguoiDung":
+        try:
+            # 1. Lấy xem ai là chủ của YÊU CẦU THẺ này
+            request_res = supabase_client.table("yeucauthe") \
+                .select("mabandoc") \
+                .eq("mayeucauthe", maYeuCauThe) \
+                .single() \
+                .execute()
+
+            if not request_res.data:
+                raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu thẻ.")
+
+            request_owner_id = request_res.data["mabandoc"]
+
+            # 2. Lấy hồ sơ (maBanDoc) của người đang đăng nhập
+            profile_res = supabase_client.table("bandoc") \
+                .select("mabandoc") \
+                .eq("manguoidung", user_id) \
+                .single() \
+                .execute()
+
+            if not profile_res.data:
+                raise HTTPException(status_code=403, detail="Bạn không có hồ sơ bạn đọc.")
+
+            user_profile_id = profile_res.data["mabandoc"]
+
+            # 3. So sánh
+            if request_owner_id == user_profile_id:
+                return current_user # OK, là chính chủ
+
+        except Exception as e:
+            if isinstance(e, HTTPException): raise e
+            logger.warning(f"Lỗi khi kiểm tra get_card_request_owner_or_staff: {e}")
+            raise FORBIDDEN_EXCEPTION
+
+    # --- Trường hợp 3: Thất bại ---
+    logger.warning(f"Từ chối: User {user_id} cố xem YeuCauThe {maYeuCauThe} mà không có quyền.")
+    raise FORBIDDEN_EXCEPTION
+
 # Nghiệp vụ thông báo
 def get_notification_owner_or_staff(
     maThongBao: int, # <-- 1. Lấy ID 'ThongBao' từ URL
@@ -597,6 +653,62 @@ def get_delivery_owner_or_staff(
 
     # --- Trường hợp 3: Thất bại ---
     logger.warning(f"Từ chối: User {user_id} cố xem VanChuyen {maVanChuyen} mà không có quyền.")
+    raise FORBIDDEN_EXCEPTION
+
+# Nghiệp vụ yêu cầu giao
+def get_delivery_request_owner_or_staff(
+    maYeuCauGiao: int, # <-- 1. Lấy ID 'YeuCauGiao' từ URL
+    current_user: dict = Depends(get_current_user_from_db) # <-- 2. Lấy user
+) -> dict:
+    """
+    Dependency Tầng 2 (Bảo vệ YeuCauGiao - GET ONE):
+    Đảm bảo user là Nhân viên HOẶC là chủ của Yêu cầu giao.
+    """
+    user_id = current_user["manguoidung"]
+    user_role = current_user.get("vaitro")
+
+    # --- Trường hợp 1: Người dùng là Nhân viên ---
+    if user_role == "nhanVien":
+        return current_user # OK, là nhân viên
+
+    # --- Trường hợp 2: Người dùng là Bạn đọc (Kiểm tra sở hữu) ---
+    if user_role == "nguoiDung":
+        try:
+            # 1. Lấy xem ai là chủ của YÊU CẦU GIAO này
+            request_res = supabase_client.table("yeucaugiao") \
+                .select("mabandoc") \
+                .eq("mayeucaugiao", maYeuCauGiao) \
+                .single() \
+                .execute()
+
+            if not request_res.data:
+                raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu giao.")
+
+            request_owner_id = request_res.data["mabandoc"]
+
+            # 2. Lấy hồ sơ (maBanDoc) của người đang đăng nhập
+            profile_res = supabase_client.table("bandoc") \
+                .select("mabandoc") \
+                .eq("manguoidung", user_id) \
+                .single() \
+                .execute()
+
+            if not profile_res.data:
+                raise HTTPException(status_code=403, detail="Bạn không có hồ sơ bạn đọc.")
+
+            user_profile_id = profile_res.data["mabandoc"]
+
+            # 3. So sánh
+            if request_owner_id == user_profile_id:
+                return current_user # OK, là chính chủ
+
+        except Exception as e:
+            if isinstance(e, HTTPException): raise e
+            logger.warning(f"Lỗi khi kiểm tra get_delivery_request_owner_or_staff: {e}")
+            raise FORBIDDEN_EXCEPTION
+
+    # --- Trường hợp 3: Thất bại ---
+    logger.warning(f"Từ chối: User {user_id} cố xem YeuCauGiao {maYeuCauGiao} mà không có quyền.")
     raise FORBIDDEN_EXCEPTION
 
 # Nghiệp vụ gia hạn
