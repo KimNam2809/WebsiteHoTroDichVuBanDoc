@@ -58,6 +58,7 @@ def get_current_user_from_db(token: str = Depends(oauth2_scheme)) -> dict:
 
 # --- TẦNG 2: PHÂN QUYỀN (Kiểm tra hồ sơ) ---
 
+# 1. Xác nhận nhân viên
 def get_current_staff_profile(
     current_user: Dict[str, Any] = Depends(get_current_user_from_db)
 ) -> Dict[str, Any]:
@@ -94,6 +95,7 @@ def get_current_staff_profile(
         logger.warning(f"Lỗi khi get_current_staff_profile: {e}")
         raise FORBIDDEN_EXCEPTION
 
+# 2. Xác nhận bạn đọc
 def get_current_reader_profile(
     current_user: Dict[str, Any] = Depends(get_current_user_from_db)
 ) -> Dict[str, Any]:
@@ -133,7 +135,7 @@ def get_current_reader_profile(
             detail="Hồ sơ bạn đọc của bạn không tồn tại hoặc bị lỗi."
         )
 
-# Nghiệp vụ người dùng
+# 3. Nghiệp vụ người dùng
 def get_user_owner_or_staff(
     maNguoiDung: int, # <-- 1. Lấy ID 'NguoiDung' từ URL
     current_user: dict = Depends(get_current_user_from_db) # <-- 2. Lấy user
@@ -158,7 +160,7 @@ def get_user_owner_or_staff(
     logger.warning(f"Từ chối: User {user_id_from_token} cố truy cập NguoiDung ID {maNguoiDung}.")
     raise FORBIDDEN_EXCEPTION
 
-# Nghiệp vụ nhân viên
+# 4. Nghiệp vụ nhân viên
 def get_current_admin_profile(
     current_user: dict = Depends(get_current_user_from_db)
 ) -> dict:
@@ -200,6 +202,7 @@ def get_current_admin_profile(
         logger.warning(f"Lỗi khi get_current_admin_profile: {e}")
         raise FORBIDDEN_EXCEPTION
 
+# 5. Nghiệp vụ nhân viên (xác nhận nhân viên hoặc admin)
 def get_staff_self_or_admin(
     maNhanVien: int, # <-- 1. Lấy ID 'NhanVien' từ URL
     current_user: dict = Depends(get_current_user_from_db) # <-- 2. Lấy user
@@ -253,7 +256,7 @@ def get_staff_self_or_admin(
         detail="Nhân viên chỉ được phép thao tác trên hồ sơ của chính mình (hoặc cần quyền Admin)."
     )
 
-# Nghiệp vụ bạn đọc
+# 6. Nghiệp vụ bạn đọc
 def get_owner_or_staff(
     # 1. Nhận `maBanDoc` từ API (không cần `Path(...)`)
     maBanDoc: int,
@@ -319,7 +322,7 @@ def get_owner_or_staff(
         detail="Bạn không có quyền xem hồ sơ này."
     )
 
-# Nghiệp vụ thẻ bạn đọc
+# 7. Nghiệp vụ thẻ bạn đọc
 def get_card_owner_or_staff(
     maThe: int, # <-- 1. Lấy ID 'TheBanDoc' từ URL
     current_user: dict = Depends(get_current_user_from_db) # <-- 2. Lấy user
@@ -375,7 +378,7 @@ def get_card_owner_or_staff(
     logger.warning(f"Từ chối: User {user_id} cố xem Thẻ {maThe} mà không có quyền.")
     raise FORBIDDEN_EXCEPTION
 
-# Nghiệp vụ yêu cầu thẻ
+# 8. Nghiệp vụ yêu cầu thẻ
 def get_card_request_owner_or_staff(
     maYeuCauThe: int, # <-- 1. Lấy ID 'YeuCauThe' từ URL
     current_user: dict = Depends(get_current_user_from_db) # <-- 2. Lấy user
@@ -431,7 +434,7 @@ def get_card_request_owner_or_staff(
     logger.warning(f"Từ chối: User {user_id} cố xem YeuCauThe {maYeuCauThe} mà không có quyền.")
     raise FORBIDDEN_EXCEPTION
 
-# Nghiệp vụ thông báo
+# 9. Nghiệp vụ thông báo
 def get_notification_owner_or_staff(
     maThongBao: int, # <-- 1. Lấy ID 'ThongBao' từ URL
     current_user: dict = Depends(get_current_user_from_db) # <-- 2. Lấy user
@@ -487,7 +490,7 @@ def get_notification_owner_or_staff(
     logger.warning(f"Từ chối: User {user_id} cố xem ThongBao {maThongBao} mà không có quyền.")
     raise FORBIDDEN_EXCEPTION
 
-# Nghiệp vụ đặt chỗ ngồi
+# 10. Nghiệp vụ đặt chỗ ngồi
 def get_booking_seat_owner_or_staff(
     maDatCho: int, # <-- 1. Lấy ID từ URL
     current_user: dict = Depends(get_current_user_from_db) # <-- 2. Lấy user
@@ -543,7 +546,7 @@ def get_booking_seat_owner_or_staff(
     logger.warning(f"Từ chối: User {user_id} cố xem lượt đặt {maDatCho} mà không có quyền.")
     raise FORBIDDEN_EXCEPTION
 
-# Nghiệp vụ đặt trước
+# 11. Nghiệp vụ đặt trước
 def get_reservation_owner_or_staff(
     maDatTruoc: int, # <-- 1. Lấy ID từ URL
     current_user: dict = Depends(get_current_user_from_db) # <-- 2. Lấy user
@@ -600,7 +603,7 @@ def get_reservation_owner_or_staff(
     logger.warning(f"Từ chối: User {user_id} cố xem lượt đặt {maDatTruoc} mà không có quyền.")
     raise FORBIDDEN_EXCEPTION
 
-# Nghiệp vụ vận chuyển
+# 12. Nghiệp vụ vận chuyển
 def get_delivery_owner_or_staff(
     maVanChuyen: int, # <-- 1. Lấy ID 'VanChuyen' từ URL
     current_user: dict = Depends(get_current_user_from_db) # <-- 2. Lấy user
@@ -655,7 +658,7 @@ def get_delivery_owner_or_staff(
     logger.warning(f"Từ chối: User {user_id} cố xem VanChuyen {maVanChuyen} mà không có quyền.")
     raise FORBIDDEN_EXCEPTION
 
-# Nghiệp vụ yêu cầu giao
+# 13. Nghiệp vụ yêu cầu giao
 def get_delivery_request_owner_or_staff(
     maYeuCauGiao: int, # <-- 1. Lấy ID 'YeuCauGiao' từ URL
     current_user: dict = Depends(get_current_user_from_db) # <-- 2. Lấy user
@@ -711,7 +714,7 @@ def get_delivery_request_owner_or_staff(
     logger.warning(f"Từ chối: User {user_id} cố xem YeuCauGiao {maYeuCauGiao} mà không có quyền.")
     raise FORBIDDEN_EXCEPTION
 
-# Nghiệp vụ gia hạn
+# 14. Nghiệp vụ gia hạn
 def get_renewal_owner_or_staff(
     # Tham số này sẽ được điền bởi API gọi nó
     maGiaHan: int,
@@ -761,6 +764,7 @@ def get_renewal_owner_or_staff(
 
     raise FORBIDDEN_EXCEPTION
 
+# 15. Nghiệp vụ mượn trả
 def get_loan_owner_or_staff(
     # Tham số này sẽ được điền bởi API gọi nó
     maMuonTra: int,

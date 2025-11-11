@@ -32,9 +32,9 @@ pip freeze > requirements.txt
 # File Expoler
 /du_an_tot_nghiep/
 |
-|-- /frontend/       <-- Nơi chứa code Next.js của bạn
+|-- /frontend/       <-- Nơi chứa code Next.js
 |
-|-- /backend/        <-- Chúng ta sẽ làm việc ở đây
+|-- /backend/        <-- Nơi chứa code FastAPI
 |   |
 |   |-- /app/        <-- Thư mục chứa code logic chính
 |   |   |-- /api/    <-- Nơi chứa các file định nghĩa endpoints
@@ -43,27 +43,32 @@ pip freeze > requirements.txt
 |   |   |   |   |-- __init__.py
 |   |   |   |   |-- endpoints/
 |   |   |   |   |   |-- __init__.py
-|   |   |   |   |   |-- books.py    <-- API cho Sách
-|   |   |   |   |   |-- members.py  <-- API cho Độc giả
+|   |   |   |   |   |-- tac_pham_api.py    <-- API cho tác phẩm
+|   |   |   |   |   |-- auth_api.py  <-- API cho xác thực
+|   |   |   |   |   |-- ...
 |   |   |   |   |-- api.py        <-- File tổng hợp các router v1
 |   |   |
 |   |   |-- /connect/     <-- Nơi chứa cấu hình, file kết nối
 |   |   |   |-- __init__.py
-|   |   |   |-- config.py   <-- Để đọc file .env
-|   |   |   |-- db.py       <-- Để khởi tạo Supabase client
+|   |   |   |-- config.py    <-- Để đọc file .env
+|   |   |   |-- db.py        <-- Để khởi tạo Supabase client
+|   |   |   |-- auth.py      <-- Nơi tạo các xác thực phân quyền cho các nghiệp vụ (Ví dụ: xác thực là bạn đọc hoặc nhân viên)
+|   |   |   |-- security.py  <-- Nơi tạo các phương thức băm mật khẩu, xác thực mật khẩu, tạo JWT token, ...
 |   |   |
 |   |   |-- /models/   <-- Nơi chứa Pydantic models (Schemas)
 |   |   |   |-- __init__.py
-|   |   |   |-- book.py
-|   |   |   |-- member.py
+|   |   |   |-- tac_pham.py
+|   |   |   |-- ban_doc.py
+|   |   |   |-- ...
 |   |   |
 |   |   |-- __init__.py
 |   |   |-- main.py    <-- File FastAPI chính
+|   |   |-- utils.py   <-- File chứa các phương thức định dạng kiểu dữ liệu json đặc biệt được gửi đi như "datetime, decimal, ..."
 |   |
-|   |-- .env           <-- File chứa thông tin nhạy cảm (API keys)
+|   |-- .env           <-- File chứa thông tin nhạy cảm (API keys, Supabase API keys, ...)
 |   |-- .gitignore
 |   |-- requirements.txt
-|   |-- venv/          <-- Thư mục môi trường ảo (sẽ tạo ở bước 2)
+|   |-- venv/          <-- Thư mục môi trường ảo
 
 
 # Tạo models

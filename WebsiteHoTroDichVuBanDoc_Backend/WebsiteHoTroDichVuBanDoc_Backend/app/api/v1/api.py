@@ -8,7 +8,7 @@ from app.api.v1.endpoints import (
 )
 
 api_router = APIRouter()
-# api_router.include_router(books.router, prefix="/books", tags=["Books"])
+
 api_router.include_router(auth_api.router, prefix="/auth", tags=["Xác Thực"])
 api_router.include_router(tac_pham_api.router, prefix="/tac-pham", tags=["Tác Phẩm"])
 api_router.include_router(danh_muc_api.router, prefix="/danh-muc", tags=["Danh Mục"])
