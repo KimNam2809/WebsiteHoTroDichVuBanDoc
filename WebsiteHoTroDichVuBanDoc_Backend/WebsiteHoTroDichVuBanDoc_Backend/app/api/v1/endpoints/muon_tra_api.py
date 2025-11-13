@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
+from typing import List, Optional
 from app.models.muon_tra import MuonTra, MuonTraCreate, MuonTraUpdate, MuonTraTraSach
 from app.connect.db import supabase_client
 from app.connect.auth import get_current_staff_profile, get_current_user_from_db, get_loan_owner_or_staff
@@ -16,18 +16,67 @@ TABLE_NAME = "muontra"
     "/",
     response_model=MuonTra,
     status_code=status.HTTP_201_CREATED,
-    summary="Tạo một lượt mượn sách mới (Đã có logic nghiệp vụ)"
+    summary="Tạo một lượt mượn sách mới (Nhân viên/Bạn đọc)"
 )
-def create_muon_tra(muon_tra_in: MuonTraCreate, current_staff: dict = Depends(get_current_staff_profile)):
-    params = {
-        "p_ma_ban_sao": muon_tra_in.maBanSao,
-        "p_ma_ban_doc": muon_tra_in.maBanDoc,
-        "p_ma_nhan_vien": muon_tra_in.maNhanVien,
-        "p_ngay_tra": muon_tra_in.ngayTra
-    }
-    safe_params = to_json_safe(params)
+def create_muon_tra(muon_tra_in: MuonTraCreate, current_user: dict = Depends(get_current_user_from_db)):
+    """
+    Tạo một lượt mượn (RPC fn_muon_tai_lieu).
+    - Nhân viên: Được phép tạo cho bất kỳ ai.
+    - Bạn đọc: Chỉ được tạo cho chính mình (maNhanVien sẽ là NULL).
+    """
+    user_role = current_user.get("vaitro")
+    user_id_from_token = current_user.get("manguoidung")
+
+    p_ma_nhan_vien_param: Optional[int] = None # Mặc định là NULL
 
     try:
+        # === LOGIC PHÂN QUYỀN ===
+        if user_role == "nhanVien":
+            # Nhân viên phải tự điền ID của mình
+            profile_res = supabase_client.table("nhanvien") \
+                .select("manhanvien") \
+                .eq("manguoidung", user_id_from_token) \
+                .single().execute()
+
+            if not profile_res.data:
+                raise HTTPException(status_code=403, detail="Tài khoản Nhân viên không có hồ sơ hợp lệ.")
+
+            p_ma_nhan_vien_param = profile_res.data["manhanvien"]
+
+            # (An toàn): Ghi đè maNhanVien từ body bằng maNhanVien từ token
+            if muon_tra_in.maNhanVien and muon_tra_in.maNhanVien != p_ma_nhan_vien_param:
+                raise HTTPException(status_code=403, detail="Nhân viên chỉ có thể tạo lượt mượn bằng ID của chính mình.")
+            # Nếu nhân viên không gửi maNhanVien, tự động dùng của họ
+            muon_tra_in.maNhanVien = p_ma_nhan_vien_param
+
+        elif user_role == "nguoiDung":
+            # Bạn đọc phải tự tạo cho chính mình
+            profile_res = supabase_client.table("bandoc") \
+                .select("mabandoc") \
+                .eq("manguoidung", user_id_from_token) \
+                .single().execute()
+
+            if not profile_res.data:
+                raise HTTPException(status_code=403, detail="Bạn không có hồ sơ bạn đọc hợp lệ.")
+
+            own_maBanDoc = profile_res.data["mabandoc"]
+
+            # Kiểm tra xem maBanDoc trong body có khớp không
+            if own_maBanDoc != muon_tra_in.maBanDoc:
+                raise HTTPException(status_code=403, detail="Bạn đọc chỉ được tạo lượt mượn cho chính mình.")
+            # Bạn đọc tự tạo -> maNhanVien là NULL
+            p_ma_nhan_vien_param = None
+        else:
+            raise HTTPException(status_code=403, detail="Vai trò của bạn không được phép tạo lượt mượn.")
+
+        params = {
+            "p_ma_ban_sao": muon_tra_in.maBanSao,
+            "p_ma_ban_doc": muon_tra_in.maBanDoc,
+            "p_ma_nhan_vien": p_ma_nhan_vien_param, # Sẽ là Int (Nhân viên) hoặc None (Bạn đọc)
+            "p_ngay_tra": muon_tra_in.ngayTra
+        }
+        safe_params = to_json_safe(params)
+
         response = supabase_client.rpc("fn_muon_tai_lieu", safe_params).execute()
         logger.debug("RPC response: status=%s, data=%s, error=%s", getattr(response, "status_code", None), getattr(response, "data", None), getattr(response, "error", None))
 

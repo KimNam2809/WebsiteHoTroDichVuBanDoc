@@ -275,7 +275,7 @@ def get_owner_or_staff(
         try:
             # Xác thực họ CÓ hồ sơ nhân viên
             profile_res = supabase_client.table("nhanvien") \
-                .select("maNhanVien") \
+                .select("manhanvien") \
                 .eq("manguoidung", user_id) \
                 .single() \
                 .execute()

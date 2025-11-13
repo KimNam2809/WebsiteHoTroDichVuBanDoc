@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 
 TABLE_NAME = "yeucaugiao"
 
-# 1. CREATE (Bạn đọc tạo yêu cầu giao sách)
+# 1. CREATE (Bạn đọc tạo yêu cầu giao tài liệu)
 @router.post(
     "/",
     response_model=YeuCauGiao,
     status_code=status.HTTP_201_CREATED,
-    summary="Tạo một yêu cầu giao sách mới"
+    summary="Tạo một yêu cầu giao tài liệu mới"
 )
 def create_yeu_cau_giao(yeu_cau_in: YeuCauGiaoCreate, current_user: dict = Depends(get_current_user_from_db)):
     """
@@ -81,13 +81,13 @@ def create_yeu_cau_giao(yeu_cau_in: YeuCauGiaoCreate, current_user: dict = Depen
     "/",
     response_model=List[YeuCauGiao],
     status_code=status.HTTP_200_OK,
-    summary="Lấy danh sách tất cả yêu cầu giao sách (Phân quyền động)"
+    summary="Lấy danh sách tất cả yêu cầu giao tài liệu (Phân quyền động)"
 )
 def get_all_yeu_cau_giao(
     current_user: dict = Depends(get_current_user_from_db) # Dùng Tầng 1
 ):
     """
-    Lấy danh sách tất cả các yêu cầu giao sách.
+    Lấy danh sách tất cả các yêu cầu giao tài liệu.
     - Nhân viên: Thấy TẤT CẢ.
     - Bạn đọc: Chỉ thấy CỦA MÌNH.
     """
@@ -131,10 +131,10 @@ def get_all_yeu_cau_giao(
     "/{maYeuCauGiao}",
     response_model=YeuCauGiao,
     status_code=status.HTTP_200_OK,
-    summary="Lấy chi tiết một yêu cầu giao sách"
+    summary="Lấy chi tiết một yêu cầu giao tài liệu"
 )
 def get_yeu_cau_giao_by_id(maYeuCauGiao: int, current_user: dict = Depends(get_delivery_request_owner_or_staff)):
-    """Lấy thông tin chi tiết của một yêu cầu giao sách bằng ID."""
+    """Lấy thông tin chi tiết của một yêu cầu giao tài liệu bằng ID."""
     try:
         response = supabase_client.table(TABLE_NAME).select("*").eq("mayeucaugiao", maYeuCauGiao).single().execute()
         if response.data:
@@ -178,10 +178,10 @@ def update_yeu_cau_giao(maYeuCauGiao: int, yeu_cau_in: YeuCauGiaoUpdate, current
 @router.delete(
     "/{maYeuCauGiao}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Xóa một yêu cầu giao sách"
+    summary="Xóa một yêu cầu giao tài liệu"
 )
 def delete_yeu_cau_giao(maYeuCauGiao: int, current_staff: dict = Depends(get_current_staff_profile)):
-    """(Hành chính) Xóa một yêu cầu giao sách."""
+    """(Hành chính) Xóa một yêu cầu giao tài liệu."""
     try:
         response = supabase_client.table(TABLE_NAME).delete().eq("mayeucaugiao", maYeuCauGiao).execute()
         if not response.data:

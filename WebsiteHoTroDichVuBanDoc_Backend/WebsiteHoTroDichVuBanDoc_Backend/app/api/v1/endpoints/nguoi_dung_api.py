@@ -18,7 +18,7 @@ TABLE_NAME = "nguoidung"
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một người dùng mới (đã băm mật khẩu)"
 )
-def create_nguoi_dung(nguoi_dung_in: NguoiDungCreate): # <-- Nhận NguoiDungCreate (có mật khẩu)
+def create_nguoi_dung(nguoi_dung_in: NguoiDungCreate, current_staff: dict = Depends(get_current_staff_profile)): # <-- Nhận NguoiDungCreate (có mật khẩu)
     """
     Tạo một người dùng mới. Mật khẩu sẽ tự động được băm.
     """

@@ -6,7 +6,7 @@ from app.models.db_base import DBModel
 class MuonTraBase(DBModel):
     maBanSao: int
     maBanDoc: int
-    maNhanVien: int # Nhân viên thực hiện cho mượn
+    maNhanVien: Optional[int] = None # Nhân viên thực hiện cho mượn
     ngayTra: date # Ngày hẹn trả
     trangThaiMuon: str = 'daMuon'
     soLanGiaHan: int = 0
