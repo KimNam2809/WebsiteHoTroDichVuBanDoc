@@ -1,13 +1,55 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import List, Optional
 from app.connect.auth import get_current_staff_profile
 from app.models.tac_pham import TacPham, TacPhamCreate, TacPhamUpdate
 from app.models.ban_sao import BanSao
+from app.models.custom_response import TacPhamFullInfo
 from app.connect.db import supabase_client
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 TABLE_NAME = "tacpham"
+
+@router.get(
+    "/tim-kiem-nang-cao",
+    response_model=List[TacPham],
+    summary="Tìm kiếm nâng cao (Từ khóa, Danh mục, Từ khóa, Phân trang)"
+)
+def tim_kiem_nang_cao(
+    q: Optional[str] = Query(None, description="Từ khóa tìm kiếm (Tên sách, Tác giả)"),
+    danh_muc_id: Optional[int] = Query(None, description="ID Danh mục để lọc"),
+    tu_khoa_id: Optional[int] = Query(None, description="ID Từ khóa để lọc"),
+    page: int = Query(1, ge=1, description="Số trang (mặc định 1)"),
+    limit: int = Query(10, ge=1, le=100, description="Số lượng kết quả/trang")
+):
+    """
+    Tìm kiếm sách theo nhiều tiêu chí kết hợp.
+    Sử dụng RPC `fn_tim_kiem_nang_cao`.
+    """
+    try:
+        # 1. Tính toán offset
+        offset = (page - 1) * limit
+
+        # 2. Chuẩn bị params
+        params = {
+            "p_keyword": q,
+            "p_ma_danh_muc": danh_muc_id,
+            "p_ma_tu_khoa": tu_khoa_id,
+            "p_limit": limit,
+            "p_offset": offset
+        }
+
+        # 3. Gọi RPC
+        response = supabase_client.rpc("fn_tim_kiem_nang_cao", params).execute()
+
+        return response.data or []
+
+    except Exception as e:
+        logger.error(f"Lỗi tìm kiếm nâng cao: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 # 1. Tạo mới tác phẩm
 @router.post(
@@ -175,4 +217,77 @@ def get_ban_sao_for_tac_pham(maTacPham: int):
         return [] # Trả về list rỗng nếu tác phẩm này chưa có bản sao nào
 
     except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+# 8. Lấy thông tin chi tiết đầy đủ của một tác phẩm
+@router.get(
+    "/{maTacPham}/full-info",
+    response_model=TacPhamFullInfo,
+    summary="Lấy thông tin chi tiết đầy đủ của tác phẩm"
+)
+def get_tac_pham_full_info(maTacPham: int):
+    """
+    Lấy thông tin tác phẩm bao gồm:
+    - Thông tin cơ bản.
+    - Danh sách các danh mục thuộc về.
+    - Danh sách các bản sao vật lý.
+    - Tính toán số lượng tồn kho.
+    """
+    try:
+        # 1. Query dữ liệu liên kết (JOIN)
+        # Cú pháp: tên_bảng_con(các_cột)
+        # tacpham_danhmuc(...) : Lấy bảng trung gian
+        # danhmuc(...) : Từ bảng trung gian lấy thông tin danh mục
+        # bansao(*) : Lấy toàn bộ bản sao
+        query = """
+            *,
+            tacpham_danhmuc(
+                danhmuc(*)
+            ),
+            bansao(*)
+        """
+
+        response = (
+            supabase_client.table("tacpham")
+            .select(query)
+            .eq("matacpham", maTacPham)
+            .single()
+            .execute()
+        )
+
+        data = response.data
+        if not data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy tác phẩm")
+
+        # 2. Xử lý dữ liệu (Data Transformation)
+
+        # a. Trích xuất danh mục từ bảng trung gian
+        # Data trả về dạng: [{'danhmuc': {'id': 1, 'ten': 'A'}}, ...]
+        list_danh_muc_raw = data.get("tacpham_danhmuc", [])
+        list_danh_muc = [item["danhmuc"] for item in list_danh_muc_raw if item.get("danhmuc")]
+
+        # b. Trích xuất bản sao
+        list_ban_sao = data.get("bansao", [])
+
+        # c. Tính toán số lượng
+        tong_so = len(list_ban_sao)
+        # Đếm số bản sao có trangthaichomuon = True
+        co_san = sum(1 for bs in list_ban_sao if bs.get("trangthaichomuon") is True)
+
+        # 3. Tạo response theo Model đã định nghĩa
+        result = {
+            "thong_tin_chung": data, # Pydantic sẽ tự lọc các trường thừa
+            "danh_muc": list_danh_muc,
+            "ban_sao": list_ban_sao,
+            "so_luong_tong": tong_so,
+            "so_luong_co_san": co_san
+        }
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Lỗi lấy full info tác phẩm {maTacPham}: {e}")
+        # Bắt lỗi 404 nếu .single() thất bại
+        if "JSON object requested, multiple (or no) rows returned" in str(e):
+            raise HTTPException(status_code=404, detail="Không tìm thấy tác phẩm")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
