@@ -4,7 +4,7 @@ from jose import JWTError
 from app.connect.security import decode_access_token
 from app.connect.db import supabase_client
 import logging
-from typing import Dict, Any # Thêm import
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
