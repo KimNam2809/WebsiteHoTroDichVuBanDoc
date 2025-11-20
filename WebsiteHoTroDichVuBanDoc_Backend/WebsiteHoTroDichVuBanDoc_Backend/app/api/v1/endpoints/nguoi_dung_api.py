@@ -2,8 +2,9 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from app.models.nguoi_dung import NguoiDung, NguoiDungCreate, NguoiDungUpdate
+from app.models.custom_responses import UserProfileResponse
 from app.connect.db import supabase_client
-from app.connect.auth import get_current_staff_profile, get_user_owner_or_staff
+from app.connect.auth import get_current_staff_profile, get_current_user_from_db, get_user_owner_or_staff
 from app.connect.security import get_password_hash
 
 router = APIRouter()
@@ -11,10 +12,113 @@ logger = logging.getLogger(__name__)
 
 TABLE_NAME = "nguoidung"
 
+@router.get(
+    "/profile",
+    response_model=UserProfileResponse,
+    summary="Lấy thông tin hồ sơ cá nhân (Bạn đọc/Nhân viên)"
+)
+def get_user_profile(
+    current_user: dict = Depends(get_current_user_from_db)
+):
+    """
+    Lấy thông tin chi tiết của người dùng đang đăng nhập.
+    Tự động phát hiện vai trò để lấy dữ liệu từ bảng tương ứng:
+    - Nếu là **nguoiDung**: Lấy từ `BanDoc` -> `TheBanDoc`.
+    - Nếu là **nhanVien**: Lấy từ `NhanVien`.
+    """
+    user_id = current_user.get("manguoidung")
+    email = current_user.get("email")
+    role = current_user.get("vaitro")
+
+    # Dữ liệu trả về mặc định (chưa có hồ sơ)
+    result = {
+        "hoten": "Chưa cập nhật hồ sơ",
+        "email": email,
+        "vaitro": role
+    }
+
+    try:
+        # === TRƯỜNG HỢP 1: LÀ BẠN ĐỌC ===
+        if role == "nguoiDung":
+            query = """
+                hoten,
+                thebandoc (
+                    sothe,
+                    ngayhethan,
+                    trangthaithe,
+                    loaithe (
+                        tenthe,
+                        tailieumuontoida
+                    )
+                )
+            """
+            response = (
+                supabase_client.table("bandoc")
+                .select(query)
+                .eq("manguoidung", user_id)
+                .single()
+                .execute()
+            )
+
+            if response.data:
+                data = response.data
+                result["hoten"] = data.get("hoten")
+
+                # Xử lý thông tin thẻ
+                if data.get("thebandoc") and len(data["thebandoc"]) > 0:
+                    the = data["thebandoc"][0]
+                    loai_the = the.get("loaithe") or {}
+
+                    result.update({
+                        "sothe": the.get("sothe"),
+                        "ngayhethan": the.get("ngayhethan"),
+                        "trangthaithe": "Hoạt động" if the.get("trangthaithe") else "Đã khóa/Hết hạn",
+                        "tenthe": loai_the.get("tenthe"),
+                        "tailieumuontoida": loai_the.get("tailieumuontoida")
+                    })
+                else:
+                    # Có hồ sơ nhưng chưa có thẻ
+                    result.update({
+                        "sothe": "Chưa cấp",
+                        "trangthaithe": "Chưa kích hoạt"
+                    })
+
+        # === TRƯỜNG HỢP 2: LÀ NHÂN VIÊN ===
+        elif role == "nhanVien":
+            # Lấy thông tin từ bảng NhanVien
+            response = (
+                supabase_client.table("nhanvien")
+                .select("hoten, manhanviennoibo, phongban, chucvu, ngaytuyendung")
+                .eq("manguoidung", user_id)
+                .single()
+                .execute()
+            )
+
+            if response.data:
+                data = response.data
+                result.update({
+                    "hoten": data.get("hoten"),
+                    "manhanviennoibo": data.get("manhanviennoibo"),
+                    "phongban": data.get("phongban"),
+                    "chucvu": data.get("chucvu"),
+                    "ngaytuyendung": data.get("ngaytuyendung")
+                })
+
+        # === TRƯỜNG HỢP 3: CHƯA CÓ HỒ SƠ ===
+        # (Giữ nguyên result mặc định đã tạo ở trên)
+
+        return result
+
+    except Exception as e:
+        # Lỗi thường gặp: Tài khoản mới tạo (trong bảng nguoidung)
+        # nhưng chưa tạo hồ sơ (trong bandoc/nhanvien) -> .single() sẽ lỗi
+        logger.warning(f"User {user_id} ({role}) chưa có hồ sơ chi tiết hoặc lỗi: {e}")
+        return result
+
 # 1. CREATE (Tạo người dùng MỚI)
 @router.post(
     "/",
-    response_model=NguoiDung, # <-- Trả về NguoiDung (không     có mật khẩu)
+    response_model=NguoiDung, # <-- Trả về NguoiDung (không có mật khẩu)
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một người dùng mới (đã băm mật khẩu)"
 )
