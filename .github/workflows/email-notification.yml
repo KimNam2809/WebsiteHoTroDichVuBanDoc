@@ -1,0 +1,44 @@
+name: Email Notification to Professor
+# Kịch bản này chạy khi có code push lên main/develop HOẶC có Pull Request
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    types: [opened, closed, reopened]
+
+jobs:
+  send_email:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send mail to Professor
+        uses: dawidd6/action-send-mail@v3
+        with:
+          # Cấu hình máy chủ mail (dùng Gmail)
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+
+          # Lấy thông tin từ GitHub Secrets (An toàn tuyệt đối)
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+
+          # Thông tin người nhận
+          subject: "[GitHub Notification] ${{ github.repository }} - New Update"
+          # Thay email của thầy bạn vào dòng dưới đây
+          to: huydophu@gmail.com
+
+          # Nội dung email (Người gửi, nhánh nào, link commit)
+          from: "Student Bot <${{ secrets.MAIL_USERNAME }}>"
+          body: |
+            Thưa thầy,
+
+            Sinh viên vừa có cập nhật mới trên GitHub.
+
+            - Người thực hiện: ${{ github.actor }}
+            - Hành động: ${{ github.event_name }}
+            - Nhánh: ${{ github.ref }}
+            - Tin nhắn Commit: ${{ github.event.head_commit.message }}
+
+            Thầy có thể xem chi tiết thay đổi tại đây: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+
+            Em cảm ơn thầy.
