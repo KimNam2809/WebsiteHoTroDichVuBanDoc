@@ -34,3 +34,14 @@ class MuonTra(MuonTraBase):
 
 class MuonTraTraSach(DBModel):
     maNhanVien: int # Nhân viên nhận sách trả
+
+class MuonTraItem(DBModel):
+    maMuonTra: int
+    tenTacPham: str
+    maBanSaoNoiBo: str
+    ngayMuon: datetime # Timestamptz
+    ngayTraDuKien: date
+    ngayTraThucTe: Optional[datetime] = None
+    trangThai: str # daMuon, daTra...
+    tienPhat: Optional[float] = 0.0
+    nguoiMuon: Optional[str] = None # Trường này để Nhân viên biết ai mượn

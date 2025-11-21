@@ -1,8 +1,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
-from app.models.nguoi_dung import NguoiDung, NguoiDungCreate, NguoiDungUpdate
-from app.models.custom_responses import UserProfileResponse
+from app.models.nguoi_dung import NguoiDung, NguoiDungCreate, NguoiDungUpdate, UserProfileResponse
 from app.connect.db import supabase_client
 from app.connect.auth import get_current_staff_profile, get_current_user_from_db, get_user_owner_or_staff
 from app.connect.security import get_password_hash
@@ -15,8 +14,10 @@ TABLE_NAME = "nguoidung"
 @router.get(
     "/profile",
     response_model=UserProfileResponse,
-    summary="Lấy thông tin hồ sơ cá nhân (Bạn đọc/Nhân viên)"
+    status_code=status.HTTP_200_OK,
+    summary="Lấy thông tin hồ sơ người dùng hiện tại"
 )
+
 def get_user_profile(
     current_user: dict = Depends(get_current_user_from_db)
 ):
@@ -118,7 +119,7 @@ def get_user_profile(
 # 1. CREATE (Tạo người dùng MỚI)
 @router.post(
     "/",
-    response_model=NguoiDung, # <-- Trả về NguoiDung (không có mật khẩu)
+    response_model=NguoiDung, # <-- Trả về NguoiDung (không     có mật khẩu)
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một người dùng mới (đã băm mật khẩu)"
 )

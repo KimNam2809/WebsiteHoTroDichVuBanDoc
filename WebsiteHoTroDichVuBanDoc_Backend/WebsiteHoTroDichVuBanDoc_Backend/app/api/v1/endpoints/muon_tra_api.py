@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from typing import List, Optional
-from app.models.muon_tra import MuonTra, MuonTraCreate, MuonTraUpdate, MuonTraTraSach
+from app.models.muon_tra import MuonTra, MuonTraCreate, MuonTraUpdate, MuonTraTraSach, MuonTraItem
 from app.connect.db import supabase_client
 from app.connect.auth import get_current_staff_profile, get_current_user_from_db, get_loan_owner_or_staff
 from app.utils import to_json_safe
@@ -10,6 +10,96 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 TABLE_NAME = "muontra"
+
+@router.get(
+    "/danh-sach-chi-tiet-muon-tra",
+    response_model=List[MuonTraItem],
+    summary="Lấy lịch sử mượn trả (Nhân viên: Tất cả / Bạn đọc: Của mình)"
+)
+def get_borrowing_history(
+    trang_thai: Optional[str] = Query(None, regex="^(daMuon|daTra|quaHan)$"),
+    current_user: dict = Depends(get_current_user_from_db)
+):
+    """
+    Lấy danh sách mượn trả.
+    - **Nhân viên:** Xem được toàn bộ lịch sử mượn trả của hệ thống.
+    - **Bạn đọc:** Chỉ xem được lịch sử của chính mình.
+    """
+    user_role = current_user.get("vaitro")
+    user_id = current_user.get("manguoidung")
+
+    try:
+        # 1. Xây dựng Query cơ bản (Join BanSao -> TacPham, và BanDoc để lấy tên)
+        query = """
+            mamuontra,
+            thoigianmuon,
+            ngaytra,
+            ngaytrathucte,
+            trangthaimuon,
+            tienphat,
+            bansao (
+                mabansaonoibo,
+                tacpham (tentacpham)
+            ),
+            bandoc (hoten)
+        """
+        db_query = supabase_client.table("muontra").select(query)
+
+        # 2. PHÂN QUYỀN (Dynamic Filtering)
+        if user_role == "nhanVien":
+            # Nhân viên: Không cần lọc theo mabandoc -> Xem tất cả
+            pass
+
+        elif user_role == "nguoiDung":
+            # Bạn đọc: Phải tìm maBanDoc của họ để lọc
+            reader_res = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).single().execute()
+            if not reader_res.data:
+                return [] # Chưa có hồ sơ bạn đọc
+
+            ma_ban_doc = reader_res.data["mabandoc"]
+            # Lọc: Chỉ lấy dòng có mabandoc khớp
+            db_query = db_query.eq("mabandoc", ma_ban_doc)
+
+        else:
+            return [] # Vai trò lạ -> Trả về rỗng
+
+        # 3. Áp dụng bộ lọc trạng thái (nếu có)
+        if trang_thai == 'daMuon':
+            db_query = db_query.in_("trangthaimuon", "daMuon")
+        elif trang_thai == 'daTra':
+            db_query = db_query.eq("trangthaimuon", "daTra")
+        elif trang_thai == 'quaHan':
+            db_query = db_query.eq("trangthaimuon", "quaHan")
+
+        # 4. Thực thi và trả về
+        response = db_query.order("thoigianmuon", desc=True).execute()
+        data = response.data or []
+
+        # 5. Format dữ liệu ra
+        result = []
+        for item in data:
+            bs = item.get("bansao") or {}
+            tp = bs.get("tacpham") or {}
+            bd = item.get("bandoc") or {} # Lấy thông tin người mượn
+
+            history_item = {
+                "maMuonTra": item["mamuontra"],
+                "ngayMuon": item["thoigianmuon"],
+                "ngayTraDuKien": item["ngaytra"],
+                "ngayTraThucTe": item["ngaytrathucte"],
+                "trangThai": item["trangthaimuon"],
+                "tienPhat": item["tienphat"],
+                "maBanSaoNoiBo": bs.get("mabansaonoibo", "N/A"),
+                "tenTacPham": tp.get("tentacpham", "Không xác định"),
+                "nguoiMuon": bd.get("hoten", "N/A") # Hiển thị tên người mượn
+            }
+            result.append(history_item)
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Lỗi lấy lịch sử mượn: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Lỗi máy chủ nội bộ")
 
 # 1. CREATE (ĐÃ SỬA LỖI EXCEPT)
 @router.post(
