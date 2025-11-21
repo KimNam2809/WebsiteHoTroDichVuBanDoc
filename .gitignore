@@ -1,2 +1,11 @@
-# Môi trường
+# Python
+__pycache__/
+*.pyc
+
+# NextJS & Node
+node_modules/
+.next/
+
+# Environment variables
+.env
 *.env
