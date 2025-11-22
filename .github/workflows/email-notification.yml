@@ -1,4 +1,4 @@
-name: Email Notification to Professor
+name: Email Notification From "DATN của Lê Kim Nam" To "Thầy Đỗ Phú Huy"
 # Kịch bản này chạy khi có code push lên main/develop HOẶC có Pull Request
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
           body: |
             Thưa thầy,
 
-            Sinh viên vừa có cập nhật mới trên GitHub.
+            Em là Lê Kim Nam và vừa có cập nhật mới trên GitHub.
 
             - Người thực hiện: ${{ github.actor }}
             - Hành động: ${{ github.event_name }}

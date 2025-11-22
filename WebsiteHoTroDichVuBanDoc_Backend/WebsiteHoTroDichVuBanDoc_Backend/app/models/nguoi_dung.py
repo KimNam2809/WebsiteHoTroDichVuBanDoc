@@ -41,9 +41,5 @@ class UserProfileResponse(DBModel):
     manhanviennoibo: Optional[str] = None
     phongban: Optional[str] = None
     chucvu: Optional[str] = None
-<<<<<<< HEAD
     ngaytuyendung: Optional[date] = None
 
-=======
-    ngaytuyendung: Optional[date] = None
->>>>>>> main

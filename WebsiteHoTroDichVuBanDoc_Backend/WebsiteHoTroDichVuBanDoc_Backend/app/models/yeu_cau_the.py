@@ -31,3 +31,18 @@ class YeuCauTheUpdate(DBModel):
 class YeuCauThe(YeuCauTheBase):
     maYeuCauThe: int
     thoiGianBatDau: Optional[datetime] = None
+
+class YeuCauTheAdminView(DBModel):
+    ma_ho_so: int
+    ho_ten: str
+    loai_the: str
+    ngay_dang_ky: datetime
+    trang_thai: str
+    anh_the_url: Optional[str] = None
+    email: Optional[str] = None
+    sdt: Optional[str] = None
+
+# Model body để duyệt thẻ
+class DuyetTheRequest(DBModel):
+    trang_thai: str # 'daDuyet' hoặc 'tuChoi'
+    ly_do: Optional[str] = None

@@ -1,37 +1,91 @@
 // src/middleware.js
 import { NextResponse } from 'next/server';
-// 1. 👈 Không cần import Supabase ở đây nữa
+import { jwtVerify } from 'jose';
+
+const JWT_SECRET = new TextEncoder().encode(process.env.FASTAPI_JWT_SECRET);
 
 export async function middleware(request) {
-    // 2. 👈 Lấy cookie 'auth_token' của chúng ta
-    const token = request.cookies.get('auth_token');
+    const tokenCookie = request.cookies.get('auth_token');
+    const token = tokenCookie?.value;
     const url = request.nextUrl.clone();
+    const pathname = request.nextUrl.pathname;
 
-    // 3. LOGIC BẢO VỆ
-    // Nếu KHÔNG có token VÀ đang cố vào khu vực bảo vệ
-    if (!token && (
-        request.nextUrl.pathname.startsWith('/tai_khoan') ||
-        request.nextUrl.pathname.startsWith('/admin')
-        )) {
-        // Chuyển hướng về trang đăng nhập
-        url.pathname = '/dang_nhap';
-        return NextResponse.redirect(url);
+    // 1. KIỂM TRA BIẾN MÔI TRƯỜNG (Debug)
+    const secretStr = process.env.FASTAPI_JWT_SECRET;
+    if (!secretStr) {
+        console.error("LỖI NGHIÊM TRỌNG: Chưa cấu hình FASTAPI_JWT_SECRET trong .env.local");
+        // Cho qua để không sập web, nhưng sẽ không đăng nhập được
+        return NextResponse.next();
+    }
+    const JWT_SECRET = new TextEncoder().encode(secretStr);
+
+    let userRole = 'guest';
+
+    if (token) {
+        try {
+            const { payload } = await jwtVerify(token, JWT_SECRET);
+            // [DEBUG] In ra terminal để xem role thực sự là gì
+            console.log("Middleware Decoded Role:", payload.vaiTro);
+
+            userRole = payload.vaiTro || 'guest';
+        } catch (err) {
+            console.error("Middleware JWT Error:", err.message);
+            // Token lỗi -> Xóa và về đăng nhập
+            // Trường hợp A: Đang ở trang đăng nhập -> Không cần redirect, chỉ xóa cookie và cho hiện trang
+            if (pathname === '/dang_nhap') {
+                const response = NextResponse.next();
+                response.cookies.delete('auth_token');
+                return response;
+            }
+            // Trường hợp B: Đang ở trang khác -> Redirect về đăng nhập và xóa cookie
+            url.pathname = '/dang_nhap';
+            const response = NextResponse.redirect(url);
+            response.cookies.delete('auth_token');
+            return response;
+        }
     }
 
-    // 4. LOGIC CHUYỂN HƯỚNG
-    // Nếu ĐÃ CÓ token VÀ đang cố vào trang đăng nhập
-    if (token && request.nextUrl.pathname === '/dang_nhap') {
-        // Chuyển hướng về trang tài khoản
-        url.pathname = '/tai_khoan';
-        return NextResponse.redirect(url);
+    // --- LOGIC BẢO VỆ ---
+
+    // 1. Nếu là Khách (guest)
+    if (userRole === 'guest') {
+        if (pathname.startsWith('/tai_khoan') || pathname.startsWith('/admin')) {
+            return NextResponse.redirect(new URL('/dang_nhap', request.url));
+        }
     }
 
-    // Nếu mọi thứ ổn, cho phép đi tiếp
+    // 2. Nếu là Bạn Đọc (Trong API Profile bạn nói role là "nguoiDung",
+    //    nhưng trong token login bạn cần kiểm tra xem FastAPI trả về string gì.
+    //    Ở đây tôi gộp cả 'ban_doc' (cũ) và 'nguoiDung' (mới) để an toàn)
+    if (userRole === 'ban_doc' || userRole === 'nguoiDung') {
+        // Cố vào trang Admin -> Đá về Dashboard
+        if (pathname.startsWith('/admin')) {
+            console.log("--> Chặn Bạn đọc vào Admin");
+            return NextResponse.redirect(new URL('/tai_khoan', request.url));
+        }
+        // Cố vào trang Login -> Đá về Dashboard
+        if (pathname === '/dang_nhap') {
+            return NextResponse.redirect(new URL('/tai_khoan', request.url));
+        }
+    }
+
+    // 3. Nếu là Nhân viên (nhanVien hoặc nhan_vien)
+    if (userRole === 'nhan_vien' || userRole === 'nhanVien') {
+        // Cố vào trang Admin cấp cao (chỉ dành cho Admin)
+        if (pathname.startsWith('/admin/quan_ly_tai_khoan') ||
+            pathname.startsWith('/admin/giam_sat') ||
+            pathname.startsWith('/admin/cau_hinh')) {
+            return NextResponse.redirect(new URL('/admin', request.url));
+        }
+        if (pathname === '/dang_nhap') {
+            return NextResponse.redirect(new URL('/admin', request.url));
+        }
+    }
+
     return NextResponse.next();
-}
+    }
 
-// 5. CONFIG MATCHER (Giữ nguyên)
-export const config = {
+    export const config = {
     matcher: [
         '/dang_nhap',
         '/tai_khoan/:path*',

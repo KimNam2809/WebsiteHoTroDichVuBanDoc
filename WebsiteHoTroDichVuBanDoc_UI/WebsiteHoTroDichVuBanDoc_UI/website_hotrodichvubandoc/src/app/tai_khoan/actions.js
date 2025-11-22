@@ -6,7 +6,9 @@ import { cookies } from 'next/headers';
 const FASTAPI_URL = process.env.FASTAPI_BACKEND_URL;
 
 async function fetchWithAuth(endpoint) {
-    const token = cookies().get('auth_token')?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+
     if (!token) return null;
 
     const res = await fetch(`${FASTAPI_URL}${endpoint}`, {

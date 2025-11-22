@@ -1,5 +1,5 @@
 // src/app/dang_nhap/actions.js
-'use server'; 
+'use server';
 
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers'; // 👈 1. Import hàm cookies của Next.js
@@ -32,7 +32,8 @@ export async function loginAction(prevState, formData) {
 
         // 5. 👈 THAY ĐỔI LỚN: TỰ LƯU COOKIE BẢO MẬT
         // Chúng ta không dùng Supabase ở đây nữa
-        cookies().set('auth_token', accessToken, {
+        const cookieStore = await cookies();
+        cookieStore.set('auth_token', accessToken, {
             httpOnly: true, // Quan trọng: JavaScript phía client không thể đọc được
             secure: process.env.NODE_ENV === 'production', // Chỉ gửi qua HTTPS khi deploy
             path: '/', // Áp dụng cho toàn bộ trang web
