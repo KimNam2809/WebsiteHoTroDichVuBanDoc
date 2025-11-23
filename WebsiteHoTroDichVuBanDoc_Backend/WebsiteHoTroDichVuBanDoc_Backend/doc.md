@@ -1,4 +1,3 @@
-
 <!-- Create Environment -->
 # Create Environment
 
@@ -17,17 +16,17 @@ source venv/bin/activate
 # Update pip vesion
 python -m pip install --upgrade pip
 
-# Install Package:
-# fastapi: thư viện backend fastapi
-# uvicorn: máy chủ để chạy ứng dụng FastAPI
-# supabase: thư viện python chính thức để tương tác với Supabase
-# python-dotenv và pydantic-settings: dùng để quản lý các biến môi trường như API Keys, ...
-# passLib[bcrypt]: thư viện hashing (băm) mật khẩu
-# argon2-cffi: thư viện hashing (băm) mật khẩu tiêu chuẩn vàng hiện nay, giải quyết vấn đề chỉ băm đc tối đa 72 ký tự của bcrypt
-pip install fastapi "uvicorn[standard]" supabase python-dotenv pydantic-settings passlib[bcrypt] pydantic[email] argon2-cffi python-jose[cryptography] sendgrid python-multipart
-
 # Install file requirements.txt tự động:
 pip freeze > requirements.txt
+
+# Install toàn bộ package trong file requirements
+pip install -r requirements.txt
+
+# Khởi chạy FastAPI
+uvicorn app.main:app --reload
+
+# URL test API (Swagger)
+http://127.0.0.1:8000/docs
 
 # File Expoler
 /du_an_tot_nghiep/

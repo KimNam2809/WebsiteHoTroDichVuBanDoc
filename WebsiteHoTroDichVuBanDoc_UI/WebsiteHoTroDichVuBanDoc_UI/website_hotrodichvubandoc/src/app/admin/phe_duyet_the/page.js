@@ -1,80 +1,95 @@
 // src/app/admin/phe_duyet_the/page.js
-import Image from 'next/image';
-import { Check, X, Download } from 'lucide-react';
+'use client';
 
-// Dữ liệu giả lập cho các hồ sơ đang chờ
-const mockApplications = [
-    {
-        id: 'HS001',
-        hoTen: 'Nguyễn Văn B',
-        loaiThe: 'Thẻ Mượn (Cá nhân > 16 tuổi)',
-        ngayNop: '11/11/2025',
-        anhThe: 'https://via.placeholder.com/100x133', // Ảnh thẻ 3x4 giả
-        minhChung: 'cccd_nguyenvanb.pdf',
-    },
-    {
-        id: 'HS002',
-        hoTen: 'Trần Thị C',
-        loaiThe: 'Thẻ Đọc (Thiếu nhi 7-15 tuổi)',
-        ngayNop: '10/11/2025',
-        anhThe: 'https://via.placeholder.com/100x133',
-        minhChung: 'giaykhaisinh_tranthic.jpg',
-    },
-];
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { Check, X } from 'lucide-react';
+import { getPendingCardsAction, approveCardAction } from '../actions';
 
 export default function PheDuyetThePage() {
+    const [applications, setApplications] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Tải dữ liệu ban đầu
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    async function loadData() {
+        setIsLoading(true);
+        const data = await getPendingCardsAction();
+        setApplications(data || []);
+        setIsLoading(false);
+    }
+
+    // Xử lý duyệt/từ chối
+    async function handleReview(id, status) {
+        const confirmMsg = status === 'daDuyet' ? 'Duyệt hồ sơ này?' : 'Từ chối hồ sơ này?';
+        if (!confirm(confirmMsg)) return;
+
+        const res = await approveCardAction(id, status);
+        if (res.success) {
+            alert('Thao tác thành công!');
+            loadData(); // Tải lại danh sách
+        } else {
+            alert(res.error);
+        }
+    }
+
     return (
         <div>
             <h1 className="text-3xl font-bold mb-6">Phê duyệt hồ sơ đăng ký thẻ</h1>
 
             <div className="bg-white p-6 rounded-lg shadow-md">
                 <h2 className="text-xl font-semibold mb-4">
-                    Hồ sơ đang chờ ({mockApplications.length})
+                    Hồ sơ đang chờ ({applications.length})
                 </h2>
 
-                {/* Bảng hiển thị danh sách hồ sơ */}
+                {isLoading && <p>Đang tải...</p>}
+
                 <div className="space-y-6">
-                    {mockApplications.map((app) => (
-                        <div key={app.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                            {/* Header của hồ sơ */}
+                    {applications.map((app) => (
+                        <div key={app.ma_ho_so} className="border border-gray-200 rounded-lg overflow-hidden">
                             <div className="bg-gray-50 p-4 flex justify-between items-center">
                                 <div>
-                                    <span className="font-semibold text-lg text-blue-700">{app.hoTen}</span>
-                                    <span className="text-sm text-gray-500 ml-2">({app.id})</span>
+                                    <span className="font-semibold text-lg text-blue-700">{app.ho_ten}</span>
+                                    <span className="text-sm text-gray-500 ml-2">(ID: {app.ma_ho_so})</span>
                                 </div>
-                                <span className="text-sm text-gray-600">Ngày nộp: {app.ngayNop}</span>
+                                <span className="text-sm text-gray-600">Ngày nộp: {new Date(app.ngay_dang_ky).toLocaleDateString('vi-VN')}</span>
                             </div>
 
-                            {/* Thân của hồ sơ */}
                             <div className="p-4 flex flex-col md:flex-row">
-                                {/* Ảnh thẻ */}
                                 <div className="text-center p-2">
-                                    <Image
-                                        src={app.anhThe}
-                                        alt="Ảnh thẻ"
-                                        width={100}
-                                        height={133}
-                                        className="rounded-md border shadow-sm"
-                                    />
+                                    {app.anh_the_url ? (
+                                        <Image
+                                            src={app.anh_the_url}
+                                            alt="Ảnh thẻ"
+                                            width={100} height={133}
+                                            className="rounded-md border shadow-sm object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-[100px] h-[133px] bg-gray-200 flex items-center justify-center text-xs">No Image</div>
+                                    )}
                                 </div>
 
-                                {/* Thông tin chi tiết */}
-                                <div className="flex-1 p-2 md:ml-4">
-                                    <p><strong>Loại thẻ:</strong> {app.loaiThe}</p>
-                                    <p className="mt-2"><strong>Minh chứng:</strong></p>
-                                    <button className="flex items-center space-x-2 text-blue-600 hover:underline">
-                                        <Download className="w-4 h-4" />
-                                        <span>{app.minhChung}</span>
-                                    </button>
+                                <div className="flex-1 p-2 md:ml-4 space-y-1 text-sm">
+                                    <p><strong>Loại thẻ:</strong> {app.loai_the}</p>
+                                    <p><strong>Email:</strong> {app.email}</p>
+                                    <p><strong>SĐT:</strong> {app.sdt}</p>
                                 </div>
 
-                                {/* Nút hành động */}
                                 <div className="flex flex-col space-y-2 p-2 justify-center">
-                                    <button className="flex items-center justify-center space-x-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600">
+                                    <button
+                                        onClick={() => handleReview(app.ma_ho_so, 'daDuyet')}
+                                        className="flex items-center justify-center space-x-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+                                    >
                                         <Check className="w-5 h-5" />
-                                        <span>Phê duyệt</span>
+                                        <span>Duyệt</span>
                                     </button>
-                                    <button className="flex items-center justify-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600">
+                                    <button
+                                        onClick={() => handleReview(app.ma_ho_so, 'tuChoi')}
+                                        className="flex items-center justify-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                                    >
                                         <X className="w-5 h-5" />
                                         <span>Từ chối</span>
                                     </button>

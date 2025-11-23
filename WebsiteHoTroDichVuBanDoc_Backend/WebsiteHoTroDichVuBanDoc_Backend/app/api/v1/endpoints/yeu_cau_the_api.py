@@ -134,7 +134,7 @@ def get_danh_sach_cho_duyet(
         """
 
         # Lọc: Chỉ lấy 'choDuyet' và maBanDoc IS NULL (đăng ký mới)
-        # (Hoặc bạn có thể bỏ điều kiện maBanDoc is null nếu muốn xem cả yêu cầu cấp lại thẻ)
+        # (Hoặc có thể bỏ điều kiện maBanDoc is null nếu muốn xem cả yêu cầu cấp lại thẻ)
         response = (
             supabase_client.table(TABLE_NAME)
             .select(query)
@@ -181,39 +181,39 @@ def phe_duyet_yeu_cau_the(
     """
     Cập nhật trạng thái hồ sơ.
     - Nếu `daDuyet`: Cập nhật trạng thái và nhân viên xử lý.
-    - Nếu `tuChoi`: Cập nhật trạng thái, nhân viên xử lý VÀ lưu lý do vào cột `ghichu`.
+    - Nếu `tuChoi`: Cập nhật trạng thái và lưu lý do vào `thongtinbosung` (để dành trường `ghichu` cho ghi chú nội bộ).
     """
     # Validate trạng thái input
     if duyet_in.trang_thai not in ["daDuyet", "tuChoi"]:
         raise HTTPException(status_code=400, detail="Trạng thái không hợp lệ (chỉ 'daDuyet' hoặc 'tuChoi').")
 
     try:
-        # 1. Lấy dữ liệu cũ để giữ lại thông tin bổ sung cũ (nếu cần)
+        # 1. Lấy dữ liệu cũ để giữ lại thông tin bổ sung cũ
         old_req = supabase_client.table(TABLE_NAME).select("thongtinbosung").eq("mayeucauthe", maYeuCauThe).single().execute()
         if not old_req.data:
             raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu.")
 
         updated_info = old_req.data["thongtinbosung"] or {}
 
-        # Cập nhật ngày xử lý vào metadata (để tham khảo)
+        # Cập nhật ngày xử lý
         updated_info["ngay_xu_ly"] = date.today().isoformat()
 
-        # 2. Chuẩn bị dữ liệu update cơ bản
+        # 2. Nếu TỪ CHỐI -> Lưu lý do vào JSON `thongtinbosung`
+        if duyet_in.trang_thai == "tuChoi":
+            if not duyet_in.ly_do:
+                raise HTTPException(status_code=400, detail="Vui lòng cung cấp lý do từ chối.")
+            # Lưu vào đây để frontend dễ hiển thị kèm thông tin đăng ký
+            updated_info["ly_do_tu_choi"] = duyet_in.ly_do
+
+        # 3. Cập nhật DB
         update_data = {
             "trangthaiquytrinh": duyet_in.trang_thai,
             "manhanvien": current_staff.get("manhanvien"), # Ghi nhận nhân viên duyệt
             "thoigianxuly": "now()",
-            "thongtinbosung": to_json_safe(updated_info) # Cập nhật lại metadata
+            "thongtinbosung": to_json_safe(updated_info)
+            # Không cập nhật cột 'ghichu' ở đây nữa
         }
 
-        # 3. Xử lý trường hợp TỪ CHỐI -> Lưu lý do vào 'ghichu'
-        if duyet_in.trang_thai == "tuChoi":
-            # Lưu ý: Cần đảm bảo duyet_in.ly_do có giá trị
-            if not duyet_in.ly_do:
-                raise HTTPException(status_code=400, detail="Vui lòng cung cấp lý do từ chối.")
-            update_data["ghichu"] = duyet_in.ly_do
-
-        # 4. Thực thi Update
         supabase_client.table(TABLE_NAME).update(update_data).eq("mayeucauthe", maYeuCauThe).execute()
 
         return {"message": f"Đã cập nhật trạng thái thành {duyet_in.trang_thai}"}
