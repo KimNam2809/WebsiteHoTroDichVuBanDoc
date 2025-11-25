@@ -1,13 +1,11 @@
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form
-from typing import List, Optional
-from app.models.yeu_cau_the import YeuCauThe, YeuCauTheCreate, YeuCauTheUpdate, YeuCauTheAdminView, DuyetTheRequest
+from typing import List, Optional, Dict, Any
+from app.models.yeu_cau_the import YeuCauThe, YeuCauTheCreate, YeuCauTheDetailResponse, YeuCauTheUpdate, YeuCauTheAdminView, DuyetTheRequest
 from app.connect.db import supabase_client
 from app.utils import to_json_safe
 from app.connect.auth import get_current_user_from_db, get_current_staff_profile, get_card_request_owner_or_staff
-import logging, ast, uuid
-from pydantic import BaseModel
-from datetime import date
-import time, re # Để xử lý tên file (bỏ ký tự đặc biệt)
+import logging, ast, uuid, time, re
+from datetime import date, datetime, timedelta
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -25,14 +23,15 @@ async def dang_ky_the_ban_doc(
     # Sử dụng Form(...) thay vì Body JSON để hỗ trợ upload file
     ho_ten: str = Form(...),
     ngay_sinh: str = Form(...),
+    gioi_tinh: str = Form(...),
+    nghe_nghiep: str = Form(...),
     cccd: str = Form(...),
     dia_chi: str = Form(...),
     email: str = Form(...),
     sdt: str = Form(...),
     ma_loai_the: int = Form(...),
-    # File ảnh là tùy chọn (nếu người dùng không up)
+    ma_phuong_xa: int = Form(...),
     anh_the: UploadFile = File(None),
-    # Người dùng phải đăng nhập mới được gửi yêu cầu
     current_user: dict = Depends(get_current_user_from_db)
 ):
     """
@@ -83,12 +82,15 @@ async def dang_ky_the_ban_doc(
     thong_tin_bo_sung = {
         "ho_ten": ho_ten,
         "ngay_sinh": ngay_sinh,
+        "gioi_tinh": gioi_tinh,
+        "nghe_nghiep": nghe_nghiep,
         "cccd": cccd,
         "dia_chi": dia_chi,
+        "ma_phuong_xa": ma_phuong_xa,
         "email": email,
         "sdt": sdt,
         "anh_the_url": anh_the_url,
-        "ma_nguoi_dung_dang_ky": user_id # Lưu lại để truy vết
+        "ma_nguoi_dung_dang_ky": user_id
     }
 
     # 3. Tạo bản ghi YeuCauThe
@@ -167,62 +169,180 @@ def get_danh_sach_cho_duyet(
         logger.error(f"Lỗi lấy danh sách chờ duyệt: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# --- 3. API LẤY CHI TIẾT YÊU CẦU (MỚI) ---
+@router.get(
+    "/{maYeuCauThe}",
+    response_model=YeuCauTheDetailResponse,
+    summary="Lấy chi tiết đầy đủ một yêu cầu thẻ (Admin)"
+)
+def get_chi_tiet_yeu_cau_the(
+    maYeuCauThe: int,
+    current_staff: dict = Depends(get_current_staff_profile)
+):
+    """
+    Lấy thông tin chi tiết.
+    Hệ thống sẽ tự động lấy ID phường xã trong JSON, tra cứu tên Phường/Tỉnh
+    và trả về cho Admin xem (thay vì trả về số ID vô nghĩa).
+    """
+    try:
+        # 1. Lấy thông tin yêu cầu
+        query = "*, loaithe(tenthe)"
+        response = supabase_client.table(TABLE_NAME).select(query).eq("mayeucauthe", maYeuCauThe).single().execute()
 
-# --- 3. API DUYỆT / TỪ CHỐI THẺ (Cho Admin) ---
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu.")
+
+        data = response.data
+        loai_the = data.get("loaithe") or {}
+        info = data.get("thongtinbosung") or {}
+
+        # 2. Xử lý Địa chỉ (Logic Mới)
+        # Lấy ID từ JSON
+        ma_phuong_xa = info.get("ma_phuong_xa")
+
+        dia_chi_full = info.get("dia_chi", "") # Mặc định là số nhà
+        ten_phuong = ""
+        ten_tinh = ""
+
+        if ma_phuong_xa:
+            try:
+                # Query bảng Phường Xã (kèm Tỉnh Thành)
+                px_res = supabase_client.table("phuongxa") \
+                    .select("tenphuongxa, tinhthanhpho(tentinhthanhpho)") \
+                    .eq("maphuongxa", ma_phuong_xa) \
+                    .single().execute()
+
+                if px_res.data:
+                    ten_phuong = px_res.data.get("tenphuongxa")
+                    tinh_data = px_res.data.get("tinhthanhpho") or {}
+                    ten_tinh = tinh_data.get("tentinhthanhpho")
+
+                    # Gắn thêm thông tin hiển thị vào JSON trả về (không lưu vào DB)
+                    info["ten_phuong_xa"] = ten_phuong
+                    info["ten_tinh_thanh_pho"] = ten_tinh
+                    info["dia_chi_hien_thi"] = f"{dia_chi_full}, {ten_phuong}, {ten_tinh}"
+            except Exception:
+                pass # Nếu lỗi lấy địa chỉ thì vẫn trả về các thông tin khác
+
+        return {
+            "mayeucauthe": data["mayeucauthe"],
+            "thoigianbatdau": data["thoigianbatdau"],
+            "tenloaithe": loai_the.get("tenthe", "Không xác định"),
+            "thongtinbosung": info, # JSON bây giờ đã có thêm tên phường/tỉnh
+            "lephi": data.get("lephi") or 0,
+            "trangthaiquytrinh": data["trangthaiquytrinh"]
+        }
+    except Exception as e:
+        logger.error(f"Lỗi xem chi tiết yêu cầu {maYeuCauThe}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- 4. API DUYỆT / TỪ CHỐI THẺ (Cho Admin) ---
 @router.put(
     "/phe-duyet/{maYeuCauThe}",
-    summary="Duyệt hoặc Từ chối yêu cầu thẻ"
+    summary="Duyệt (Tự động tạo Bạn đọc & Thẻ) hoặc Từ chối"
 )
 def phe_duyet_yeu_cau_the(
     maYeuCauThe: int,
     duyet_in: DuyetTheRequest,
     current_staff: dict = Depends(get_current_staff_profile)
 ):
-    """
-    Cập nhật trạng thái hồ sơ.
-    - Nếu `daDuyet`: Cập nhật trạng thái và nhân viên xử lý.
-    - Nếu `tuChoi`: Cập nhật trạng thái và lưu lý do vào `thongtinbosung` (để dành trường `ghichu` cho ghi chú nội bộ).
-    """
-    # Validate trạng thái input
+    # ... (Phần validate đầu hàm giữ nguyên) ...
     if duyet_in.trang_thai not in ["daDuyet", "tuChoi"]:
-        raise HTTPException(status_code=400, detail="Trạng thái không hợp lệ (chỉ 'daDuyet' hoặc 'tuChoi').")
+        raise HTTPException(status_code=400, detail="Trạng thái không hợp lệ.")
 
     try:
-        # 1. Lấy dữ liệu cũ để giữ lại thông tin bổ sung cũ
-        old_req = supabase_client.table(TABLE_NAME).select("thongtinbosung").eq("mayeucauthe", maYeuCauThe).single().execute()
-        if not old_req.data:
+        # 1. Lấy thông tin hiện tại
+        req_res = supabase_client.table(TABLE_NAME).select("*").eq("mayeucauthe", maYeuCauThe).single().execute()
+        if not req_res.data:
             raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu.")
 
-        updated_info = old_req.data["thongtinbosung"] or {}
+        request_data = req_res.data
+        if request_data["trangthaiquytrinh"] in ["daDuyet", "tuChoi"]:
+            raise HTTPException(status_code=400, detail="Yêu cầu này đã được xử lý trước đó.")
 
-        # Cập nhật ngày xử lý
-        updated_info["ngay_xu_ly"] = date.today().isoformat()
+        info = request_data.get("thongtinbosung") or {}
+        manhanvien = current_staff.get("manhanvien")
 
-        # 2. Nếu TỪ CHỐI -> Lưu lý do vào JSON `thongtinbosung`
+        # === LOGIC TỪ CHỐI (Giữ nguyên) ===
         if duyet_in.trang_thai == "tuChoi":
+            # ... (Code từ chối giữ nguyên như bài trước) ...
             if not duyet_in.ly_do:
-                raise HTTPException(status_code=400, detail="Vui lòng cung cấp lý do từ chối.")
-            # Lưu vào đây để frontend dễ hiển thị kèm thông tin đăng ký
-            updated_info["ly_do_tu_choi"] = duyet_in.ly_do
+                raise HTTPException(status_code=400, detail="Vui lòng nhập lý do từ chối.")
+            info["ly_do_tu_choi"] = duyet_in.ly_do
+            info["ngay_xu_ly"] = datetime.now().isoformat()
+            supabase_client.table(TABLE_NAME).update({
+                "trangthaiquytrinh": "tuChoi",
+                "manhanvien": manhanvien,
+                "thoigianxuly": "now()",
+                "thongtinbosung": to_json_safe(info)
+            }).eq("mayeucauthe", maYeuCauThe).execute()
+            return {"message": "Đã từ chối yêu cầu thẻ."}
 
-        # 3. Cập nhật DB
-        update_data = {
-            "trangthaiquytrinh": duyet_in.trang_thai,
-            "manhanvien": current_staff.get("manhanvien"), # Ghi nhận nhân viên duyệt
-            "thoigianxuly": "now()",
-            "thongtinbosung": to_json_safe(updated_info)
-            # Không cập nhật cột 'ghichu' ở đây nữa
-        }
+        # === LOGIC DUYỆT (CẬP NHẬT: Lấy ma_phuong_xa từ JSON) ===
+        if duyet_in.trang_thai == "daDuyet":
+            user_id = info.get("ma_nguoi_dung_dang_ky")
+            if not user_id:
+                raise HTTPException(status_code=400, detail="Dữ liệu lỗi: Không tìm thấy User ID.")
 
-        supabase_client.table(TABLE_NAME).update(update_data).eq("mayeucauthe", maYeuCauThe).execute()
+            check_bd = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).execute()
+            ma_ban_doc_moi = None
 
-        return {"message": f"Đã cập nhật trạng thái thành {duyet_in.trang_thai}"}
+            if check_bd.data:
+                ma_ban_doc_moi = check_bd.data[0]['mabandoc']
+            else:
+                # --- THAY ĐỔI Ở ĐÂY ---
+                # Lấy ma_phuong_xa từ JSON 'info' thay vì từ cột 'maphuongxa'
+                ma_phuong_xa = info.get("ma_phuong_xa")
 
-    except HTTPException:
-        raise
+                if not ma_phuong_xa:
+                    raise HTTPException(status_code=400, detail="Thiếu thông tin Phường/Xã trong hồ sơ đăng ký.")
+
+                new_bandoc_data = {
+                    "manguoidung": user_id,
+                    "hoten": info.get("ho_ten"),
+                    "ngaysinh": info.get("ngay_sinh"),
+                    "gioi_tinh": info.get("gioi_tinh", "Khác"),
+                    "cccd": info.get("cccd"),
+                    "diachi": info.get("dia_chi"),
+                    "maphuongxa": ma_phuong_xa, # Dùng ID lấy từ JSON
+                    "nghenghiep": info.get("nghe_nghiep"),
+                    "thongtinbosung": to_json_safe({"anh_the_url": info.get("anh_the_url")})
+                }
+
+                bd_res = supabase_client.table("bandoc").insert(to_json_safe(new_bandoc_data)).execute()
+                if not bd_res.data:
+                    raise HTTPException(status_code=500, detail="Lỗi khi tạo hồ sơ Bạn đọc.")
+                ma_ban_doc_moi = bd_res.data[0]['mabandoc']
+
+            # Tạo Thẻ & Update Yêu cầu (Giữ nguyên logic cũ)
+            so_the_moi = f"T{int(time.time())}"
+            ngay_het_han = (datetime.now() + timedelta(days=365)).date()
+
+            new_card_data = {
+                "mabandoc": ma_ban_doc_moi,
+                "maloaithe": request_data["maloaithe"],
+                "sothe": so_the_moi,
+                "manhanvien": manhanvien,
+                "ngayhethan": ngay_het_han,
+                "trangthaithe": True,
+                "phuongthucvanchuyen": "TaiQuay"
+            }
+            supabase_client.table("thebandoc").insert(to_json_safe(new_card_data)).execute()
+
+            info["ngay_xu_ly"] = datetime.now().isoformat()
+            supabase_client.table(TABLE_NAME).update({
+                "trangthaiquytrinh": "daDuyet",
+                "manhanvien": manhanvien,
+                "mabandoc": ma_ban_doc_moi,
+                "thoigianxuly": "now()",
+                "thongtinbosung": to_json_safe(info)
+            }).eq("mayeucauthe", maYeuCauThe).execute()
+
+            return {"message": "Đã duyệt yêu cầu thành công.", "ma_ban_doc": ma_ban_doc_moi}
+
     except Exception as e:
-        logger.error(f"Lỗi phê duyệt thẻ: {e}")
-        raise HTTPException(status_code=500, detail="Lỗi máy chủ nội bộ.")
+        logger.error(f"Lỗi xử lý duyệt thẻ: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi nội bộ: {str(e)}")
 
 # 1. CREATE (Bạn đọc tạo yêu cầu)
 @router.post(

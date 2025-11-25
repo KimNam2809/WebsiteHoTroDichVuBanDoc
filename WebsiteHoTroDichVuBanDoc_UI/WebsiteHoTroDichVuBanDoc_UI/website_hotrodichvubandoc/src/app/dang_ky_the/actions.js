@@ -5,6 +5,26 @@ import { cookies } from 'next/headers';
 
 const FASTAPI_URL = process.env.FASTAPI_BACKEND_URL;
 
+async function fetchPublic(endpoint) {
+    const res = await fetch(`${FASTAPI_URL}${endpoint}`, {
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store', // Hoặc 'force-cache' nếu dữ liệu ít thay đổi
+    });
+    if (!res.ok) return [];
+    return res.json();
+}
+
+// === API Lấy Tỉnh/Thành phố ===
+export async function getProvincesAction() {
+    return await fetchPublic('/api/v1/tinh-thanh-pho/');
+}
+
+// === API Lấy Phường/Xã theo Tỉnh ===
+export async function getWardsByProvinceAction(provinceId) {
+    if (!provinceId) return [];
+    return await fetchPublic(`/api/v1/phuong-xa/tinh-thanh-pho/${provinceId}`);
+}
+
 export async function getCardTypesAction() {
     try {
         const res = await fetch(`${FASTAPI_URL}/api/v1/loai-the/`, {

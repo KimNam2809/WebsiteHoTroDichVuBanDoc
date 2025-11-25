@@ -7,7 +7,7 @@ import Image from 'next/image';
 import QRCode from 'react-qr-code';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { registerCardAction, getCardTypesAction } from '../actions';
+import { registerCardAction, getCardTypesAction, getProvincesAction, getWardsByProvinceAction } from '../actions';
 
 // Bảng giá định nghĩa tạm thời (vì API chưa trả về giá)
 // Key là 'maloaithe' từ API
@@ -39,9 +39,15 @@ function SubmitButton() {
 export default function FormDangKyPage() {
     const [state, formAction] = useActionState(registerCardAction, null);
 
+    // Data Lists
     const [cardTypesList, setCardTypesList] = useState([]);
-    const [isLoadingCards, setIsLoadingCards] = useState(true);
+    const [provinces, setProvinces] = useState([]); // Danh sách Tỉnh
+    const [wards, setWards] = useState([]); // Danh sách Phường
+
+    // UI State
+    const [isLoading, setIsLoading] = useState(true);
     const [loaiThe, setLoaiThe] = useState('');
+    const [selectedProvince, setSelectedProvince] = useState(''); // ID Tỉnh đã chọn
     const [ship, setShip] = useState(false);
     const [totalCost, setTotalCost] = useState(0);
     const [previewUrl, setPreviewUrl] = useState(null);
@@ -50,13 +56,38 @@ export default function FormDangKyPage() {
     const [clientError, setClientError] = useState('');
 
     useEffect(() => {
+        async function initData() {
+            try {
+                const [cards, provinceList] = await Promise.all([
+                    getCardTypesAction(),
+                    getProvincesAction()
+                ]);
+
+                if (cards && cards.length > 0) {
+                    setCardTypesList(cards);
+                    setLoaiThe(String(cards[0].maloaithe));
+                }
+                if (provinceList) {
+                    setProvinces(provinceList);
+                }
+            } catch (error) {
+                console.error("Lỗi tải dữ liệu:", error);
+            } finally {
+                // Đảm bảo setIsLoading luôn được gọi dù có lỗi hay không
+                setIsLoading(false);
+            }
+        }
+        initData();
+    }, []);
+
+    useEffect(() => {
         async function loadCards() {
             const data = await getCardTypesAction();
             if (data && data.length > 0) {
                 setCardTypesList(data);
                 setLoaiThe(String(data[0].maloaithe));
             }
-            setIsLoadingCards(false);
+            setIsLoading(false);
         }
         loadCards();
     }, []);
@@ -67,6 +98,18 @@ export default function FormDangKyPage() {
         const shipping = ship ? SHIPPING_FEE : 0;
         setTotalCost(baseFee + shipping);
     }, [loaiThe, ship]);
+
+    // Hàm xử lý khi chọn Tỉnh -> Load Phường
+    const handleProvinceChange = async (e) => {
+        const provinceId = e.target.value;
+        setSelectedProvince(provinceId);
+        setWards([]); // Reset phường cũ
+
+        if (provinceId) {
+            const wardList = await getWardsByProvinceAction(provinceId);
+            setWards(wardList || []);
+        }
+    };
 
     // Hàm xử lý ảnh: Kiểm tra định dạng và kích thước ngay khi chọn
     const handleImageChange = (e) => {
@@ -190,7 +233,7 @@ export default function FormDangKyPage() {
                 {/* Hàng 1: Loại thẻ */}
                 <div>
                     <label htmlFor="ma_loai_the" className="block text-sm font-medium mb-1 text-gray-700">Loại thẻ <span className="text-red-500">*</span></label>
-                    {isLoadingCards ? (
+                    {isLoading ? (
                         <div className="animate-pulse h-10 bg-gray-200 rounded"></div>
                     ) : (
                         <select
@@ -207,7 +250,7 @@ export default function FormDangKyPage() {
                             ))}
                         </select>
                     )}
-                    {!isLoadingCards && loaiThe && (
+                    {!isLoading && loaiThe && (
                         <p className="text-sm text-gray-500 mt-1 italic">
                             {cardTypesList.find(c => String(c.maloaithe) === loaiThe)?.mota}
                         </p>
@@ -276,15 +319,55 @@ export default function FormDangKyPage() {
                     />
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">Địa chỉ thường trú <span className="text-red-500">*</span></label>
-                    <input
-                        type="text"
-                        name="dia_chi"
-                        className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="123 Tôn Đức Thắng, Đà Nẵng"
-                        required
-                    />
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Địa chỉ (Số nhà, tên đường) <span className="text-red-500">*</span></label>
+                        <input
+                            type="text"
+                            name="dia_chi"
+                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500"
+                            placeholder="123 Tôn Đức Thắng"
+                            required
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Combobox Tỉnh/Thành */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Tỉnh / Thành phố <span className="text-red-500">*</span></label>
+                            <select
+                                className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500"
+                                value={selectedProvince}
+                                onChange={handleProvinceChange}
+                                required
+                            >
+                                <option value="">-- Chọn Tỉnh/Thành --</option>
+                                {provinces.map((p) => (
+                                    <option key={p.matinhthanhpho} value={p.matinhthanhpho}>
+                                        {p.tentinhthanhpho}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Combobox Phường/Xã */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Phường / Xã <span className="text-red-500">*</span></label>
+                            <select
+                                name="ma_phuong_xa" // Quan trọng: Tên này sẽ được gửi lên API
+                                className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500"
+                                required
+                                disabled={!selectedProvince} // Khóa nếu chưa chọn tỉnh
+                            >
+                                <option value="">-- Chọn Phường/Xã --</option>
+                                {wards.map((w) => (
+                                    <option key={w.maphuongxa} value={w.maphuongxa}>
+                                        {w.tenphuongxa}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Tải ảnh */}

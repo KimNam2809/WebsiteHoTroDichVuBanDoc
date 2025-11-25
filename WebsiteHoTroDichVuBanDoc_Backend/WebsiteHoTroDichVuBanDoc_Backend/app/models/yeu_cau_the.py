@@ -46,3 +46,12 @@ class YeuCauTheAdminView(DBModel):
 class DuyetTheRequest(DBModel):
     trang_thai: str # 'daDuyet' hoặc 'tuChoi'
     ly_do: Optional[str] = None
+
+# Model mới cho chi tiết (Response)
+class YeuCauTheDetailResponse(DBModel):
+    mayeucauthe: int
+    thoigianbatdau: datetime
+    tenloaithe: str
+    thongtinbosung: Dict[str, Any]
+    lephi: Optional[float] = 0
+    trangthaiquytrinh: str
