@@ -43,42 +43,66 @@ export async function getCardTypesAction() {
 }
 
 export async function registerCardAction(prevState, formData) {
-    const token = (await cookies()).get('auth_token')?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
 
-    // 1. Kiểm tra đăng nhập
     if (!token) {
         return { error: 'Vui lòng đăng nhập để thực hiện chức năng này.' };
     }
 
+    // 1. KIỂM TRA DỮ LIỆU TRƯỚC KHI GỬI (VALIDATION)
+    // FastAPI yêu cầu int, nếu gửi "" sẽ bị lỗi 422
+    const maLoaiThe = formData.get('ma_loai_the');
+    const maPhuongXa = formData.get('ma_phuong_xa');
+
+    if (!maLoaiThe) return { error: "Vui lòng chọn Loại thẻ." };
+    if (!maPhuongXa) return { error: "Vui lòng chọn Phường/Xã." };
+
+    // (Tùy chọn) Kiểm tra file ảnh
+    const anhThe = formData.get('anh_the');
+    if (!anhThe || anhThe.size === 0) return { error: "Vui lòng tải lên ảnh thẻ." };
+
     try {
-        // 2. Gọi API FastAPI (Gửi trực tiếp FormData để xử lý file upload)
-        // Lưu ý: Khi gửi FormData, KHÔNG cần set Content-Type header,
-        // trình duyệt/fetch sẽ tự động set multipart/form-data boundary.
+        // 2. Gửi FormData sang FastAPI
         const response = await fetch(`${FASTAPI_URL}/api/v1/yeu-cau-the/dang-ky`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
-                // KHÔNG thêm 'Content-Type': 'multipart/form-data' ở đây!
+                // KHÔNG thêm Content-Type, để fetch tự xử lý boundary của multipart
             },
-            body: formData, // Gửi nguyên formData nhận được từ client
+            body: formData,
         });
 
         if (!response.ok) {
+            // 3. ĐỌC CHI TIẾT LỖI TỪ FASTAPI
             const errorText = await response.text();
-            console.error("API Error:", errorText);
-            return { error: `Lỗi đăng ký: ${response.statusText}` };
+            console.error("❌ FastAPI Error Detail:", errorText);
+
+            // Cố gắng parse JSON lỗi để hiển thị đẹp hơn
+            try {
+                const errorJson = JSON.parse(errorText);
+                if (errorJson.detail && Array.isArray(errorJson.detail)) {
+                    // Lấy lỗi đầu tiên trong mảng
+                    const firstError = errorJson.detail[0];
+                    const field = firstError.loc[firstError.loc.length - 1];
+                    return { error: `Lỗi dữ liệu tại trường '${field}': ${firstError.msg}` };
+                }
+            } catch (e) {
+                // Nếu không parse được JSON
+            }
+
+            return { error: `Lỗi đăng ký (${response.status}): ${errorText}` };
         }
 
         const result = await response.json();
 
-        // 3. Trả về kết quả thành công
         return {
             success: true,
-            data: result.data // Chứa mã hồ sơ, tổng tiền, v.v. để hiển thị QR
+            data: result.data
         };
 
     } catch (error) {
         console.error("Network Error:", error);
-        return { error: 'Lỗi kết nối đến máy chủ.' };
+        return { error: 'Lỗi kết nối đến máy chủ (Backend không phản hồi).' };
     }
 }

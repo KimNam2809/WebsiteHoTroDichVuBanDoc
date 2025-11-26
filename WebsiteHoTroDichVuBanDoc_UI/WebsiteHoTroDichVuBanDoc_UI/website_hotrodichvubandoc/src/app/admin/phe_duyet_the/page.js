@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Check, X, Eye, Loader2, MapPin } from 'lucide-react';
+import { Check, X, Eye, Loader2, MapPin, User, Calendar, Phone, Mail, AlertTriangle } from 'lucide-react';
 import { getPendingCardsAction, approveCardAction, getCardRequestDetailAction } from '../actions';
 
 export default function PheDuyetThePage() {
@@ -12,12 +12,12 @@ export default function PheDuyetThePage() {
     const [isLoading, setIsLoading] = useState(true);
 
     // State cho Modal chi tiết
-    const [selectedRequest, setSelectedRequest] = useState(null); // Lưu object chi tiết đang xem
+    const [selectedRequest, setSelectedRequest] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [rejectReason, setRejectReason] = useState(''); // Lưu lý do từ chối
-    const [isProcessing, setIsProcessing] = useState(false); // Loading khi bấm nút duyệt/từ chối
+    const [rejectReason, setRejectReason] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
 
-    // 1. Tải danh sách hồ sơ chờ duyệt khi vào trang
+    // 1. Tải danh sách hồ sơ chờ duyệt
     useEffect(() => {
         loadList();
     }, []);
@@ -32,10 +32,9 @@ export default function PheDuyetThePage() {
     // 2. Hàm mở Modal và gọi API lấy chi tiết
     async function openDetailModal(id) {
         setIsModalOpen(true);
-        setSelectedRequest(null); // Reset để hiện loading trong modal
-        setRejectReason(''); // Reset lý do cũ
+        setSelectedRequest(null);
+        setRejectReason('');
 
-        // Gọi Server Action để lấy chi tiết đầy đủ (bao gồm thông tin bổ sung)
         const detail = await getCardRequestDetailAction(id);
 
         if (detail) {
@@ -53,7 +52,6 @@ export default function PheDuyetThePage() {
 
     // 3. Xử lý hành động Duyệt hoặc Từ chối
     async function handleReviewInModal(status) {
-        // Validate: Nếu từ chối thì bắt buộc phải có lý do
         if (status === 'tuChoi' && !rejectReason.trim()) {
             alert("Vui lòng nhập lý do từ chối để lưu vào lịch sử.");
             return;
@@ -66,7 +64,6 @@ export default function PheDuyetThePage() {
         if (!confirm(confirmMsg)) return;
 
         setIsProcessing(true);
-        // Gọi Server Action cập nhật trạng thái
         const res = await approveCardAction(
             selectedRequest.mayeucauthe,
             status,
@@ -77,7 +74,7 @@ export default function PheDuyetThePage() {
         if (res.success) {
             alert('Thao tác thành công!');
             closeModal();
-            loadList(); // Tải lại danh sách bên ngoài để cập nhật
+            loadList();
         } else {
             alert(res.error || 'Có lỗi xảy ra trong quá trình xử lý.');
         }
@@ -129,7 +126,6 @@ export default function PheDuyetThePage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center">
-                                                {/* Avatar nhỏ trong danh sách */}
                                                 <div className="h-10 w-10 shrink-0 relative mr-3 border rounded overflow-hidden bg-gray-100">
                                                     {app.anh_the_url ? (
                                                         <Image src={app.anh_the_url} alt="" fill className="object-cover" unoptimized />
@@ -169,8 +165,8 @@ export default function PheDuyetThePage() {
 
             {/* --- PHẦN 2: MODAL CHI TIẾT (Detail View) --- */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
 
                         {/* Modal Header */}
                         <div className="flex justify-between items-center p-5 border-b bg-gray-50">
@@ -186,118 +182,165 @@ export default function PheDuyetThePage() {
                         </div>
 
                         {/* Modal Body */}
-                        <div className="flex-1 overflow-y-auto p-6">
-                            {!selectedRequest ? (
-                                <div className="flex flex-col items-center justify-center h-64 space-y-3">
-                                    <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
-                                    <p className="text-gray-500">Đang tải thông tin chi tiết...</p>
-                                </div>
-                            ) : (
-                                <div className="grid md:grid-cols-12 gap-8">
+                        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
+                        {!selectedRequest ? (
+                            <div className="flex flex-col items-center justify-center h-64 space-y-3">
+                            <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+                            <p className="text-gray-500">Đang tải thông tin chi tiết...</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
 
-                                    {/* Cột Trái: Ảnh thẻ & Loại thẻ (Chiếm 4/12) */}
-                                    <div className="md:col-span-4 flex flex-col items-center">
-                                        <div className="w-full bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col items-center">
-                                            <p className="text-sm font-semibold text-gray-500 mb-3 w-full text-center border-b pb-2">ẢNH THẺ ĐĂNG KÝ</p>
-                                            {selectedRequest.thongtinbosung?.anh_the_url ? (
-                                                <div className="relative w-48 h-64 border-4 border-white shadow-md bg-gray-200 rounded-sm overflow-hidden">
+                                {/* === KHỐI HIỂN THỊ ĐÁNH GIÁ RỦI RO TỪ AI (MỚI) === */}
+                                {selectedRequest.thongtinbosung?.ket_qua_xac_thuc && (
+                                    <div className={`p-4 rounded-lg border-l-4 shadow-sm ${
+                                        selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'HIGH'
+                                            ? 'bg-red-50 border-red-500 text-red-900'
+                                            : selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'MEDIUM'
+                                            ? 'bg-yellow-50 border-yellow-500 text-yellow-900'
+                                            : 'bg-green-50 border-green-500 text-green-900'
+                                    }`}>
+                                        <div className="flex items-start gap-3">
+                                            <div className="mt-1">
+                                                {selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'HIGH' && <AlertTriangle size={24} className="text-red-600"/>}
+                                                {selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'MEDIUM' && <AlertTriangle size={24} className="text-yellow-600"/>}
+                                                {selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'LOW' && <Check size={24} className="text-green-600"/>}
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className="font-bold text-lg flex items-center gap-2">
+                                                    Đánh giá rủi ro AI:
+                                                    <span>
+                                                        {selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'HIGH' ? 'CAO (Nguy hiểm)' :
+                                                        selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'MEDIUM' ? 'TRUNG BÌNH (Cần xem xét)' : 'THẤP (An toàn)'}
+                                                    </span>
+                                                </h4>
+
+                                                <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
+                                                    <div>
+                                                        <span className="font-semibold">Độ khớp khuôn mặt:</span>
+                                                        <span className="ml-2 px-2 py-0.5 bg-white rounded border text-gray-700">
+                                                            {(selectedRequest.thongtinbosung.ket_qua_xac_thuc.face_match_score * 100).toFixed(1)}%
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Danh sách các lỗi cụ thể */}
+                                                {selectedRequest.thongtinbosung.ket_qua_xac_thuc.details && selectedRequest.thongtinbosung.ket_qua_xac_thuc.details.length > 0 ? (
+                                                    <div className="mt-3 bg-white/60 p-3 rounded border border-black/5">
+                                                        <p className="text-xs font-bold uppercase mb-1 opacity-70">Các vấn đề phát hiện:</p>
+                                                        <ul className="list-disc list-inside space-y-1">
+                                                            {selectedRequest.thongtinbosung.ket_qua_xac_thuc.details.map((detail, idx) => (
+                                                                <li key={idx} className="text-sm font-medium text-red-700">
+                                                                    {detail}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-sm mt-2 italic opacity-80">✓ Thông tin văn bản và hình ảnh hoàn toàn trùng khớp với CSDL.</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                {/* === KẾT THÚC KHỐI AI === */}
+
+                                <div className="grid md:grid-cols-12 gap-6">
+                                    {/* Cột Trái: Ảnh thẻ */}
+                                    <div className="md:col-span-4 flex flex-col gap-4">
+                                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                                            <p className="text-xs font-bold text-gray-400 uppercase mb-2 text-center">Ảnh thẻ đăng ký</p>
+                                            <div className="relative w-full aspect-3/4 bg-gray-200 rounded overflow-hidden border">
+                                                {selectedRequest.thongtinbosung?.anh_the_url ? (
                                                     <Image
                                                         src={selectedRequest.thongtinbosung.anh_the_url}
                                                         alt="Ảnh thẻ"
                                                         fill
-                                                        className="object-cover hover:scale-105 transition-transform duration-300"
+                                                        className="object-cover"
                                                         unoptimized
                                                     />
-                                                </div>
-                                            ) : (
-                                                <div className="w-48 h-64 bg-gray-200 flex items-center justify-center text-gray-400 rounded">Không có ảnh</div>
-                                            )}
-
-                                            <div className="mt-4 w-full text-center">
-                                                <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-bold">
-                                                    {selectedRequest.tenloaithe || 'Chưa xác định'}
+                                                ) : (
+                                                    <div className="flex items-center justify-center h-full text-gray-400">Không có ảnh</div>
+                                                )}
+                                            </div>
+                                            <div className="mt-4 text-center">
+                                                <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">
+                                                    {selectedRequest.tenloaithe}
                                                 </span>
-                                                <p className="text-xs text-gray-500 mt-2">Phí làm thẻ: {selectedRequest.lephi?.toLocaleString()} VNĐ</p>
+                                                <p className="text-xs text-gray-500 mt-2">Phí: {selectedRequest.lephi?.toLocaleString()} VNĐ</p>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Cột Phải: Thông tin chi tiết (Chiếm 8/12) */}
+                                    {/* Cột Phải: Thông tin chi tiết */}
                                     <div className="md:col-span-8 space-y-6">
-
-                                        {/* Thông tin cá nhân */}
-                                        <div>
-                                            <h4 className="font-bold text-gray-800 border-b pb-2 mb-3 flex items-center">
-                                                <span className="bg-blue-600 w-1 h-5 mr-2 rounded-full"></span>
-                                                Thông tin cá nhân
+                                        <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm space-y-4">
+                                            <h4 className="text-lg font-bold text-gray-800 flex items-center gap-2 border-b pb-2">
+                                                <User size={20} className="text-blue-600" /> Thông tin cá nhân
                                             </h4>
-                                            <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
+                                            <div className="grid grid-cols-2 gap-6">
                                                 <div>
-                                                    <p className="text-gray-500 text-xs uppercase font-semibold">Họ và tên</p>
-                                                    <p className="font-medium text-gray-900 text-lg">{selectedRequest.thongtinbosung?.ho_ten}</p>
+                                                    <p className="text-xs text-gray-500 uppercase">Họ và tên</p>
+                                                    <p className="font-medium text-lg text-gray-900">{selectedRequest.thongtinbosung?.ho_ten}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-gray-500 text-xs uppercase font-semibold">Ngày sinh</p>
-                                                    <p className="font-medium text-gray-900">{selectedRequest.thongtinbosung?.ngay_sinh}</p>
+                                                    <p className="text-xs text-gray-500 uppercase">Ngày sinh</p>
+                                                    <p className="font-medium text-gray-900 flex items-center gap-2">
+                                                        <Calendar size={16} className="text-gray-400"/> {selectedRequest.thongtinbosung?.ngay_sinh}
+                                                    </p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-gray-500 text-xs uppercase font-semibold">Số CCCD/CMND</p>
-                                                    <p className="font-medium text-gray-900 tracking-wide">{selectedRequest.thongtinbosung?.cccd}</p>
+                                                    <p className="text-xs text-gray-500 uppercase">CCCD/CMND</p>
+                                                    <p className="font-medium text-gray-900 tracking-wide font-mono">{selectedRequest.thongtinbosung?.cccd}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-gray-500 text-xs uppercase font-semibold">Giới tính</p>
-                                                    <p className="font-medium text-gray-900">{selectedRequest.thongtinbosung?.gioi_tinh || '---'}</p>
+                                                    <p className="text-xs text-gray-500 uppercase">Giới tính</p>
+                                                    <p className="font-medium text-gray-900">{selectedRequest.thongtinbosung?.gioi_tinh}</p>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* Thông tin liên hệ */}
-                                        <div>
-                                            <h4 className="font-bold text-gray-800 border-b pb-2 mb-3 flex items-center">
-                                                <span className="bg-green-600 w-1 h-5 mr-2 rounded-full"></span>
-                                                Thông tin liên hệ
+                                        <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm space-y-4">
+                                            <h4 className="text-lg font-bold text-gray-800 flex items-center gap-2 border-b pb-2">
+                                                <MapPin size={20} className="text-green-600" /> Liên hệ
                                             </h4>
-                                            <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
-                                                <div>
-                                                    <p className="text-gray-500 text-xs uppercase font-semibold">Số điện thoại</p>
-                                                    <p className="font-medium text-blue-600">{selectedRequest.thongtinbosung?.sdt}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-gray-500 text-xs uppercase font-semibold">Email</p>
-                                                    <p className="font-medium text-gray-900">{selectedRequest.thongtinbosung?.email}</p>
-                                                </div>
-
-                                                {/* Hiển thị địa chỉ thông minh (Ưu tiên dữ liệu Backend trả về) */}
-                                                <div className="col-span-2 bg-blue-50 p-3 rounded border border-blue-100">
-                                                    <p className="text-blue-500 text-xs uppercase font-bold flex items-center mb-1">
-                                                        <MapPin className="w-3 h-3 mr-1" /> Địa chỉ thường trú
+                                            <div className="grid grid-cols-2 gap-6">
+                                                <div className="col-span-2">
+                                                    <p className="text-xs text-gray-500 uppercase">Địa chỉ đầy đủ</p>
+                                                    <p className="font-medium text-gray-900">
+                                                        {selectedRequest.thongtinbosung?.dia_chi_hien_thi || selectedRequest.thongtinbosung?.dia_chi}
                                                     </p>
-                                                    <p className="font-medium text-gray-800 text-base">
-                                                        {selectedRequest.thongtinbosung?.dia_chi_hien_thi ||
-                                                            `${selectedRequest.thongtinbosung?.dia_chi}, ${selectedRequest.thongtinbosung?.ten_phuong_xa || ''}, ${selectedRequest.thongtinbosung?.ten_tinh_thanh_pho || ''}`
-                                                        }
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-gray-500 uppercase">Số điện thoại</p>
+                                                    <p className="font-medium text-gray-900 flex items-center gap-2">
+                                                        <Phone size={16} className="text-gray-400"/> {selectedRequest.thongtinbosung?.sdt}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-gray-500 uppercase">Email</p>
+                                                    <p className="font-medium text-gray-900 flex items-center gap-2">
+                                                        <Mail size={16} className="text-gray-400"/> {selectedRequest.thongtinbosung?.email}
                                                     </p>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* Khu vực nhập lý do từ chối */}
+                                        {/* Form Từ chối */}
                                         <div className="bg-red-50 p-4 rounded-lg border border-red-100">
-                                            <label className="block text-sm font-bold text-red-700 mb-2">
-                                                Lý do từ chối (Chỉ nhập nếu muốn từ chối hồ sơ)
-                                            </label>
+                                            <label className="block text-sm font-bold text-red-800 mb-2">Lý do từ chối (nếu có)</label>
                                             <textarea
-                                                className="w-full border border-red-200 rounded-md p-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none bg-white"
-                                                placeholder="Ví dụ: Ảnh thẻ không hợp lệ, Thông tin sai lệch..."
+                                                className="w-full p-3 border border-red-200 rounded bg-white text-sm focus:ring-2 focus:ring-red-500 outline-none"
                                                 rows="2"
+                                                placeholder="Nhập lý do nếu bạn muốn từ chối hồ sơ này..."
                                                 value={rejectReason}
                                                 onChange={(e) => setRejectReason(e.target.value)}
-                                            ></textarea>
+                                            />
                                         </div>
-
                                     </div>
                                 </div>
-                            )}
+                            </div>
+                        )}
                         </div>
 
                         {/* Modal Footer Actions */}

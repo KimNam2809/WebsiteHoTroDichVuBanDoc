@@ -283,6 +283,22 @@ export default function FormDangKyPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
+                        <label className="block text-sm font-medium text-gray-700">Giới tính <span className="text-red-500">*</span></label>
+                        <select name="gioi_tinh" className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500" required>
+                            <option value="">-- Chọn giới tính --</option>
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                            <option value="Khác">Khác</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">Nghề nghiệp</label>
+                        <input type="text" name="nghe_nghiep" className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500" placeholder="Sinh viên/Học sinh..." />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
                         <label className="block text-sm font-medium text-gray-700">Số CCCD <span className="text-red-500">*</span></label>
                         <input
                             type="text"
@@ -301,7 +317,7 @@ export default function FormDangKyPage() {
                             name="sdt"
                             className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                             placeholder="0905123456"
-                            maxLength={10}
+                            maxLength={11}
                             required
                         />
                         <p className="text-xs text-gray-500 mt-1">10 hoặc 11 số, bắt đầu bằng số 0</p>

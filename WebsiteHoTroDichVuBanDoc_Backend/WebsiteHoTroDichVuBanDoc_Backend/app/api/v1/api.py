@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.api.v1.endpoints import (
-    tac_pham_api, danh_muc_api, tu_khoa_api, tac_pham_danh_muc_api, tac_pham_tu_khoa_api, ban_sao_api, thiet_bi_api, bai_viet_api,
+    mock_national_db_api, tac_pham_api, danh_muc_api, tu_khoa_api, tac_pham_danh_muc_api, tac_pham_tu_khoa_api, ban_sao_api, thiet_bi_api, bai_viet_api,
     nguoi_dung_api, ban_doc_api, nhan_vien_api,
     muon_tra_api, gia_han_api, dat_truoc_api,
     loai_the_api, the_ban_doc_api, yeu_cau_the_api, yeu_cau_giao_api, van_chuyen_api, thong_bao_api,
@@ -49,3 +49,6 @@ api_router.include_router(dat_cho_ngoi_api.router, prefix="/dat-cho-ngoi", tags=
 # API Quản lý Địa Lý
 api_router.include_router(tinh_thanh_pho_api.router, prefix="/tinh-thanh-pho", tags=["Tỉnh/Thành phố"])
 api_router.include_router(phuong_xa_api.router, prefix="/phuong-xa", tags=["Phường/Xã"])
+
+# API Giả lập Cổng Xác Thực Quốc Gia
+api_router.include_router(mock_national_db_api.router, prefix="/mock-national-db", tags=["Giả Lập Cổng Xác Thực Quốc Gia"])

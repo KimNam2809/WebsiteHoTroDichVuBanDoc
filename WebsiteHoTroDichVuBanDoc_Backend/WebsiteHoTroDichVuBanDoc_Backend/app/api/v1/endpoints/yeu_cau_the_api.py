@@ -1,11 +1,175 @@
-from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form, BackgroundTasks
 from typing import List, Optional, Dict, Any
+from app.api.v1.endpoints.mock_national_db_api import generate_username_from_name, perform_verification
+from app.connect.security import get_password_hash
 from app.models.yeu_cau_the import YeuCauThe, YeuCauTheCreate, YeuCauTheDetailResponse, YeuCauTheUpdate, YeuCauTheAdminView, DuyetTheRequest
 from app.connect.db import supabase_client
 from app.utils import to_json_safe
 from app.connect.auth import get_current_user_from_db, get_current_staff_profile, get_card_request_owner_or_staff
 import logging, ast, uuid, time, re
 from datetime import date, datetime, timedelta
+
+def process_card_application(ma_yeu_cau: int, form_data: dict, filename: str):
+    """
+    Hàm chạy ngầm: Gọi Mock API -> Cập nhật trạng thái -> (Tự động tạo thẻ nếu Xanh)
+    """
+    logger.info(f"🚀 Bắt đầu xử lý ngầm hồ sơ {ma_yeu_cau}...")
+
+    # Giả lập độ trễ mạng (để thấy được trạng thái 'dangXuLy')
+    time.sleep(5)
+
+    try:
+        # 1. Gọi hàm xác thực (Mock API)
+        verify_result = perform_verification(
+            cccd=form_data["cccd"],
+            ho_ten=form_data["ho_ten"],
+            ngay_sinh=form_data["ngay_sinh"],
+            sdt=form_data["sdt"],
+            filename=filename
+        )
+
+        risk = verify_result["risk_level"]
+        logger.info(f"🔍 Kết quả xác thực hồ sơ {ma_yeu_cau}: {risk}")
+
+        # Lấy dữ liệu hiện tại để update JSON
+        current_req = supabase_client.table(TABLE_NAME).select("thongtinbosung").eq("mayeucauthe", ma_yeu_cau).single().execute()
+        info = current_req.data["thongtinbosung"]
+
+        # Ghi kết quả xác thực vào JSON
+        info["ket_qua_xac_thuc"] = verify_result
+
+        # 2. Phân luồng xử lý
+        if risk == "HIGH":
+            # --- LUỒNG ĐỎ: TỰ ĐỘNG TỪ CHỐI ---
+            supabase_client.table(TABLE_NAME).update({
+                "trangthaiquytrinh": "tuChoi",
+                "thoigianxuly": datetime.now().isoformat(),
+                "ghichu": f"Hệ thống tự động từ chối: {', '.join(verify_result['details'])}",
+                "thongtinbosung": to_json_safe(info)
+            }).eq("mayeucauthe", ma_yeu_cau).execute()
+
+        elif risk == "MEDIUM":
+            # --- LUỒNG VÀNG: CHỜ DUYỆT (ADMIN XEM) ---
+            supabase_client.table(TABLE_NAME).update({
+                "trangthaiquytrinh": "choDuyet", # Chuyển từ dangXuLy -> choDuyet
+                "thongtinbosung": to_json_safe(info)
+            }).eq("mayeucauthe", ma_yeu_cau).execute()
+
+        elif risk == "LOW":
+            # --- LUỒNG XANH: TỰ ĐỘNG DUYỆT & TẠO THẺ ---
+
+            creator_id = info.get("ma_nguoi_dung_dang_ky")
+            target_user_id = creator_id # Mặc định là người đăng ký tự làm cho mình
+
+            # === BƯỚC KIỂM TRA: AI LÀ NGƯỜI ĐĂNG KÝ? (FIX LỖI 2) ===
+            is_staff = False
+            try:
+                # Kiểm tra xem creator_id có phải là Nhân Viên không
+                staff_check = supabase_client.table("nhanvien").select("manhanvien").eq("manguoidung", creator_id).execute()
+                if staff_check.data:
+                    is_staff = True
+            except Exception:
+                pass
+
+            if is_staff:
+                logger.info(f"Hồ sơ {ma_yeu_cau} do NHÂN VIÊN tạo -> Tiến hành tạo tài khoản User mới.")
+                # Logic: Nhân viên tạo hộ -> Phải tạo User mới cho khách
+
+                # 1. Tạo Username & Hash pass
+                new_username = generate_username_from_name(info.get("ho_ten"))
+                default_password = get_password_hash("abc123456") # Mật khẩu mặc định dài chút cho an toàn
+
+                # 2. Insert vào bảng NguoiDung
+                new_user_data = {
+                    "tendangnhap": new_username,
+                    "email": info.get("email"), # Dùng email từ form
+                    "sodienthoai": info.get("sdt"), # Dùng sdt từ form
+                    "matkhau": default_password,
+                    "vaitro": "nguoiDung",
+                    "trangthai": True # Kích hoạt luôn
+                }
+
+                try:
+                    user_res = supabase_client.table("nguoidung").insert(new_user_data).execute()
+                    if user_res.data:
+                        target_user_id = user_res.data[0]['manguoidung']
+                        logger.info(f"Đã tạo user mới ID: {target_user_id} ({new_username})")
+                    else:
+                        raise Exception("Không thể tạo tài khoản người dùng mới.")
+                except Exception as create_user_err:
+                    # Nếu trùng email/sdt thì có thể user đã tồn tại, thử tìm lại
+                    logger.warning(f"Lỗi tạo user (có thể đã tồn tại): {create_user_err}")
+                    find_user = supabase_client.table("nguoidung").select("manguoidung").eq("email", info.get("email")).execute()
+                    if find_user.data:
+                        target_user_id = find_user.data[0]['manguoidung']
+                    else:
+                        raise create_user_err # Lỗi thật sự
+            # === KẾT THÚC LOGIC KIỂM TRA NGƯỜI TẠO ===
+
+            # A. Tạo/Lấy BanDoc (Dùng target_user_id đã xác định ở trên)
+            ma_phuong_xa = info.get("ma_phuong_xa") or 1
+
+            check_bd = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", target_user_id).execute()
+
+            if check_bd.data:
+                # Nếu người dùng (target) đã là bạn đọc -> Dùng lại hồ sơ cũ (Cấp thẻ mới/Làm lại)
+                ma_ban_doc = check_bd.data[0]['mabandoc']
+            else:
+                # Nếu chưa -> Tạo hồ sơ Bạn Đọc mới
+                new_bandoc = {
+                    "manguoidung": target_user_id, # <-- Dùng ID đúng
+                    "hoten": info.get("ho_ten"),
+                    "ngaysinh": info.get("ngay_sinh"),
+                    "gioi_tinh": info.get("gioi_tinh"),
+                    "cccd": info.get("cccd"),
+                    "diachi": info.get("dia_chi"),
+                    "maphuongxa": ma_phuong_xa,
+                    "nghenghiep": info.get("nghe_nghiep"),
+                    "thongtinbosung": to_json_safe({"anh_the_url": info.get("anh_the_url")})
+                }
+                bd_res = supabase_client.table("bandoc").insert(to_json_safe(new_bandoc)).execute()
+                ma_ban_doc = bd_res.data[0]['mabandoc']
+
+            # B. Tạo Thẻ (Giữ nguyên)
+            # Lấy ma_loai_the từ DB
+            req_data = supabase_client.table(TABLE_NAME).select("maloaithe").eq("mayeucauthe", ma_yeu_cau).single().execute()
+            ma_loai_the = req_data.data["maloaithe"]
+
+            so_the = f"T{int(time.time())}"
+            ngay_het_han = (datetime.now() + timedelta(days=365)).date()
+
+            new_card = {
+                "mabandoc": ma_ban_doc,
+                "maloaithe": ma_loai_the,
+                "sothe": so_the,
+                "manhanvien": creator_id if is_staff else None, # Nếu nhân viên làm thì ghi nhận, user làm thì null
+                "ngayhethan": ngay_het_han,
+                "trangthaithe": True,
+                "phuongthucvanchuyen": "TaiQuay"
+            }
+            supabase_client.table("thebandoc").insert(to_json_safe(new_card)).execute()
+
+            # C. Cập nhật trạng thái YeuCauThe (Hoàn tất)
+            info["ngay_xu_ly"] = datetime.now().isoformat()
+            if is_staff:
+                info["ghi_chu_he_thong"] = f"Được tạo hộ bởi nhân viên ID {creator_id}. Tài khoản mới: {target_user_id}"
+
+            supabase_client.table(TABLE_NAME).update({
+                "trangthaiquytrinh": "daDuyet",
+                "mabandoc": ma_ban_doc,
+                "thoigianxuly": "now()",
+                "manhanvien": creator_id if is_staff else None, # Ghi nhận người xử lý
+                "ghichu": "Hệ thống tự động duyệt (Auto-Approved)",
+                "thongtinbosung": to_json_safe(info)
+            }).eq("mayeucauthe", ma_yeu_cau).execute()
+
+    except Exception as e:
+        logger.error(f"🔥 Lỗi trong background task hồ sơ {ma_yeu_cau}: {e}")
+        # Cập nhật trạng thái lỗi để Admin biết đường xử lý
+        supabase_client.table(TABLE_NAME).update({
+            "trangthaiquytrinh": "choDuyet", # Đẩy về cho người xem
+            "ghichu": f"Lỗi xử lý tự động: {str(e)}"
+        }).eq("mayeucauthe", ma_yeu_cau).execute()
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -21,6 +185,7 @@ STORAGE_BUCKET = "card_requests"
 )
 async def dang_ky_the_ban_doc(
     # Sử dụng Form(...) thay vì Body JSON để hỗ trợ upload file
+    background_tasks: BackgroundTasks,
     ho_ten: str = Form(...),
     ngay_sinh: str = Form(...),
     gioi_tinh: str = Form(...),
@@ -93,26 +258,77 @@ async def dang_ky_the_ban_doc(
         "ma_nguoi_dung_dang_ky": user_id
     }
 
-    # 3. Tạo bản ghi YeuCauThe
+    # 1. Tạo bản ghi với trạng thái 'dangXuLy'
     db_data = {
         "maloaithe": ma_loai_the,
-        "mabandoc": None, # Quan trọng: NULL vì chưa là bạn đọc
-        "trangthaiquytrinh": "choDuyet", # Trạng thái chờ
+        "mabandoc": None,
+        "trangthaiquytrinh": "dangXuLy", # <-- Trạng thái mới
+        "maphuongxa": None,
         "thongtinbosung": to_json_safe(thong_tin_bo_sung),
         "hinhthucyeucau": "Online"
     }
 
+    res = supabase_client.table(TABLE_NAME).insert(db_data).execute()
+    if not res.data:
+        raise HTTPException(500, "Lỗi DB")
+
+    new_req = res.data[0]
+
+    # 2. Kích hoạt Background Task
+    # Truyền dữ liệu cần thiết vào hàm chạy ngầm
+    background_tasks.add_task(
+        process_card_application,
+        ma_yeu_cau=new_req["mayeucauthe"],
+        form_data=thong_tin_bo_sung,
+        filename=anh_the.filename if anh_the else ""
+    )
+
+    # 3. Trả về ngay lập tức (202 Accepted)
+    return {
+        "message": "Hồ sơ đã được tiếp nhận và đang được hệ thống xử lý.",
+        "data": {
+            "mayeucauthe": new_req["mayeucauthe"],
+            "trangthai": "dangXuLy"
+        }
+    }
+
+# --- 2. API KIỂM TRA TRẠNG THÁI HỒ SƠ (POLLING) ---
+@router.get("/{maYeuCauThe}/trang-thai", summary="Kiểm tra trạng thái hồ sơ (Polling)")
+def check_request_status(maYeuCauThe: int, current_user: dict = Depends(get_current_user_from_db)):
     try:
-        response = supabase_client.table(TABLE_NAME).insert(db_data).execute()
-        if response.data:
-            return {"message": "Gửi yêu cầu thành công", "data": response.data[0]}
-        raise HTTPException(status_code=400, detail="Không thể tạo yêu cầu.")
+        res = supabase_client.table(TABLE_NAME).select("*").eq("mayeucauthe", maYeuCauThe).single().execute()
+        if not res.data:
+            raise HTTPException(404, "Không tìm thấy.")
+
+        data = res.data
+        info = data.get("thongtinbosung") or {}
+        trang_thai = data["trangthaiquytrinh"]
+
+        # LOGIC LẤY LÝ DO TỪ CHỐI (FIX LỖI 1)
+        ly_do = None
+        if trang_thai == "tuChoi":
+            # Ưu tiên lấy trong JSON (nếu nhân viên nhập tay)
+            ly_do = info.get("ly_do_tu_choi")
+            # Nếu không có, lấy trong cột ghi chú (nếu hệ thống tự reject)
+            if not ly_do:
+                ly_do = data.get("ghichu")
+
+        # LOGIC THÔNG BÁO THÀNH CÔNG
+        message = None
+        if trang_thai == "daDuyet":
+            message = "Chúc mừng! Hồ sơ của bạn đã được duyệt và thẻ đã được tạo."
+
+        return {
+            "mayeucauthe": maYeuCauThe,
+            "trangthai": trang_thai,
+            "ket_qua_xac_thuc": info.get("ket_qua_xac_thuc"),
+            "ly_do_tu_choi": ly_do,
+            "message": message
+        }
     except Exception as e:
-        logger.error(f"Lỗi DB đăng ký thẻ: {e}")
-        raise HTTPException(status_code=500, detail="Lỗi máy chủ nội bộ.")
+        raise HTTPException(500, str(e))
 
-
-# --- 2. API LẤY DANH SÁCH CHỜ DUYỆT (Cho Admin) ---
+# --- 3. API LẤY DANH SÁCH CHỜ DUYỆT (Cho Admin) ---
 @router.get(
     "/danh-sach-cho-duyet",
     response_model=List[YeuCauTheAdminView],
@@ -169,7 +385,7 @@ def get_danh_sach_cho_duyet(
         logger.error(f"Lỗi lấy danh sách chờ duyệt: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# --- 3. API LẤY CHI TIẾT YÊU CẦU (MỚI) ---
+# --- 4. API LẤY CHI TIẾT YÊU CẦU (MỚI) ---
 @router.get(
     "/{maYeuCauThe}",
     response_model=YeuCauTheDetailResponse,
@@ -236,7 +452,7 @@ def get_chi_tiet_yeu_cau_the(
         logger.error(f"Lỗi xem chi tiết yêu cầu {maYeuCauThe}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# --- 4. API DUYỆT / TỪ CHỐI THẺ (Cho Admin) ---
+# --- 5. API DUYỆT / TỪ CHỐI THẺ (Cho Admin) ---
 @router.put(
     "/phe-duyet/{maYeuCauThe}",
     summary="Duyệt (Tự động tạo Bạn đọc & Thẻ) hoặc Từ chối"
