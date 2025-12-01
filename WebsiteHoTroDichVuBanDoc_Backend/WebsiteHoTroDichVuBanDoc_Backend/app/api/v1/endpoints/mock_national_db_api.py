@@ -25,18 +25,25 @@ MOCK_CITIZENS = [
         "blacklisted": False
     },
     {
-        "cccd": "000000000000", # Case nợ xấu
+        "cccd": "000000000000", # Case nợ xấu hoặc danh sách đen, ...
         "ho_ten": "PHAM VAN XU",
         "ngay_sinh": "1990-01-01",
         "sdt": "0999999999",
         "blacklisted": True
     },
-    # Bạn có thể thêm user thật của bạn vào đây để test luồng Xanh
+    # Có thể thêm user thật của bạn vào đây để test luồng Xanh
     {
         "cccd": "055548799514",
         "ho_ten": "NGUYEN THI BINH",
         "ngay_sinh": "1974-01-01",
         "sdt": "0905111222",
+        "blacklisted": False
+    },
+    {
+        "cccd": "048203004295",
+        "ho_ten": "Lê Kim Nam",
+        "ngay_sinh": "2003-09-28",
+        "sdt": "0367814254",
         "blacklisted": False
     }
 ]

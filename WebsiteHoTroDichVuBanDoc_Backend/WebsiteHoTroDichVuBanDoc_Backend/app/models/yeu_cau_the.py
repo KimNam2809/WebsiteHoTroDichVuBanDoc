@@ -55,3 +55,11 @@ class YeuCauTheDetailResponse(DBModel):
     thongtinbosung: Dict[str, Any]
     lephi: Optional[float] = 0
     trangthaiquytrinh: str
+
+class LatestRequestInfo(DBModel):
+    """Thông tin về yêu cầu thẻ mới nhất để hiển thị trạng thái."""
+    ma_yeu_cau: int
+    trang_thai: str  # 'choDuyet', 'daDuyet', 'tuChoi', 'dangXuLy'
+    ten_loai_the: str
+    ngay_yeu_cau: datetime
+    ly_do_tu_choi: Optional[str] = None

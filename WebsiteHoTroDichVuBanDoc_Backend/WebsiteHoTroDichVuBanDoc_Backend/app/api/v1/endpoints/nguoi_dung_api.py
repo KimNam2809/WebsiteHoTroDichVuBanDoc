@@ -1,10 +1,11 @@
-import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from app.models.nguoi_dung import NguoiDung, NguoiDungCreate, NguoiDungUpdate, UserProfileResponse
+from app.models.yeu_cau_the import LatestRequestInfo
 from app.connect.db import supabase_client
 from app.connect.auth import get_current_staff_profile, get_current_user_from_db, get_user_owner_or_staff
 from app.connect.security import get_password_hash
+import logging
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -22,10 +23,10 @@ def get_user_profile(
     current_user: dict = Depends(get_current_user_from_db)
 ):
     """
-    Lấy thông tin chi tiết của người dùng đang đăng nhập.
-    Tự động phát hiện vai trò để lấy dữ liệu từ bảng tương ứng:
-    - Nếu là **nguoiDung**: Lấy từ `BanDoc` -> `TheBanDoc`.
-    - Nếu là **nhanVien**: Lấy từ `NhanVien`.
+    Lấy profile người dùng với logic Fallback:
+    1. Lấy thông tin từ bảng BanDoc/NhanVien.
+    2. Lấy thông tin từ YeuCauThe mới nhất.
+    3. Tự động điền 'hoten' từ Yêu cầu thẻ nếu chưa có hồ sơ chính thức.
     """
     user_id = current_user.get("manguoidung")
     email = current_user.get("email")
@@ -35,12 +36,49 @@ def get_user_profile(
     result = {
         "hoten": "Chưa cập nhật hồ sơ",
         "email": email,
-        "vaitro": role
+        "vaitro": role,
+        "yeu_cau_moi_nhat": None
     }
 
     try:
-        # === TRƯỜNG HỢP 1: LÀ BẠN ĐỌC ===
+        # =================================================
+        # BƯỚC 1: LẤY YÊU CẦU THẺ MỚI NHẤT (QUAN TRỌNG)
+        # =================================================
+        # Vì bảng 'yeucauthe' lưu user_id trong JSONB 'thongtinbosung',
+        # ta phải dùng filter đặc biệt của Supabase/PostgREST.
+        # Cú pháp: col->>key.eq.value
+
+        latest_req_res = (
+            supabase_client.table("yeucauthe")
+            .select("mayeucauthe, trangthaiquytrinh, thoigianbatdau, thongtinbosung, loaithe(tenthe)")
+            .filter("thongtinbosung->>ma_nguoi_dung_dang_ky", "eq", str(user_id))
+            .order("thoigianbatdau", desc=True)
+            .limit(1)
+            .execute()
+        )
+
+        latest_req_data = None
+        if latest_req_res.data and len(latest_req_res.data) > 0:
+            latest_req_data = latest_req_res.data[0]
+
+            # Map vào model response
+            info = latest_req_data.get("thongtinbosung") or {}
+            loai_the = latest_req_data.get("loaithe") or {}
+
+            result["yeu_cau_moi_nhat"] = {
+                "ma_yeu_cau": latest_req_data["mayeucauthe"],
+                "trang_thai": latest_req_data["trangthaiquytrinh"],
+                "ten_loai_the": loai_the.get("tenthe", "Không xác định"),
+                "ngay_yeu_cau": latest_req_data["thoigianbatdau"],
+                "ly_do_tu_choi": info.get("ly_do_tu_choi")
+            }
+
+        # =================================================
+        # BƯỚC 2: LẤY HỒ SƠ CHÍNH THỨC (BanDoc/NhanVien)
+        # =================================================
+
         if role == "nguoiDung":
+            # Logic lấy Bạn Đọc
             query = """
                 hoten,
                 thebandoc (
@@ -53,50 +91,45 @@ def get_user_profile(
                     )
                 )
             """
-            response = (
-                supabase_client.table("bandoc")
-                .select(query)
-                .eq("manguoidung", user_id)
-                .single()
-                .execute()
-            )
+            bd_res = supabase_client.table("bandoc").select(query).eq("manguoidung", user_id).execute()
 
-            if response.data:
-                data = response.data
+            if bd_res.data and len(bd_res.data) > 0:
+                # --> TRƯỜNG HỢP 1: ĐÃ CÓ HỒ SƠ
+                data = bd_res.data[0]
                 result["hoten"] = data.get("hoten")
 
-                # Xử lý thông tin thẻ
                 if data.get("thebandoc") and len(data["thebandoc"]) > 0:
+                    # Lấy thẻ mới nhất (thường Supabase trả về list, ta lấy cái đầu hoặc sort nếu cần)
+                    # Giả sử lấy cái đầu tiên
                     the = data["thebandoc"][0]
-                    loai_the = the.get("loaithe") or {}
+                    lt = the.get("loaithe") or {}
 
                     result.update({
                         "sothe": the.get("sothe"),
                         "ngayhethan": the.get("ngayhethan"),
-                        "trangthaithe": "Hoạt động" if the.get("trangthaithe") else "Đã khóa/Hết hạn",
-                        "tenthe": loai_the.get("tenthe"),
-                        "tailieumuontoida": loai_the.get("tailieumuontoida")
+                        "trangthaithe": "Hoạt động" if the.get("trangthaithe") else "Đã khóa",
+                        "tenthe": lt.get("tenthe"),
+                        "tailieumuontoida": lt.get("tailieumuontoida")
                     })
                 else:
-                    # Có hồ sơ nhưng chưa có thẻ
-                    result.update({
-                        "sothe": "Chưa cấp",
-                        "trangthaithe": "Chưa kích hoạt"
-                    })
+                    # Có hồ sơ nhưng chưa có thẻ (hoặc thẻ đang chờ tạo)
+                    result["sothe"] = "Đang cập nhật..."
 
-        # === TRƯỜNG HỢP 2: LÀ NHÂN VIÊN ===
+            else:
+                # --> TRƯỜNG HỢP 2: CHƯA CÓ HỒ SƠ (Mới đăng ký xong, chờ duyệt)
+                # Fallback: Lấy tên từ Yêu Cầu Thẻ
+                if latest_req_data:
+                    info = latest_req_data.get("thongtinbosung") or {}
+                    result["hoten"] = info.get("ho_ten", "Người dùng mới")
+                else:
+                    result["hoten"] = "Khách (Chưa có hồ sơ)"
+
+
         elif role == "nhanVien":
-            # Lấy thông tin từ bảng NhanVien
-            response = (
-                supabase_client.table("nhanvien")
-                .select("hoten, manhanviennoibo, phongban, chucvu, ngaytuyendung")
-                .eq("manguoidung", user_id)
-                .single()
-                .execute()
-            )
-
-            if response.data:
-                data = response.data
+            # Logic lấy Nhân viên (như cũ)
+            nv_res = supabase_client.table("nhanvien").select("*").eq("manguoidung", user_id).execute()
+            if nv_res.data:
+                data = nv_res.data[0]
                 result.update({
                     "hoten": data.get("hoten"),
                     "manhanviennoibo": data.get("manhanviennoibo"),
@@ -105,15 +138,11 @@ def get_user_profile(
                     "ngaytuyendung": data.get("ngaytuyendung")
                 })
 
-        # === TRƯỜNG HỢP 3: CHƯA CÓ HỒ SƠ ===
-        # (Giữ nguyên result mặc định đã tạo ở trên)
-
         return result
 
     except Exception as e:
-        # Lỗi thường gặp: Tài khoản mới tạo (trong bảng nguoidung)
-        # nhưng chưa tạo hồ sơ (trong bandoc/nhanvien) -> .single() sẽ lỗi
-        logger.warning(f"User {user_id} ({role}) chưa có hồ sơ chi tiết hoặc lỗi: {e}")
+        logger.error(f"Lỗi lấy profile user {user_id}: {e}")
+        # Trả về dữ liệu an toàn để frontend không bị crash
         return result
 
 # 1. CREATE (Tạo người dùng MỚI)

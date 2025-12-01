@@ -112,8 +112,37 @@ def process_card_application(ma_yeu_cau: int, form_data: dict, filename: str):
             check_bd = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", target_user_id).execute()
 
             if check_bd.data:
-                # Nếu người dùng (target) đã là bạn đọc -> Dùng lại hồ sơ cũ (Cấp thẻ mới/Làm lại)
-                ma_ban_doc = check_bd.data[0]['mabandoc']
+                # === KIỂM TRA TRÙNG THẺ ===
+                # Lấy loại thẻ khách muốn đăng ký
+                req_data = supabase_client.table(TABLE_NAME).select("maloaithe").eq("mayeucauthe", ma_yeu_cau).single().execute()
+                ma_loai_the = req_data.data["maloaithe"]
+                # Kiểm tra xem bạn đọc này ĐÃ CÓ thẻ loại này và ĐANG HOẠT ĐỘNG chưa?
+                check_card = supabase_client.table("thebandoc") \
+                    .select("mathe") \
+                    .eq("mabandoc", ma_ban_doc) \
+                    .eq("maloaithe", ma_loai_the) \
+                    .eq("trangthaithe", True) \
+                    .execute()
+                if check_card.data:
+                    # ==> PHÁT HIỆN TRÙNG: TỰ ĐỘNG TỪ CHỐI
+                    logger.warning(f"User {target_user_id} đã có thẻ loại {ma_loai_the}. Từ chối yêu cầu {ma_yeu_cau}.")
+                    reason = "Bạn đã sở hữu loại thẻ này và thẻ vẫn đang hoạt động. Không thể cấp trùng."
+                    # Cập nhật JSON lý do
+                    info["ly_do_tu_choi"] = reason
+                    info["ngay_xu_ly"] = datetime.now().isoformat()
+
+                    supabase_client.table(TABLE_NAME).update({
+                        "trangthaiquytrinh": "tuChoi", # Từ chối
+                        "mabandoc": ma_ban_doc,
+                        "thoigianxuly": "now()",
+                        "ghichu": "Hệ thống tự động từ chối (Duplicate Card)",
+                        "thongtinbosung": to_json_safe(info)
+                    }).eq("mayeucauthe", ma_yeu_cau).execute()
+
+                    return # KẾT THÚC HÀM NGAY TẠI ĐÂY
+                else:
+                    # Nếu người dùng (target) đã là bạn đọc -> Dùng lại hồ sơ cũ (Cấp thẻ mới/Làm lại)
+                    ma_ban_doc = check_bd.data[0]['mabandoc']
             else:
                 # Nếu chưa -> Tạo hồ sơ Bạn Đọc mới
                 new_bandoc = {

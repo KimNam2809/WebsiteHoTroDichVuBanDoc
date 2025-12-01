@@ -2,6 +2,7 @@ from pydantic import EmailStr
 from typing import Optional
 from datetime import date, datetime
 from app.models.db_base import DBModel
+from app.models.yeu_cau_the import LatestRequestInfo
 
 class NguoiDungBase(DBModel):
     tenDangNhap: str
@@ -42,4 +43,7 @@ class UserProfileResponse(DBModel):
     phongban: Optional[str] = None
     chucvu: Optional[str] = None
     ngaytuyendung: Optional[date] = None
+
+    # Thông tin yêu cầu thẻ mới nhất (để Frontend xử lý UI chờ duyệt/popup)
+    yeu_cau_moi_nhat: Optional[LatestRequestInfo] = None
 

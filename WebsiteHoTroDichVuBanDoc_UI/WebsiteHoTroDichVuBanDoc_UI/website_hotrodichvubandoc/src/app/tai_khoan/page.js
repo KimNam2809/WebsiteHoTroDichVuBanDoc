@@ -3,6 +3,7 @@ import { getUserProfileAction, getCurrentHoldingsAction } from './actions';
 import Link from 'next/link';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faIdCard, faBookOpen, faClock, faUserTie } from '@fortawesome/free-solid-svg-icons';
+import CardStatusSection from '@/components/CardStatusSection';
 
 // Hàm format ngày tháng (xử lý cả ISO string và date string)
 function formatDate(dateString) {
@@ -45,7 +46,7 @@ export default async function DashboardPage() {
             {/* Header chào mừng */}
             <div className="flex justify-between items-end mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800">Xin chào, {profile.hoten}!</h1>
+                    <h1 className="text-3xl font-bold text-gray-800">Xin chào, {profile.hoten || profile.email.split('@')[0]}!</h1>
                     <p className="text-gray-600 mt-1">
                         {isStaff ? `Cán bộ thư viện - ${profile.chucvu || 'Nhân viên'}` : 'Chào mừng bạn quay trở lại thư viện.'}
                     </p>
