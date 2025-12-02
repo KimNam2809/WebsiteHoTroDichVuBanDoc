@@ -42,6 +42,39 @@ export async function getCardTypesAction() {
     }
 }
 
+// === TRA CỨU THÔNG TIN ===
+export async function lookupCardRequestAction(formData) {
+    // 1. Lấy dữ liệu từ ô input duy nhất có name="keyword"
+    const keyword = formData.get('keyword')?.toString().trim();
+
+    if (!keyword || keyword.length < 6) {
+        return { error: "Vui lòng nhập ít nhất 6 ký tự (CCCD hoặc SĐT)." };
+    }
+
+    try {
+        // 2. Gọi API FastAPI với body chỉ chứa keyword
+        const res = await fetch(`${FASTAPI_URL}/api/v1/yeu-cau-the/tra-cuu`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyword: keyword }),
+            cache: 'no-store'
+        });
+
+        if (!res.ok) {
+            if (res.status === 404) return { error: "Không tìm thấy dữ liệu phù hợp." };
+            const errText = await res.text();
+            return { error: `Lỗi tra cứu: ${errText}` };
+        }
+
+        const data = await res.json();
+        return { success: true, data: data };
+
+    } catch (error) {
+        console.error("Lookup Error:", error);
+        return { error: "Lỗi kết nối đến máy chủ." };
+    }
+}
+
 export async function registerCardAction(prevState, formData) {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;

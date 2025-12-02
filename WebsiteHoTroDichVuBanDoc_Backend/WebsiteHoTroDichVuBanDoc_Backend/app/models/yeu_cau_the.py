@@ -63,3 +63,17 @@ class LatestRequestInfo(DBModel):
     ten_loai_the: str
     ngay_yeu_cau: datetime
     ly_do_tu_choi: Optional[str] = None
+
+class TraCuuRequest(DBModel):
+    keyword: str # CCCD hoặc SĐT
+
+class TraCuuYeuCauResponse(DBModel):
+    ma_yeu_cau: Optional[int] = None # Có thể null nếu đây là Thẻ chính thức (không phải yêu cầu)
+    ho_ten: str
+    cccd: str
+    sdt: Optional[str] = None
+    ten_loai_the: str
+    ngay_dang_ky: Optional[datetime] = None
+    trang_thai: str       # 'choDuyet', 'daDuyet', 'tuChoi', 'THE_DANG_HOAT_DONG'
+    ly_do_tu_choi: Optional[str] = None
+    sothe: Optional[str] = None # [Mới] Hiển thị số thẻ nếu đã có

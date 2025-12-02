@@ -1,8 +1,8 @@
-from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Query, status, Depends, UploadFile, File, Form, BackgroundTasks
 from typing import List, Optional, Dict, Any
 from app.api.v1.endpoints.mock_national_db_api import generate_username_from_name, perform_verification
 from app.connect.security import get_password_hash
-from app.models.yeu_cau_the import YeuCauThe, YeuCauTheCreate, YeuCauTheDetailResponse, YeuCauTheUpdate, YeuCauTheAdminView, DuyetTheRequest
+from app.models.yeu_cau_the import TraCuuRequest, YeuCauThe, YeuCauTheCreate, YeuCauTheDetailResponse, YeuCauTheUpdate, YeuCauTheAdminView, DuyetTheRequest, TraCuuYeuCauResponse
 from app.connect.db import supabase_client
 from app.utils import to_json_safe
 from app.connect.auth import get_current_user_from_db, get_current_staff_profile, get_card_request_owner_or_staff
@@ -287,6 +287,12 @@ async def dang_ky_the_ban_doc(
         "ma_nguoi_dung_dang_ky": user_id
     }
 
+    # 1. Lấy thông tin mức phí hiện tại của loại thẻ
+    loai_the_info = supabase_client.table("loaithe").select("lephi").eq("maloaithe", ma_loai_the).single().execute()
+    le_phi_hien_tai = 0
+    if loai_the_info.data:
+        le_phi_hien_tai = loai_the_info.data.get("lephi", 0)
+
     # 1. Tạo bản ghi với trạng thái 'dangXuLy'
     db_data = {
         "maloaithe": ma_loai_the,
@@ -294,7 +300,8 @@ async def dang_ky_the_ban_doc(
         "trangthaiquytrinh": "dangXuLy", # <-- Trạng thái mới
         "maphuongxa": None,
         "thongtinbosung": to_json_safe(thong_tin_bo_sung),
-        "hinhthucyeucau": "Online"
+        "hinhthucyeucau": "Online",
+        "lephi": le_phi_hien_tai,
     }
 
     res = supabase_client.table(TABLE_NAME).insert(db_data).execute()
@@ -588,6 +595,103 @@ def phe_duyet_yeu_cau_the(
     except Exception as e:
         logger.error(f"Lỗi xử lý duyệt thẻ: {e}")
         raise HTTPException(status_code=500, detail=f"Lỗi nội bộ: {str(e)}")
+
+# --- API TRA CỨU CÔNG KHAI (Public Search) ---
+@router.post(
+    "/tra-cuu",
+    response_model=List[TraCuuYeuCauResponse],
+    summary="Tra cứu trạng thái yêu cầu thẻ & Thẻ hiện có (Công khai)"
+)
+def tra_cuu_yeu_cau_the(
+    search_in: TraCuuRequest # Nhận JSON Body
+):
+    """
+    API dành cho khách. Tra cứu dựa trên CCCD hoặc SĐT.
+    Method: POST
+    Body: { "keyword": "048203..." }
+    """
+    result_list = []
+    keyword = search_in.keyword # Lấy keyword từ body
+
+    # Validate độ dài (Thay cho min_length của Query)
+    if len(keyword) < 6:
+        # Trả về list rỗng hoặc lỗi tùy bạn. Ở đây trả rỗng cho an toàn.
+        return []
+
+    try:
+        # =========================================================
+        # PHẦN 1: KIỂM TRA THẺ ĐANG HOẠT ĐỘNG (Query bảng BanDoc)
+        # =========================================================
+
+        # Nếu keyword giống CCCD (chỉ chứa số và dài >= 9)
+        if keyword.isdigit() and len(keyword) >= 9:
+            try:
+                # Query BanDoc kèm thông tin Thẻ
+                existing_member = (
+                    supabase_client.table("bandoc")
+                    .select("hoten, cccd, thebandoc(sothe, trangthaithe, loaithe(tenthe))")
+                    .eq("cccd", keyword)
+                    .execute()
+                )
+
+                if existing_member.data:
+                    for member in existing_member.data:
+                        cards = member.get("thebandoc", [])
+                        for card in cards:
+                            if card.get("trangthaithe") is True:
+                                loai_the = card.get("loaithe") or {}
+
+                                active_card_item = {
+                                    "ma_yeu_cau": None,
+                                    "ho_ten": member.get("hoten"),
+                                    "cccd": member.get("cccd"),
+                                    "sdt": "******",
+                                    "ten_loai_the": loai_the.get("tenthe", "Thẻ thành viên"),
+                                    "ngay_dang_ky": None,
+                                    "trang_thai": "THE_DANG_HOAT_DONG",
+                                    "sothe": card.get("sothe"),
+                                    "ly_do_tu_choi": None
+                                }
+                                result_list.append(active_card_item)
+            except Exception as e:
+                logger.warning(f"Lỗi tìm thẻ active: {e}")
+
+        # =========================================================
+        # PHẦN 2: TRA CỨU LỊCH SỬ YÊU CẦU (Query bảng YeuCauThe)
+        # =========================================================
+
+        filter_condition = f"thongtinbosung->>sdt.eq.{keyword},thongtinbosung->>cccd.eq.{keyword}"
+
+        req_response = (
+            supabase_client.table(TABLE_NAME)
+            .select("mayeucauthe, thoigianbatdau, trangthaiquytrinh, thongtinbosung, loaithe(tenthe)")
+            .or_(filter_condition)
+            .order("thoigianbatdau", desc=True)
+            .execute()
+        )
+
+        for item in req_response.data:
+            info = item.get("thongtinbosung") or {}
+            loai_the = item.get("loaithe") or {}
+
+            req_item = {
+                "ma_yeu_cau": item["mayeucauthe"],
+                "ho_ten": info.get("ho_ten", "Không xác định"),
+                "cccd": info.get("cccd", ""),
+                "sdt": info.get("sdt", ""),
+                "ten_loai_the": loai_the.get("tenthe", "Không xác định"),
+                "ngay_dang_ky": item["thoigianbatdau"],
+                "trang_thai": item["trangthaiquytrinh"],
+                "ly_do_tu_choi": info.get("ly_do_tu_choi"),
+                "sothe": None
+            }
+            result_list.append(req_item)
+
+        return result_list
+
+    except Exception as e:
+        logger.error(f"Lỗi tra cứu tổng hợp: {e}")
+        return []
 
 # 1. CREATE (Bạn đọc tạo yêu cầu)
 @router.post(

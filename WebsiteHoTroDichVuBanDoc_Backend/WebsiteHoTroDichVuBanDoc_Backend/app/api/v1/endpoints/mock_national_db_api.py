@@ -31,7 +31,7 @@ MOCK_CITIZENS = [
         "sdt": "0999999999",
         "blacklisted": True
     },
-    # Có thể thêm user thật của bạn vào đây để test luồng Xanh
+    # Có thể thêm user thật vào đây để test luồng Xanh
     {
         "cccd": "055548799514",
         "ho_ten": "NGUYEN THI BINH",
