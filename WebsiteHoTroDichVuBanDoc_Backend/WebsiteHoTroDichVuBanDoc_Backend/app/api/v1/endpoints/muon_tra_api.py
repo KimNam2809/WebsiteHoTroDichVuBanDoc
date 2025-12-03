@@ -17,22 +17,17 @@ TABLE_NAME = "muontra"
     summary="Lấy lịch sử mượn trả (Nhân viên: Tất cả / Bạn đọc: Của mình)"
 )
 def get_borrowing_history(
-    # Regex đảm bảo chỉ nhận 3 giá trị này
     trang_thai: Optional[str] = Query(None, regex="^(daMuon|daTra|quaHan)$"),
     current_user: dict = Depends(get_current_user_from_db)
 ):
-    """
-    Lấy danh sách mượn trả.
-    - **Nhân viên:** Xem được toàn bộ.
-    - **Bạn đọc:** Chỉ xem được của chính mình.
-    """
     user_role = current_user.get("vaitro")
     user_id = current_user.get("manguoidung")
 
     try:
-        # 1. Xây dựng Query cơ bản
+        # 1. Xây dựng Query (Đã thêm thebandoc)
         query = """
             mamuontra,
+            mabansao,
             thoigianmuon,
             ngaytra,
             ngaytrathucte,
@@ -40,64 +35,72 @@ def get_borrowing_history(
             tienphat,
             bansao (
                 mabansaonoibo,
-                tacpham (tentacpham)
+                tacpham (tentacpham, anhbia)
             ),
-            bandoc (hoten)
+            bandoc (
+                hoten,
+                thongtinbosung,
+                thebandoc (sothe, trangthaithe)
+            )
         """
         db_query = supabase_client.table("muontra").select(query)
 
-        # 2. PHÂN QUYỀN (Dynamic Filtering)
+        # 2. PHÂN QUYỀN
         if user_role == "nhanVien":
-            # Nhân viên: Không cần lọc -> Xem tất cả
             pass
-
         elif user_role == "nguoiDung":
-            # Bạn đọc: Tìm hồ sơ BanDoc
             reader_res = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).single().execute()
-
             if not reader_res.data:
-                logger.warning(f"User {user_id} chưa có hồ sơ bạn đọc.")
                 return []
-
             ma_ban_doc = reader_res.data["mabandoc"]
-
-            # Debug: In ra để kiểm tra xem có khớp DB không
-            logger.info(f"User {user_id} là Bạn đọc ID: {ma_ban_doc}")
-
-            # Lọc: Chỉ lấy dòng của chính mình
             db_query = db_query.eq("mabandoc", ma_ban_doc)
-
         else:
-            return [] # Vai trò lạ
+            return []
 
-        # 3. ÁP DỤNG BỘ LỌC TRẠNG THÁI (ĐÃ SỬA)
+        # 3. LỌC
         if trang_thai:
-            # Dùng .eq() thay vì .in_() cho giá trị đơn lẻ
-            # Điều này sửa lỗi trả về mảng rỗng []
             db_query = db_query.eq("trangthaimuon", trang_thai)
-            logger.info(f"Đang lọc theo trạng thái: {trang_thai}")
 
-        # 4. Thực thi và trả về
+        # 4. THỰC THI
         response = db_query.order("thoigianmuon", desc=True).execute()
         data = response.data or []
 
-        # 5. Format dữ liệu (Flatten)
+        # 5. FORMAT DỮ LIỆU
         result = []
         for item in data:
             bs = item.get("bansao") or {}
             tp = bs.get("tacpham") or {}
             bd = item.get("bandoc") or {}
 
+            # Lấy thông tin bổ sung (ảnh)
+            info_bd = bd.get("thongtinbosung") or {}
+
+            # Xử lý lấy số thẻ (Lấy cái thẻ đang hoạt động đầu tiên)
+            ds_the = bd.get("thebandoc", [])
+            so_the = "---"
+            if ds_the:
+                # Ưu tiên lấy thẻ đang hoạt động (trangthaithe=True)
+                active_card = next((t for t in ds_the if t.get("trangthaithe") is True), None)
+                # Nếu không có thẻ active, lấy thẻ mới nhất (phần tử đầu tiên)
+                card_to_show = active_card or ds_the[0]
+                so_the = card_to_show.get("sothe", "---")
+
             history_item = {
                 "maMuonTra": item["mamuontra"],
+                "maBanSao": item["mabansao"],
                 "ngayMuon": item["thoigianmuon"],
                 "ngayTraDuKien": item["ngaytra"],
                 "ngayTraThucTe": item["ngaytrathucte"],
                 "trangThai": item["trangthaimuon"],
                 "tienPhat": item["tienphat"],
+
                 "maBanSaoNoiBo": bs.get("mabansaonoibo", "N/A"),
                 "tenTacPham": tp.get("tentacpham", "Không xác định"),
-                "nguoiMuon": bd.get("hoten", "N/A")
+                "anhBia": tp.get("anhbia"), # Có thể null
+
+                "nguoiMuon": bd.get("hoten", "N/A"),
+                "anhDocGia": info_bd.get("anh_the_url"), # Lấy URL ảnh thẻ từ JSON
+                "soThe": so_the
             }
             result.append(history_item)
 

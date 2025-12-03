@@ -37,11 +37,19 @@ class MuonTraTraSach(DBModel):
 
 class MuonTraItem(DBModel):
     maMuonTra: int
-    tenTacPham: str
-    maBanSaoNoiBo: str
-    ngayMuon: datetime # Timestamptz
+    maBanSao: int
+    ngayMuon: datetime
     ngayTraDuKien: date
     ngayTraThucTe: Optional[datetime] = None
-    trangThai: str # daMuon, daTra...
+    trangThai: str
     tienPhat: Optional[float] = 0.0
-    nguoiMuon: Optional[str] = None # Trường này để Nhân viên biết ai mượn
+
+    # Thông tin Sách
+    maBanSaoNoiBo: str
+    tenTacPham: str
+    anhBia: Optional[str] = None
+
+    # Thông tin Người mượn
+    nguoiMuon: str
+    anhDocGia: Optional[str] = None
+    soThe: Optional[str] = None

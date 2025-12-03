@@ -31,6 +31,10 @@ class UserProfileResponse(DBModel):
     email: str
     vaitro: str
 
+    # ID ĐỊNH DANH QUAN TRỌNG CHO FRONTEND
+    maBanDoc: Optional[int] = None   # Dành cho Bạn đọc (để gửi API mượn trả/đặt chỗ)
+    maNhanVien: Optional[int] = None # Dành cho Nhân viên (để gửi API quản lý)
+
     # Thông tin Bạn Đọc (Optional - chỉ có nếu là Bạn đọc)
     sothe: Optional[str] = None
     tenthe: Optional[str] = None

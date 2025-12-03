@@ -37,6 +37,8 @@ def get_user_profile(
         "hoten": "Chưa cập nhật hồ sơ",
         "email": email,
         "vaitro": role,
+        "maBanDoc": None,
+        "maNhanVien": None,
         "yeu_cau_moi_nhat": None,
         # Các trường thẻ mặc định là None/Chưa cấp
         "sothe": None,
@@ -81,6 +83,7 @@ def get_user_profile(
             # 1. Query lấy thông tin BanDoc và Thẻ (LEFT JOIN)
             # Quan trọng: Lấy `hoten` của BanDoc ở cấp cao nhất
             query = """
+                mabandoc,
                 hoten,
                 thebandoc (
                     sothe,
@@ -97,6 +100,7 @@ def get_user_profile(
             if bd_res.data and len(bd_res.data) > 0:
                 # --> TRƯỜNG HỢP 1: ĐÃ CÓ HỒ SƠ BẠN ĐỌC
                 data = bd_res.data[0]
+                result["maBanDoc"] = data.get("mabandoc")
 
                 # [FIX]: Luôn lấy hoten từ bảng BanDoc trước
                 if data.get("hoten"):
@@ -141,6 +145,7 @@ def get_user_profile(
             if nv_res.data:
                 data = nv_res.data[0]
                 result.update({
+                    "maNhanVien": data.get("manhanvien"),
                     "hoten": data.get("hoten"),
                     "manhanviennoibo": data.get("manhanviennoibo"),
                     "phongban": data.get("phongban"),

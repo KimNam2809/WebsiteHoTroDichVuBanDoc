@@ -1,33 +1,36 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+import math
+import re, time
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status, Query
 from typing import List, Optional
 from app.connect.auth import get_current_staff_profile
-from app.models.tac_pham import TacPham, TacPhamCreate, TacPhamUpdate
+from app.models.tac_pham import TacPham, TacPhamCreate, TacPhamUpdate, TimKiemTacPham
 from app.models.ban_sao import BanSao
 from app.models.custom_response import TacPhamFullInfo
 from app.connect.db import supabase_client
 import logging
 
+from app.utils import to_json_safe
+
 logger = logging.getLogger(__name__)
-
 router = APIRouter()
-
 TABLE_NAME = "tacpham"
+STORAGE_BUCKET = "image_books"
 
+# Tìm kiếm nâng cao (Công khai)
 @router.get(
     "/tim-kiem-nang-cao",
-    response_model=List[TacPham],
-    summary="Tìm kiếm nâng cao (Từ khóa, Danh mục, Từ khóa, Phân trang)"
+    response_model=TimKiemTacPham,
+    summary="Tìm kiếm nâng cao (Có tổng số trang)"
 )
 def tim_kiem_nang_cao(
     q: Optional[str] = Query(None, description="Từ khóa tìm kiếm (Tên sách, Tác giả)"),
     danh_muc_id: Optional[int] = Query(None, description="ID Danh mục để lọc"),
     tu_khoa_id: Optional[int] = Query(None, description="ID Từ khóa để lọc"),
     page: int = Query(1, ge=1, description="Số trang (mặc định 1)"),
-    limit: int = Query(10, ge=1, le=100, description="Số lượng kết quả/trang")
+    limit: int = Query(8, ge=1, le=100, description="Số lượng kết quả/trang")
 ):
     """
-    Tìm kiếm sách theo nhiều tiêu chí kết hợp.
-    Sử dụng RPC `fn_tim_kiem_nang_cao`.
+    Tìm kiếm sách và trả về kết quả kèm thông tin phân trang.
     """
     try:
         # 1. Tính toán offset
@@ -42,47 +45,43 @@ def tim_kiem_nang_cao(
             "p_offset": offset
         }
 
-        # 3. Gọi RPC
+        # 3. Gọi RPC (Lúc này RPC trả về 1 cục JSON duy nhất)
         response = supabase_client.rpc("fn_tim_kiem_nang_cao", params).execute()
 
-        return response.data or []
+        # Dữ liệu trả về nằm trong response.data (là một dict do SQL trả về JSON)
+        result = response.data
+
+        if not result:
+            # Trường hợp lỗi hoặc không có gì trả về
+            return {
+                "data": [],
+                "total": 0,
+                "page": page,
+                "limit": limit,
+                "total_pages": 0
+            }
+
+        total_items = result.get("total", 0)
+        data_list = result.get("data", [])
+
+        # 4. Tính tổng số trang (Làm tròn lên)
+        # Ví dụ: 15 item, limit 10 -> 1.5 -> 2 trang
+        total_pages = math.ceil(total_items / limit) if limit > 0 else 0
+
+        # 5. Trả về đúng cấu trúc SearchResponse
+        return {
+            "data": data_list,
+            "total": total_items,
+            "page": page,
+            "limit": limit,
+            "total_pages": total_pages
+        }
 
     except Exception as e:
         logger.error(f"Lỗi tìm kiếm nâng cao: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-# 1. Tạo mới tác phẩm
-@router.post(
-    "/",
-    response_model=TacPham,
-    status_code=status.HTTP_201_CREATED,
-    summary="Tạo mới tác phẩm",
-)
-
-def create_tac_pham(tac_pham_in: TacPhamCreate, current_staff: dict = Depends(get_current_staff_profile)):
-    """
-    Tạo một tác phẩm mới.
-    - **tenTacPham**: Tên của tác phẩm (bắt buộc).
-    - Các trường khác là tùy chọn.
-    """
-    try:
-        # Chuyển pydantic model thành dict
-        # **QUAN TRỌNG: model_dump(by_alias=True)**
-        # Yêu cầu Pydantic dump ra dict dùng "alias" (chữ thường)
-        data = tac_pham_in.model_dump(by_alias=True)
-
-        # Gửi lệnh insert đến Supabase
-        response = supabase_client.table(TABLE_NAME).insert(data).execute()
-
-        # Supabase sẽ trả về một list data, ta lấy phần tử đầu tiên
-        if response.data:
-            return response.data[0]
-        else:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Không thể tạo tác phẩm.")
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-# 2. Lấy danh sách tất cả tác phẩm
+# Lấy danh sách tất cả tác phẩm (Công khai)
 @router.get(
     "/",
     response_model=List[TacPham],
@@ -99,11 +98,11 @@ def get_all_tac_pham():
 
         if response.data:
             return response.data
-        return [] # Trả về list rỗng nếu không có dữ liệu
+        return []
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-# 3. Lấy 1 tác phẩm
+# Lấy 1 tác phẩm (Công khai)
 @router.get(
     "/{maTacPham}",
     response_model=TacPham,
@@ -129,68 +128,7 @@ def get_tac_pham_by_id(maTacPham: int):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-# 4. Cập nhật thông tin tác phẩm
-@router.put(
-    "/{maTacPham}",
-    response_model=TacPham,
-    status_code=status.HTTP_200_OK,
-    summary="Cập nhật thông tin tác phẩm",
-)
-
-def update_tac_pham(maTacPham: int, tac_pham_in: TacPhamUpdate, current_staff: dict = Depends(get_current_staff_profile)):
-    """
-    Cập nhật thông tin cho một tác phẩm đã có.
-    Gửi lên trường nào thì trường đó sẽ bị ghi đè.
-    """
-    try:
-        # .model_dump(exclude_unset=True) rất quan trọng
-        # Nó chỉ tạo dict từ những trường bạn gửi lên,
-        # bỏ qua các trường "None" (Optional) mà bạn không gửi
-        data = tac_pham_in.model_dump(exclude_unset=True, by_alias=True) # Chỉ lấy các trường được gửi lên
-
-        if not data:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không có thông tin nào được gửi để cập nhật.")
-
-        response = supabase_client.table(TABLE_NAME).update(data).eq("matacpham", maTacPham).execute()
-
-        if response.data:
-            return response.data[0]
-        else:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy tác phẩm với id={maTacPham} để cập nhật")
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-# 5. Xóa tác phẩm
-@router.delete(
-    "/{maTacPham}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Xóa tác phẩm",
-)
-
-def delete_tac_pham(maTacPham: int, current_staff: dict = Depends(get_current_staff_profile)):
-    """
-    Xóa một tác phẩm khỏi cơ sở dữ liệu bằng maTacPham.
-    Lưu ý: Nếu có khóa ngoại trỏ đến, có thể gây lỗi.
-    """
-    try:
-        response = supabase_client.table(TABLE_NAME).delete().eq("matacpham", maTacPham).execute()
-
-        if not response.data:
-            # Nếu data rỗng, tức là không tìm thấy tác phẩm để xoá
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy tác phẩm với id={maTacPham} để xóa")
-        # Nếu xoá thành công, không trả về nội dung gì
-        return
-    except Exception as e:
-        # Bắt lỗi khoá ngoại
-        if "foreign_key_constraint" in str(e):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                # Tác phẩm này đang được tham chiếu bởi bảng khác (ví dụ: BanSao, TacPham_DanhMuc...)
-                detail=f"Không thể xóa tác phẩm với id={maTacPham} do có dữ liệu liên quan."
-            )
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-# 6. Lấy tất cả bản sao của 1 tác phẩm
+# Lấy tất cả bản sao của 1 tác phẩm
 @router.get(
     "/{maTacPham}/ban-sao",
     response_model=List[BanSao],
@@ -219,7 +157,7 @@ def get_ban_sao_for_tac_pham(maTacPham: int):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-# 8. Lấy thông tin chi tiết đầy đủ của một tác phẩm
+# Lấy thông tin chi tiết đầy đủ của một tác phẩm
 @router.get(
     "/{maTacPham}/full-info",
     response_model=TacPhamFullInfo,
@@ -290,4 +228,135 @@ def get_tac_pham_full_info(maTacPham: int):
         # Bắt lỗi 404 nếu .single() thất bại
         if "JSON object requested, multiple (or no) rows returned" in str(e):
             raise HTTPException(status_code=404, detail="Không tìm thấy tác phẩm")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+# Tạo mới tác phẩm (Chỉ nhân viên)
+@router.post(
+    "/",
+    response_model=TacPham,
+    status_code=status.HTTP_201_CREATED,
+    summary="Tạo mới tác phẩm (Chỉ Nhân viên)",
+)
+async def create_tac_pham(
+    ten_tac_pham: str = Form(...),
+    tac_gia: Optional[str] = Form(None),
+    mo_ta: Optional[str] = Form(None),
+    isbn: Optional[str] = Form(None),
+    nam_xuat_ban: Optional[int] = Form(None),
+    anh_bia: UploadFile = File(None),
+    current_staff: dict = Depends(get_current_staff_profile)
+):
+    anh_bia_url = None
+    if anh_bia:
+        try:
+            clean_name = re.sub(r'[^a-zA-Z0-9_.-]', '', anh_bia.filename.replace(" ", "_"))
+            file_name = f"book_{int(time.time())}_{clean_name}"
+            file_content = await anh_bia.read()
+            supabase_client.storage.from_(STORAGE_BUCKET).upload(
+                path=file_name,
+                file=file_content,
+                file_options={"content-type": anh_bia.content_type}
+            )
+            anh_bia_url = supabase_client.storage.from_(STORAGE_BUCKET).get_public_url(file_name)
+        except Exception as e:
+            logger.error(f"Lỗi upload ảnh bìa: {e}")
+            raise HTTPException(status_code=500, detail="Lỗi khi tải ảnh bìa lên hệ thống.")
+
+    book_data = {
+        "tentacpham": ten_tac_pham,
+        "tacgia": tac_gia,
+        "mota": mo_ta,
+        "isbn": isbn,
+        "namxuatban": nam_xuat_ban,
+        "anhbia": anh_bia_url
+    }
+
+    try:
+        response = supabase_client.table(TABLE_NAME).insert(to_json_safe(book_data)).execute()
+        if response.data:
+            return response.data[0]
+        else:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Không thể tạo tác phẩm.")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+# Cập nhật thông tin tác phẩm (Chỉ nhân viên)
+@router.put(
+    "/{maTacPham}",
+    response_model=TacPham,
+    status_code=status.HTTP_200_OK,
+    summary="Cập nhật thông tin tác phẩm (Chỉ Nhân viên)",
+)
+async def update_tac_pham(
+    maTacPham: int,
+    ten_tac_pham: Optional[str] = Form(None),
+    tac_gia: Optional[str] = Form(None),
+    mo_ta: Optional[str] = Form(None),
+    isbn: Optional[str] = Form(None),
+    nam_xuat_ban: Optional[str] = Form(None),
+    anh_bia: UploadFile = File(None),
+    current_staff: dict = Depends(get_current_staff_profile)
+):
+    update_data = {}
+    if ten_tac_pham and ten_tac_pham.strip(): update_data["tentacpham"] = ten_tac_pham
+    if tac_gia and tac_gia.strip(): update_data["tacgia"] = tac_gia
+    if mo_ta and mo_ta.strip(): update_data["mota"] = mo_ta
+    if isbn and isbn.strip(): update_data["isbn"] = isbn
+    if nam_xuat_ban and nam_xuat_ban.strip():
+        try:
+            update_data["namxuatban"] = int(nam_xuat_ban)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Năm xuất bản phải là số.")
+
+    if anh_bia:
+        try:
+            clean_name = re.sub(r'[^a-zA-Z0-9_.-]', '', anh_bia.filename.replace(" ", "_"))
+            file_name = f"book_{maTacPham}_{int(time.time())}_{clean_name}"
+            file_content = await anh_bia.read()
+            supabase_client.storage.from_(STORAGE_BUCKET).upload(
+                path=file_name,
+                file=file_content,
+                file_options={"content-type": anh_bia.content_type}
+            )
+            new_url = supabase_client.storage.from_(STORAGE_BUCKET).get_public_url(file_name)
+            update_data["anhbia"] = new_url
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Lỗi upload ảnh mới: {e}")
+
+    if not update_data:
+        raise HTTPException(status_code=400, detail="Không có thông tin nào được gửi để cập nhật")
+
+    try:
+        response = supabase_client.table(TABLE_NAME).update(to_json_safe(update_data)).eq("matacpham", maTacPham).execute()
+        if response.data:
+            return response.data[0]
+        else:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy tác phẩm với id={maTacPham} để cập nhật")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+# 5. Xóa (Chỉ Nhân viên)
+@router.delete(
+    "/{maTacPham}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Xóa tác phẩm (Chỉ Nhân viên)",
+)
+def delete_tac_pham(
+    maTacPham: int,
+    current_staff: dict = Depends(get_current_staff_profile)
+):
+    """
+    Xóa một tác phẩm.
+    """
+    try:
+        response = supabase_client.table(TABLE_NAME).delete().eq("matacpham", maTacPham).execute()
+        if not response.data:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy tác phẩm với id={maTacPham} để xóa")
+        return
+    except Exception as e:
+        if "foreign_key_constraint" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Không thể xóa tác phẩm với id={maTacPham} do có dữ liệu liên quan."
+            )
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

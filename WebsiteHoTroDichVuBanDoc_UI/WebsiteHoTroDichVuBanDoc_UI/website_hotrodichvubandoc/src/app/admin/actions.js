@@ -87,3 +87,56 @@ export async function approveCardAction(id, status, reason = '') {
         return { error: 'Lỗi kết nối đến máy chủ.' };
     }
 }
+
+// 4. Lấy danh sách đang mượn (để nhân viên tìm và trả)
+// Endpoint: GET /api/v1/muon-tra/danh-sach-chi-tiet-muon-tra?trang_thai=daMuon
+export async function getActiveLoansAction() {
+    try {
+        const res = await fetchAdmin('/api/v1/muon-tra/danh-sach-chi-tiet-muon-tra?trang_thai=daMuon');
+        if (!res.ok) return [];
+        return await res.json();
+    } catch (error) {
+        return [];
+    }
+}
+
+// 5. Thực hiện Trả sách
+// Endpoint: POST /api/v1/muon-tra/{id}/tra-sach
+export async function returnBookAction(maMuonTra) {
+    try {
+        // B1: Lấy thông tin nhân viên hiện tại (để lấy ID nhân viên)
+        // API yêu cầu body { maNhanVien: ... }
+        const profileRes = await fetchAdmin('/api/v1/nguoi-dung/profile');
+        if (!profileRes.ok) return { error: "Không xác định được nhân viên thực hiện." };
+
+        const profile = await profileRes.json();
+
+        const staffId = profile.manhanvien || 0;
+
+        // B2: Gọi API Trả sách
+        const res = await fetchAdmin(`/api/v1/muon-tra/${maMuonTra}/tra-sach`, {
+            method: 'POST',
+            body: JSON.stringify({
+                maNhanVien: staffId,
+                ghiChu: "Trả tại quầy (Admin)"
+            })
+        });
+
+        if (res.ok) {
+            revalidatePath('/admin/quan_ly_muon_tra');
+            return { success: true };
+        }
+
+        const errText = await res.text();
+
+        try {
+            const jsonErr = JSON.parse(errText);
+            return { error: jsonErr.detail || "Lỗi trả sách." };
+        } catch {
+            return { error: errText };
+        }
+
+    } catch (error) {
+        return { error: "Lỗi kết nối hệ thống." };
+    }
+}

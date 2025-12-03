@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { cookies } from 'next/headers'; // Để lấy token
+import BookCopiesList from '@/components/BookCopiesList';
 
 const FASTAPI_URL = process.env.FASTAPI_BACKEND_URL;
 
@@ -76,14 +77,22 @@ export default async function ChiTietTacPhamPage({ params }) {
             <div className="grid md:grid-cols-3 gap-8">
                 {/* Cột trái (Ảnh bìa) */}
                 <div className="md:col-span-1">
-                    {/* (Chúng ta sẽ dùng ảnh giả lập cho đến khi bạn có URL ảnh thật) */}
-                    <Image
-                        src="https://via.placeholder.com/300x450.png?text=Bia+Sach"
-                        alt={work.tentacpham}
-                        width={300}
-                        height={450}
-                        className="w-full h-auto rounded-lg shadow-md"
-                    />
+                    <div className="relative w-full aspect-2/3 rounded-lg shadow-lg overflow-hidden border border-gray-200">
+                        {work.anhbia ? (
+                            <Image
+                                src={work.anhbia}
+                                alt={work.tentacpham}
+                                fill
+                                sizes="(max-width: 768px) 100vw, 33vw"
+                                className="object-cover w-full h-full"
+                            />
+                        ) : (
+                            <div className="w-full h-full bg-gray-200 flex flex-col items-center justify-center text-gray-500">
+                                <span className="text-6xl mb-2">📚</span>
+                                <span>Chưa có ảnh bìa</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Cột phải (Thông tin) */}
@@ -136,36 +145,8 @@ export default async function ChiTietTacPhamPage({ params }) {
                 </div>
             </div>
 
-            {/* Hiển thị chi tiết các bản sao [cite: 1-19] */}
-            <div className="mt-10 border-t pt-6">
-                <h2 className="text-2xl font-bold mb-4">Các bản sao vật lý ({copies.length})</h2>
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Mã nội bộ</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Vị trí</th>
-                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Trạng thái</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {copies.map((copy) => (
-                                <tr key={copy.mabansao}>
-                                    <td className="px-4 py-3 text-sm font-mono">{copy.mabansaonoibo}</td>
-                                    <td className="px-4 py-3 text-sm">{copy.vitri}</td>
-                                    <td className="px-4 py-3 text-sm">
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                            copy.trangthaichomuon ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                        }`}>
-                                            {copy.trangthaichomuon ? 'Có sẵn' : 'Đang mượn'}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            {/* Hiển thị chi tiết các bản sao */}
+            <BookCopiesList copies={copies} />
         </div>
     );
 }
