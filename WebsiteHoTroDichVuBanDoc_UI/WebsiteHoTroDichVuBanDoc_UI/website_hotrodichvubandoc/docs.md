@@ -115,3 +115,103 @@ Kết quả: Hệ thống tự động chuyển hướng (redirect) ngược l�
 Bước 4: Nhấn nút "Đăng xuất". Sau đó thử truy cập lại /tai_khoan.
 
 Kết quả: Bị chuyển hướng về trang /dang_nhap.
+
+- Kịch bản 5: Quy trình Mượn Sách (Chọn bản sao & Kiểm tra trạng thái)
+Mục tiêu: Đảm bảo người dùng mượn đúng cuốn sách vật lý mong muốn và hệ thống cập nhật trạng thái chính xác cho các người dùng khác.
+
+Bước 1: Đăng nhập bằng tài khoản Bạn đọc A (Ví dụ: student).
+
+Bước 2: Tìm kiếm một cuốn sách có nhiều bản sao (Ví dụ: "Đắc Nhân Tâm").
+
+Bước 3: Nhấn vào "Chi tiết".
+
+Kiểm tra: Danh sách bản sao hiện ra. Chọn một bản sao có trạng thái "Có sẵn" (Ví dụ: mã KN.001).
+
+Bước 4: Nhấn nút "Đăng ký mượn" -> Chọn ngày trả -> Nhấn "Xác nhận".
+
+Kết quả (Bạn đọc A):
+
+Hiển thị Modal thành công màu xanh: "Mượn thành công!".
+
+Trạng thái của bản sao KN.001 chuyển ngay lập tức thành: "Bạn đang giữ" (Màu xanh dương) và nút hành động chuyển thành "Đang mượn".
+
+Bước 5 (Kiểm tra chéo): Mở trình duyệt ẩn danh (hoặc đăng nhập tài khoản Bạn đọc B).
+
+Vào cùng cuốn sách đó.
+
+Kết quả: Bản sao KN.001 hiển thị trạng thái: "Đã có người mượn" (Màu xám/đỏ) và nút hành động bị khóa là "Đã hết".
+
+- Kịch bản 6: Quy trình Trả Sách (Admin đối chiếu hình ảnh)
+Mục tiêu: Kiểm tra tính năng hỗ trợ nhân viên đối chiếu khuôn mặt và sách khi nhận trả để tránh sai sót.
+
+Bước 1: Đăng nhập bằng tài khoản Nhân viên (staff).
+
+Bước 2: Truy cập menu "Quản lý mượn trả" (/admin/quan_ly_muon_tra).
+
+Bước 3: Tại ô tìm kiếm, nhập Mã phiếu mượn (hoặc Tên bạn đọc A vừa mượn ở Kịch bản 5).
+
+Kết quả: Tìm thấy dòng dữ liệu phiếu mượn tương ứng.
+
+Bước 4: Nhấn nút "Xác nhận Trả".
+
+Kết quả:
+
+Một Modal lớn hiện ra chia làm 2 cột.
+
+Cột trái: Hiển thị Ảnh bìa sách + Tên sách.
+
+Cột phải: Hiển thị Ảnh thẻ bạn đọc + Tên bạn đọc (Lấy từ dữ liệu đăng ký).
+
+Mục đích: Nhân viên nhìn màn hình và nhìn người thật để xác nhận đúng người đúng sách.
+
+Bước 5: Nhấn "Hoàn tất trả sách".
+
+Kết quả: Dòng dữ liệu biến mất khỏi danh sách "Đang mượn". Sách trong kho (trang chi tiết) chuyển trạng thái về "Có sẵn".
+
+- Kịch bản 7: Kiểm tra Logic Trạng thái Thẻ (State Management)
+Mục tiêu: Đảm bảo Dashboard hiển thị đúng trạng thái "treo" khi người dùng mới đăng ký nhưng chưa được duyệt (Fix lỗi "Chưa cập nhật hồ sơ").
+
+Bước 1: Đăng ký một tài khoản User mới hoàn toàn (Ví dụ: new_user).
+
+Bước 2: Vào /dang_ky_the, nộp hồ sơ đăng ký.
+
+Bước 3: Truy cập Dashboard /tai_khoan (Lúc này Admin CHƯA duyệt).
+
+Kết quả:
+
+Câu chào: "Xin chào, [Tên lấy từ Email]!" (Không được hiện "Chưa cập nhật").
+
+Thẻ thư viện: Hiển thị khung màu Vàng với trạng thái "Đang chờ duyệt".
+
+Bước 4: (Admin) Vào duyệt hồ sơ cho new_user.
+
+Bước 5: (User) F5 lại trang Dashboard.
+
+Kết quả:
+
+Thẻ thư viện: Tự động chuyển sang khung màu Xanh với thông tin Số thẻ và Ngày hết hạn chính thức.
+
+- Kịch bản 8: Phân trang & Tìm kiếm Nâng cao
+Mục tiêu: Kiểm tra khả năng xử lý dữ liệu lớn và điều hướng trang.
+
+Bước 1: Truy cập trang "Danh mục sách" (/tim_kiem).
+
+Bước 2: Không nhập từ khóa, nhấn tìm kiếm (để lấy toàn bộ sách).
+
+Kết quả:
+
+Hệ thống hiển thị danh sách sách (8 cuốn/trang).
+
+Bên dưới xuất hiện dãy số phân trang: [1] [2] [3] ... (Thay vì chỉ nút Trước/Sau).
+
+Bước 3: Nhấn vào số trang bất kỳ (ví dụ: trang 2).
+
+Kết quả:
+
+Danh sách sách thay đổi.
+
+URL trên thanh địa chỉ thay đổi theo: ?page=2.
+
+Bước 4: F5 (Tải lại trang).
+
+Kết quả: Vẫn ở đúng trang 2 (Trạng thái được lưu trên URL).
