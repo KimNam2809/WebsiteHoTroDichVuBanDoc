@@ -54,9 +54,9 @@ export async function middleware(request) {
         }
     }
 
-    // 2. Nếu là Bạn Đọc (Trong API Profile bạn nói role là "nguoiDung",
-    //    nhưng trong token login bạn cần kiểm tra xem FastAPI trả về string gì.
-    //    Ở đây tôi gộp cả 'ban_doc' (cũ) và 'nguoiDung' (mới) để an toàn)
+    // 2. Nếu là Bạn Đọc (Trong API Profile role là "nguoiDung",
+    //    nhưng trong token login cần kiểm tra xem FastAPI trả về string gì.
+    //    Ở đây gộp cả 'ban_doc' (cũ) và 'nguoiDung' (mới) để an toàn)
     if (userRole === 'ban_doc' || userRole === 'nguoiDung') {
         // Cố vào trang Admin -> Đá về Dashboard
         if (pathname.startsWith('/admin')) {

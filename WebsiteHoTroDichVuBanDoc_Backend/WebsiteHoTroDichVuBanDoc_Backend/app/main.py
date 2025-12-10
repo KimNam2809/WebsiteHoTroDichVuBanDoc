@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from app.api.v1.api import api_router # Import router v1
 
 app = FastAPI(
@@ -9,6 +10,8 @@ app = FastAPI(
 
 # Gắn router v1 vào app chính với tiền tố /api/v1
 app.include_router(api_router, prefix="/api/v1")
+
+app.mount("/static", StaticFiles(directory="static_files"), name="static")
 
 @app.get("/", tags=["Root"])
 def read_root():

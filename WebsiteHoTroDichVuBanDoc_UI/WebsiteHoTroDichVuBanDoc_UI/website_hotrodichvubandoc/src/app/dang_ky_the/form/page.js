@@ -103,7 +103,7 @@ export default function FormDangKyPage() {
     const handleProvinceChange = async (e) => {
         const provinceId = e.target.value;
         setSelectedProvince(provinceId);
-        setWards([]); // Reset phường cũ
+        setWards([]);
 
         if (provinceId) {
             const wardList = await getWardsByProvinceAction(provinceId);

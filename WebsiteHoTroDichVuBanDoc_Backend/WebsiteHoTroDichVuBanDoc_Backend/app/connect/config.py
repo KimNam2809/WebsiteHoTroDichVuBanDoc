@@ -6,6 +6,14 @@ class Settings(BaseSettings):
 
     SUPABASE_URL: str
     SUPABASE_SERVICE_ROLE_KEY: str
+    SUPABASE_DB_STR: str
+
+    LOCAL_DB_NAME: str
+    LOCAL_DB_USER: str
+    LOCAL_DB_PASS: str
+    LOCAL_DB_HOST: str
+    LOCAL_DB_PORT: str
+    LOCAL_DB_STR_CMD: str
 
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str

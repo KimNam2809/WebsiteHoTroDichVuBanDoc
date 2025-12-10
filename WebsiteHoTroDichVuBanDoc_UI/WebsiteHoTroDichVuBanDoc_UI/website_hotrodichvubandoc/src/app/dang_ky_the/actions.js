@@ -47,8 +47,8 @@ export async function lookupCardRequestAction(formData) {
     // 1. Lấy dữ liệu từ ô input duy nhất có name="keyword"
     const keyword = formData.get('keyword')?.toString().trim();
 
-    if (!keyword || keyword.length < 6) {
-        return { error: "Vui lòng nhập ít nhất 6 ký tự (CCCD hoặc SĐT)." };
+    if (!keyword || keyword.length < 9) {
+        return { error: "Vui lòng nhập ít nhất 9 ký tự (CCCD hoặc SĐT)." };
     }
 
     try {

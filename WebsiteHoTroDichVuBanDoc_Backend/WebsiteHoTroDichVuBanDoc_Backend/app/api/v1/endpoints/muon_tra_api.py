@@ -24,7 +24,7 @@ def get_borrowing_history(
     user_id = current_user.get("manguoidung")
 
     try:
-        # 1. Xây dựng Query (Đã thêm thebandoc)
+        # 1. Xây dựng Query
         query = """
             mamuontra,
             mabansao,
