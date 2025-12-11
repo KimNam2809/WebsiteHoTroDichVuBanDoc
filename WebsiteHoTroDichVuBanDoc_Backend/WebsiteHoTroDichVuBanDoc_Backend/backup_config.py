@@ -1,9 +1,9 @@
-# Cấu hình chung cho backup
+# backup_config.py
 import os
-from dotenv import load_dotenv
+# Import settings từ ứng dụng chính để đồng bộ nguồn dữ liệu
 from app.connect.config import settings
 
-# Dùng cho thư viện psycopg2
+# Cấu hình Local cho thư viện psycopg2 (Python)
 LOCAL_CONN_ARGS = {
     "dbname": settings.LOCAL_DB_NAME,
     "user": settings.LOCAL_DB_USER,
@@ -12,46 +12,22 @@ LOCAL_CONN_ARGS = {
     "port": settings.LOCAL_DB_PORT
 }
 
-# --- THỨ TỰ BẢNG (QUAN TRỌNG ĐỂ TRÁNH LỖI KHÓA NGOẠI) ---
-# Nguyên tắc: Bảng "Cha" (được tham chiếu) đứng trước, bảng "Con" đứng sau.
-TABLES_ORDER = [
-    # 1. Master Data (Dữ liệu nền)
-    "tinhthanhpho",
-    "phuongxa",
-    "loaithe",
-    "danhmuc",
-    "tukhoa",
-    "phong",
-
-    # 2. Người dùng & Nhân sự
-    "nguoidung",
-    "nhanvien",
-    "bandoc",
-
-    # 3. Tài sản & Thiết bị
-    "thietbi",
-    "chongoi",
-    "tacpham",
-    "tacpham_danhmuc",
-    "tacpham_tukhoa",
-    "bansao",
-
-    # 4. Quy trình Thẻ
-    "yeucauthe",
-    "vanchuyen",
-    "thebandoc",
-
-    # 5. Nghiệp vụ Giao dịch (Transaction)
-    "datphong",
-    "datchongoi",
-    "muontra",
-    "giahan",
-    "dattruoc",
-    "yeucaugiao",
-
-    # 6. Thông tin khác
-    "thongbao",
-    "baiviet"
-]
-
+# File lưu trạng thái Incremental Backup
+# (Sẽ tự động được tạo ra ở thư mục gốc, đồng cấp với các script backup)
 STATE_FILE = "backup_state.json"
+
+# Danh sách bảng theo thứ tự (Cha trước - Con sau)
+TABLES_ORDER = [
+    # 1. Master Data
+    "tinhthanhpho", "phuongxa", "loaithe", "danhmuc", "tukhoa", "phong",
+    # 2. Users
+    "nguoidung", "nhanvien", "bandoc",
+    # 3. Assets
+    "thietbi", "chongoi", "tacpham", "tacpham_danhmuc", "tacpham_tukhoa", "bansao",
+    # 4. Process
+    "yeucauthe", "vanchuyen", "thebandoc",
+    # 5. Transactions
+    "datphong", "datchongoi", "muontra", "giahan", "dattruoc", "yeucaugiao",
+    # 6. Others
+    "thongbao", "baiviet"
+]

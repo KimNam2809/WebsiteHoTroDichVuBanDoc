@@ -1,4 +1,3 @@
-# Chạy mỗi 15 phút (Python ETL)
 import os
 import json
 import psycopg2
@@ -6,6 +5,15 @@ from supabase import create_client
 from datetime import datetime
 from backup_config import LOCAL_CONN_ARGS, TABLES_ORDER, STATE_FILE
 from app.connect.config import settings
+
+# --- CẤU HÌNH KHÓA CHÍNH (PK) ---
+# Mặc định script sẽ lấy cột đầu tiên làm PK.
+# Với các bảng trung gian dùng khóa phức hợp (2 cột), phải khai báo ở đây.
+TABLE_PK_MAP = {
+    "tacpham_danhmuc": "matacpham, madanhmuc",
+    "tacpham_tukhoa": "matacpham, matukhoa"
+    # Nếu có bảng nào khác dùng 2 khóa chính, hãy thêm vào đây
+}
 
 def get_last_sync_time(table_name):
     """Đọc mốc thời gian lần backup trước"""
@@ -50,7 +58,6 @@ def sync_table(table_name):
 
     try:
         # 3. Lấy dữ liệu mới từ Cloud
-        # .gt: Greater Than (Lớn hơn)
         response = supabase.table(table_name)\
             .select("*")\
             .gt("updated_at", last_time)\
@@ -65,31 +72,40 @@ def sync_table(table_name):
         print(f"   -> ⬇️ Đang tải {len(rows)} dòng mới...")
 
         # 4. Tạo câu lệnh UPSERT động
-        # Lấy danh sách cột từ dòng đầu tiên
         columns = list(rows[0].keys())
-        # Loại bỏ cột jsonb hoặc array nếu gây lỗi (tùy chọn, ở đây ta giữ nguyên)
-
         columns_str = ", ".join(columns)
         placeholders = ", ".join(["%s"] * len(columns))
 
-        # Giả định: Cột đầu tiên trong danh sách keys là Primary Key (thường đúng với Supabase)
-        # Để chính xác 100%, bạn có thể hardcode tên PK cho từng bảng nếu cần.
-        pk_column = columns[0]
+        # --- [SỬA LỖI 2]: XÁC ĐỊNH KHÓA CHÍNH (PK) ---
+        if table_name in TABLE_PK_MAP:
+            pk_conflict_target = TABLE_PK_MAP[table_name]
+        else:
+            # Mặc định lấy cột đầu tiên làm PK (ví dụ: manguoidung, mabandoc...)
+            pk_conflict_target = columns[0]
 
-        # Tạo chuỗi UPDATE cho trường hợp trùng ID (ON CONFLICT)
+        # Tạo chuỗi UPDATE cho trường hợp trùng ID
         update_set = ", ".join([f"{col} = EXCLUDED.{col}" for col in columns])
 
         sql = f"""
             INSERT INTO public.{table_name} ({columns_str})
             VALUES ({placeholders})
-            ON CONFLICT ({pk_column})
+            ON CONFLICT ({pk_conflict_target})
             DO UPDATE SET {update_set};
         """
 
         # 5. Thực thi Insert
         for row in rows:
-            # Đảm bảo thứ tự value khớp với thứ tự columns
-            values = [row.get(col) for col in columns]
+            values = []
+            for col in columns:
+                val = row.get(col)
+
+                # XỬ LÝ JSONB (DICT/LIST)
+                # psycopg2 không tự hiểu dict, phải chuyển về json string
+                if isinstance(val, (dict, list)):
+                    values.append(json.dumps(val))
+                else:
+                    values.append(val)
+
             cursor.execute(sql, values)
 
         conn.commit()
