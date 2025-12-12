@@ -1,12 +1,13 @@
 import psycopg2
 from supabase import create_client
-from backup_config import LOCAL_CONN_ARGS, SUPA_URL, SUPA_KEY
+from app.connect.config import settings
+from backup_config import LOCAL_CONN_ARGS
 import logging
 from datetime import datetime
 
 # --- CẤU HÌNH ---
 # Kết nối Cloud
-supa_client = create_client(SUPA_URL, SUPA_KEY)
+supa_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 # Ngưỡng thời gian: Chỉ lấy dữ liệu thay đổi trong 24h qua (hoặc khoảng thời gian mất mạng)
 # Có thể điều chỉnh tham số này
@@ -23,8 +24,8 @@ def sync_dat_cho(cursor, conflict_log):
     cursor.execute(f"""
         SELECT machongoi, mabandoc, thoigianbatdau, thoigianketthuc
         FROM datchongoi
-        WHERE created_at > (NOW() - INTERVAL '{SYNC_INTERVAL}')
-        ORDER BY created_at ASC
+        WHERE ngaykhoitao > (NOW() - INTERVAL '{SYNC_INTERVAL}')
+        ORDER BY ngaykhoitao ASC
     """)
     for row in cursor.fetchall():
         params = {
@@ -49,10 +50,10 @@ def sync_dat_cho(cursor, conflict_log):
 def sync_dat_phong(cursor, conflict_log):
     print("   ↳ 🚪 Đang đồng bộ 'DatPhong'...")
     cursor.execute(f"""
-        SELECT maphong, nguoitochuc, sodienthoai, thoigianbatdau, thoigianketthuc, mucdichsudung, songuoithamdudukien 
+        SELECT maphong, nguoitochuc, sodienthoai, thoigianbatdau, thoigianketthuc, mucdichsudung, songuoithamdudukien
         FROM datphong
-        WHERE created_at > (NOW() - INTERVAL '{SYNC_INTERVAL}')
-        ORDER BY created_at ASC
+        WHERE ngaykhoitao > (NOW() - INTERVAL '{SYNC_INTERVAL}')
+        ORDER BY ngaykhoitao ASC
     """)
     for row in cursor.fetchall():
         params = {
@@ -84,9 +85,9 @@ def sync_muon_sach(cursor, conflict_log):
     cursor.execute(f"""
         SELECT mabansao, mabandoc, manhanvien, ngaytra
         FROM muontra
-        WHERE created_at > (NOW() - INTERVAL '{SYNC_INTERVAL}')
+        WHERE updated_at > (NOW() - INTERVAL '{SYNC_INTERVAL}')
         AND trangthaimuon = 'daMuon'
-        ORDER BY created_at ASC
+        ORDER BY updated_at ASC
     """)
     for row in cursor.fetchall():
         params = {
@@ -149,8 +150,8 @@ def sync_gia_han(cursor, conflict_log):
     cursor.execute(f"""
         SELECT mamuontra, manhanvien, ngaytramoi, lydogiahan
         FROM giahan
-        WHERE created_at > (NOW() - INTERVAL '{SYNC_INTERVAL}')
-        ORDER BY created_at ASC
+        WHERE updated_at > (NOW() - INTERVAL '{SYNC_INTERVAL}')
+        ORDER BY updated_at ASC
     """)
 
     for row in cursor.fetchall():
