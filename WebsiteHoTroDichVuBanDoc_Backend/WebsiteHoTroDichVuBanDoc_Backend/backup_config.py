@@ -23,7 +23,7 @@ TABLES_ORDER = [
     # 2. Users
     "nguoidung", "nhanvien", "bandoc",
     # 3. Assets
-    "thietbi", "chongoi", "tacpham", "tacpham_danhmuc", "tacpham_tukhoa", "bansao",
+    "thietbi", "chongoi", "tacpham", "tacpham_embeddings", "tacpham_danhmuc", "tacpham_tukhoa", "bansao",
     # 4. Process
     "yeucauthe", "vanchuyen", "thebandoc",
     # 5. Transactions

@@ -19,5 +19,7 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str
     SENDGRID_API_KEY: str
 
+    GOOGLE_API_KEY: str
+
 # Tạo đối tượng settings để sử dụng trong ứng dụng
 settings = Settings()

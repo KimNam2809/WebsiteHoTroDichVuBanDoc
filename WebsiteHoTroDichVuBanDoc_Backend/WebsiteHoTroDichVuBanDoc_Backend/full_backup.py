@@ -5,7 +5,7 @@ from app.connect.config import settings
 import urllib.parse
 
 # --- CẤU HÌNH ĐƯỜNG DẪN (Postgres 18) ---
-BIN_DIR = r"C:\Program Files\PostgreSQL\18\bin"
+BIN_DIR = r"C:\Program Files\PostgreSQL\17\bin"
 PG_DUMP_PATH = os.path.join(BIN_DIR, "pg_dump.exe")
 PG_RESTORE_PATH = os.path.join(BIN_DIR, "pg_restore.exe") # Dùng cái này thay cho psql
 
