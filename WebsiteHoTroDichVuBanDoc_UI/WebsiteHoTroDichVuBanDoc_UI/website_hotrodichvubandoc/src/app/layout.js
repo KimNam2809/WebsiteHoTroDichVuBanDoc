@@ -1,30 +1,31 @@
 // src/app/layout.js
-// KHÔNG CÓ 'use client' Ở ĐÂY NỮA
-
 import './globals.css';
 import { Inter } from 'next/font/google';
 import { config } from '@fortawesome/fontawesome-svg-core';
 import '@fortawesome/fontawesome-svg-core/styles.css';
-import ClientLayout from '@/components/ClientLayout'; // 👈 1. Import component client mới
+import Header from '@/components/Header';
+import Chatbot from '@/components/Chatbot';
+// import Footer from '@/components/Footer';
 
 config.autoAddCss = false;
-const inter = Inter({ subsets: ['latin'], weight: ['300', '400', '500', '600', '700'] });
+const inter = Inter({ subsets: ['latin', 'vietnamese'], weight: ['300', '400', '500', '600', '700', '800'] });
 
-// 2. metadata được GIỮ LẠI ở đây (Đây là Server Component)
 export const metadata = {
-  title: 'Thư viện KHTH Đà Nẵng',
-  description: 'Website ứng dụng AI và Chatbot hỗ trợ bạn đọc',
+  title: 'Thư viện KHTH Đà Nẵng | Smart Library',
+  description: 'Thư viện số thông minh, hỗ trợ tra cứu AI và mượn trả tự động.',
 };
 
 export default function RootLayout({ children }) {
-  // 3. XÓA 'useEffect' khỏi đây
-
   return (
-    <html lang="vi" className={`${inter.className} h-full`}>
-      <body className="bg-gray-50 flex flex-col min-h-screen">
-        <ClientLayout>
+    <html lang="vi" className={`${inter.className} scroll-smooth`}>
+      <body className="bg-white text-gray-900 antialiased flex flex-col min-h-screen">
+        <Header />
+        <main className="grow">
           {children}
-        </ClientLayout>
+        </main>
+        {/* Nếu bạn chưa có Footer, có thể tạm comment dòng dưới */}
+        {/* <Footer /> */}
+        <Chatbot />
       </body>
     </html>
   );

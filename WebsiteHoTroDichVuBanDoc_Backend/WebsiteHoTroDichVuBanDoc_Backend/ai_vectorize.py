@@ -46,7 +46,7 @@ def process_books():
         ma_sach = book['matacpham']
         ten_sach = book['tentacpham']
         tac_gia = book['tacgia']
-        mo_ta = book.get('mo_ta', '') # Lấy mô tả mới đã chỉnh sửa
+        mo_ta = book.get('mota', '') # Lấy mô tả mới đã chỉnh sửa
 
         # 4. Tạo "Rich Context" (Nội dung ngữ nghĩa)
         # Đây là đoạn văn bản mà AI sẽ đọc hiểu. Kết hợp nhiều trường lại.

@@ -1,91 +1,115 @@
 // src/components/Header.js
-'use client'; // Cần 'use client' để xử lý bật/tắt menu mobile
+'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { Menu, X, BookOpen } from 'lucide-react';
 
-// Dữ liệu Nav, dịch từ HTML
 const navItems = [
     { name: 'Trang chủ', href: '/' },
-    { name: 'Danh mục sách', href: '/tim_kiem' }, // Dịch data-nav="catalog"
-    { name: 'Dịch vụ', href: '/dich_vu' }, // Dịch data-nav="services"
-    { name: 'Đăng ký thẻ', href: '/dang_ky_the' }, // Dịch data-nav="cardRegistration"
-    { name: 'Thành viên', href: '/tai_khoan' }, // Dịch data-nav="member"
-    { name: 'Quản lý', href: '/admin' }, // Dịch data-nav="admin"
+    { name: 'Danh mục sách', href: '/tim_kiem' },
+    { name: 'Dịch vụ', href: '/dich_vu' },
+    { name: 'Đăng ký thẻ', href: '/dang_ky_the' },
+    { name: 'Thành viên', href: '/tai_khoan' },
 ];
 
 export default function Header() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const pathname = usePathname(); // Hook để biết trang nào đang active
+    const [scrolled, setScrolled] = useState(false);
+    const pathname = usePathname();
 
-    // Dịch logic từ navigation.js
-    const toggleMobileMenu = () => {
-        setIsMobileMenuOpen(!isMobileMenuOpen);
-    };
-
-    // Hàm đóng menu khi nhấp vào link trên mobile
-    const handleMobileLinkClick = () => {
-        setIsMobileMenuOpen(false);
-    };
+    // Hiệu ứng đổi màu header khi cuộn
+    useEffect(() => {
+        const handleScroll = () => {
+            setScrolled(window.scrollY > 20);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     return (
-        // Toàn bộ HTML/Class được lấy từ <nav> trong index.html
-        <nav className="gradient-bg text-white shadow-lg sticky top-0 z-50">
+        <nav className={`fixed w-full z-50 transition-all duration-300 ${
+            scrolled ? 'bg-white/90 backdrop-blur-md shadow-md py-2' : 'bg-transparent py-4'
+        }`}>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
-                    <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-3">
-                            {/* SVG Logo  */}
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-8 h-8 text-white" fill="currentColor" aria-hidden="true">
-                                <path d="M3 6.75A2.25 2.25 0 0 1 5.25 4.5h4.5a2.25 2.25 0 0 1 2.25 2.25v12a.75.75 0 0 1-1.177.624L7.5 17.25l-3.323 2.124A.75.75 0 0 1 3 18.75v-12Z"/>
-                                <path d="M12 6.75A2.25 2.25 0 0 1 14.25 4.5h4.5A2.25 2.25 0 0 1 21 6.75v12a.75.75 0 0 1-1.177.624L16.5 17.25l-3.323 2.124A.75.75 0 0 1 12 18.75v-12Z"/>
-                            </svg>
-                            <span className="text-lg md:text-xl font-bold tracking-tight">Thư viện KHTH Đà Nẵng</span>
+                    {/* Logo */}
+                    <Link href="/" className="flex items-center gap-3 group">
+                        <div className={`p-2 rounded-lg transition-colors ${scrolled ? 'bg-blue-600 text-white' : 'bg-white text-blue-600'}`}>
+                            <BookOpen size={24} strokeWidth={3} />
                         </div>
-                    </div>
-                    <div className="hidden md:flex items-center space-x-6">
-                        {/* Dịch các <button data-nav> thành <Link> */}
+                        <div className="flex flex-col">
+                            <span className={`text-xl font-extrabold tracking-tight transition-colors ${scrolled ? 'text-gray-900' : 'text-white'}`}>
+                                SMART LIB <span className="text-cyan-400">DN</span>
+                            </span>
+                            <span className={`text-xs font-medium tracking-widest uppercase ${scrolled ? 'text-gray-500' : 'text-blue-100'}`}>
+                                Thư viện KHTH Đà Nẵng
+                            </span>
+                        </div>
+                    </Link>
+
+                    {/* Desktop Menu */}
+                    <div className="hidden md:flex items-center space-x-1">
                         {navItems.map((item) => {
                             const isActive = pathname === item.href;
                             return (
                                 <Link
                                     key={item.name}
                                     href={item.href}
-                                    className={`nav-btn hover:text-blue-200 transition-colors ${isActive ? 'active' : ''}`}
-                                    >
+                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200
+                                        ${isActive
+                                            ? (scrolled ? 'bg-blue-50 text-blue-600 font-bold' : 'bg-white/20 text-white font-bold')
+                                            : (scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white/90 hover:bg-white/10')
+                                        }`}
+                                >
                                     {item.name}
                                 </Link>
                             );
                         })}
+                        {/* Nút Admin riêng biệt */}
+                        <Link href="/admin" className={`ml-4 px-5 py-2 rounded-full text-sm font-bold shadow-lg transition-transform hover:-translate-y-0.5 ${
+                            scrolled ? 'bg-gray-900 text-white hover:bg-gray-800' : 'bg-white text-blue-900 hover:bg-blue-50'
+                        }`}>
+                            Quản trị
+                        </Link>
                     </div>
+
+                    {/* Mobile Toggle */}
                     <div className="md:hidden">
-                        {/* Dịch data-action="toggle-mobile"  */}
-                        <button onClick={toggleMobileMenu} className="text-white">
-                            <FontAwesomeIcon icon={isMobileMenuOpen ? faTimes : faBars} className="text-xl" />
+                        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={scrolled ? 'text-gray-900' : 'text-white'}>
+                            {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* Mobile Menu  */}
-            {/* Dịch logic ẩn/hiện bằng state 'isMobileMenuOpen' */}
-            <div className={`${isMobileMenuOpen ? 'block' : 'hidden'} md:hidden bg-indigo-700`}>
-                <div className="px-2 pt-2 pb-3 space-y-1">
-                    {navItems.map((item) => (
+            {/* Mobile Menu */}
+            {isMobileMenuOpen && (
+                <div className="md:hidden bg-white absolute w-full shadow-xl border-t">
+                    <div className="px-4 pt-2 pb-6 space-y-2">
+                        {navItems.map((item) => (
+                            <Link
+                                key={item.name}
+                                href={item.href}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className={`block px-4 py-3 rounded-lg text-base font-medium ${
+                                    pathname === item.href ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                {item.name}
+                            </Link>
+                        ))}
                         <Link
-                            key={item.name}
-                            href={item.href}
-                            onClick={handleMobileLinkClick} // Thêm hàm đóng menu
-                            className="block px-3 py-2 text-white hover:bg-indigo-600 rounded"
+                            href="/admin"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="block px-4 py-3 rounded-lg text-base font-bold text-gray-800 hover:bg-gray-100 border-t mt-2"
                         >
-                            {item.name}
+                            Dành cho Quản lý
                         </Link>
-                    ))}
+                    </div>
                 </div>
-            </div>
+            )}
         </nav>
     );
 }

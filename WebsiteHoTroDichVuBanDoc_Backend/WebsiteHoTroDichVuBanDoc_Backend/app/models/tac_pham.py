@@ -37,8 +37,6 @@ class TimKiemTacPham(DBModel):
 # Dữ liệu người dùng gửi lên
 class SearchRequest(DBModel):
     query: str
-    threshold: float = 0.5  # Độ chính xác mong muốn (0.5 là mức trung bình khá)
-    limit: int = 5          # Số lượng sách trả về
 
 # Dữ liệu trả về cho Frontend
 class BookSearchResult(DBModel):
@@ -46,4 +44,5 @@ class BookSearchResult(DBModel):
     tentacpham: str
     tacgia: Optional[str] = None
     mota: Optional[str] = None
+    namxuatban: Optional[int] = None
     similarity: float       # Điểm tương đồng (VD: 0.89 = 89% giống)
