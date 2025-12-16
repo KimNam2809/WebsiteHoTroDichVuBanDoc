@@ -3,8 +3,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Menu, X, BookOpen, LogIn, LogOut, User, Loader2 } from 'lucide-react';
+// Import Server Actions từ đúng đường dẫn bạn đã cung cấp
 import { getSessionAction, logoutAction } from '@/app/dang_nhap/actions';
 
 const navItems = [
@@ -23,23 +24,53 @@ export default function Header() {
     const [isLoading, setIsLoading] = useState(true);
 
     const pathname = usePathname();
+    const router = useRouter();
 
-    // 1. Kiểm tra Session mỗi khi chuyển trang
+    // 1. Kiểm tra Phiên đăng nhập (Session) mỗi khi chuyển trang
     useEffect(() => {
         async function fetchSession() {
-            const userData = await getSessionAction();
-            setUser(userData);
-            setIsLoading(false);
+            try {
+                const userData = await getSessionAction();
+                setUser(userData);
+            } catch (error) {
+                console.error("Lỗi kiểm tra phiên:", error);
+            } finally {
+                setIsLoading(false);
+            }
         }
         fetchSession();
     }, [pathname]);
 
-    // 2. Hiệu ứng cuộn
+    // 2. Hiệu ứng cuộn: Đổi màu nền header khi cuộn xuống
     useEffect(() => {
-        const handleScroll = () => setScrolled(window.scrollY > 20);
+        const handleScroll = () => {
+            setScrolled(window.scrollY > 20);
+        };
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+
+    // 3. Xử lý Đăng xuất
+    const handleLogout = async () => {
+        await logoutAction(); // Gọi Server Action xóa cookie
+        setUser(null); // Xóa state client
+        router.push('/dang_nhap'); // Chuyển hướng về đăng nhập
+        router.refresh(); // Làm mới trang để cập nhật middleware
+    };
+
+    // Hàm tiện ích để style các link điều hướng
+    const getNavLinkClass = (href) => {
+        const isActive = pathname === href;
+        if (scrolled) {
+            return isActive
+                ? 'bg-blue-50 text-blue-600 font-bold'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600';
+        } else {
+            return isActive
+                ? 'bg-white/20 text-white font-bold backdrop-blur-sm'
+                : 'text-blue-100 hover:bg-white/10 hover:text-white';
+        }
+    };
 
     return (
         <nav className={`fixed w-full z-50 transition-all duration-300 ${
@@ -47,56 +78,61 @@ export default function Header() {
         }`}>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
-                    {/* LOGO */}
+
+                    {/* --- LOGO --- */}
                     <Link href="/" className="flex items-center gap-3 group">
-                        <div className={`p-2.5 rounded-xl transition-all duration-300 shadow-sm ${scrolled ? 'bg-linear-to-br from-blue-600 to-cyan-500 text-white' : 'bg-white text-blue-600'}`}>
+                        <div className={`p-2.5 rounded-xl transition-all duration-300 shadow-sm ${
+                            scrolled ? 'bg-linear-to-br from-blue-600 to-cyan-500 text-white' : 'bg-white text-blue-600'
+                        }`}>
                             <BookOpen size={24} strokeWidth={2.5} />
                         </div>
                         <div className="flex flex-col">
-                            <span className={`text-xl font-extrabold tracking-tight transition-colors ${scrolled ? 'text-gray-900' : 'text-white'}`}>
+                            <span className={`text-xl font-extrabold tracking-tight transition-colors ${
+                                scrolled ? 'text-gray-900' : 'text-white'
+                            }`}>
                                 SMART LIB <span className="text-cyan-400">DN</span>
                             </span>
-                            <span className={`text-[10px] font-bold tracking-widest uppercase ${scrolled ? 'text-gray-500' : 'text-blue-200'}`}>
+                            <span className={`text-[10px] font-bold tracking-widest uppercase ${
+                                scrolled ? 'text-gray-500' : 'text-blue-200'
+                            }`}>
                                 Thư viện Số Đà Nẵng
                             </span>
                         </div>
                     </Link>
 
-                    {/* DESKTOP MENU */}
+                    {/* --- DESKTOP MENU --- */}
                     <div className="hidden md:flex items-center space-x-1">
                         {navItems.map((item) => (
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                                    pathname === item.href
-                                        ? (scrolled ? 'bg-blue-50 text-blue-600 font-bold' : 'bg-white/20 text-white font-bold backdrop-blur-sm')
-                                        : (scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-blue-100 hover:bg-white/10 hover:text-white')
-                                }`}
+                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${getNavLinkClass(item.href)}`}
                             >
                                 {item.name}
                             </Link>
                         ))}
 
-                        {/* Nút Thành Viên (Luôn trỏ về /tai_khoan) */}
+                        {/* Nút Thành Viên (Luôn hiển thị, Middleware sẽ chặn nếu chưa login) */}
                         <Link
                             href="/tai_khoan"
                             className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2 ${
                                 pathname.startsWith('/tai_khoan')
-                                    ? (scrolled ? 'bg-blue-50 text-blue-600 font-bold' : 'bg-white/20 text-white font-bold backdrop-blur-sm')
+                                    ? (scrolled ? 'bg-blue-50 text-blue-600 font-bold' : 'bg-white/20 text-white font-bold backdrop-blur-sm') 
                                     : (scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-blue-100 hover:bg-white/10 hover:text-white')
                             }`}
                         >
                             <User size={16} /> Thành viên
                         </Link>
 
-                        {/* Nút Hành động (Login/Logout) */}
+                        {/* Nút Hành động (Đăng nhập / Đăng xuất) */}
                         <div className="ml-4 pl-4 border-l border-gray-200/20">
                             {isLoading ? (
-                                <Loader2 className={`animate-spin ${scrolled ? 'text-blue-600' : 'text-white'}`} size={20} />
+                                <div className="px-6 py-2.5">
+                                    <Loader2 className={`animate-spin ${scrolled ? 'text-blue-600' : 'text-white'}`} size={20} />
+                                </div>
                             ) : user ? (
                                 <button
-                                    onClick={() => logoutAction()} // Gọi trực tiếp Server Action
+                                    onClick={handleLogout}
                                     className={`px-5 py-2.5 rounded-full text-sm font-bold shadow-lg transition-all hover:-translate-y-0.5 flex items-center gap-2 ${
                                         scrolled
                                         ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-100'
@@ -120,24 +156,33 @@ export default function Header() {
                         </div>
                     </div>
 
-                    {/* MOBILE TOGGLE */}
+                    {/* --- MOBILE TOGGLE --- */}
                     <div className="md:hidden">
-                        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`p-2 rounded-lg transition-colors ${scrolled ? 'text-gray-900 hover:bg-gray-100' : 'text-white hover:bg-white/10'}`}>
+                        <button
+                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                            className={`p-2 rounded-lg transition-colors ${
+                                scrolled ? 'text-gray-900 hover:bg-gray-100' : 'text-white hover:bg-white/10'
+                            }`}
+                        >
                             {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* MOBILE MENU */}
-            <div className={`md:hidden absolute w-full bg-white shadow-xl border-t transition-all duration-300 overflow-hidden ${isMobileMenuOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+            {/* --- MOBILE MENU (Slide Down) --- */}
+            <div className={`md:hidden absolute w-full bg-white shadow-xl border-t transition-all duration-300 overflow-hidden ${
+                isMobileMenuOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+            }`}>
                 <div className="px-4 pt-4 pb-6 space-y-2">
                     {navItems.map((item) => (
                         <Link
                             key={item.name}
                             href={item.href}
                             onClick={() => setIsMobileMenuOpen(false)}
-                            className="block px-4 py-3 rounded-xl text-base font-medium text-gray-600 hover:bg-gray-50 hover:text-blue-600"
+                            className={`block px-4 py-3 rounded-xl text-base font-medium transition-colors ${
+                                pathname === item.href ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'
+                            }`}
                         >
                             {item.name}
                         </Link>
@@ -156,7 +201,7 @@ export default function Header() {
                     <div className="pt-2">
                         {user ? (
                             <button
-                                onClick={() => { logoutAction(); setIsMobileMenuOpen(false); }}
+                                onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
                                 className="w-full text-left px-4 py-3 rounded-xl text-base font-bold text-red-600 bg-red-50 hover:bg-red-100 flex items-center gap-3"
                             >
                                 <LogOut size={18} /> Đăng xuất
@@ -165,7 +210,7 @@ export default function Header() {
                             <Link
                                 href="/dang_nhap"
                                 onClick={() => setIsMobileMenuOpen(false)}
-                                className="px-4 py-3 rounded-xl text-base font-bold text-white bg-linear-to-r from-blue-600 to-cyan-500 flex items-center gap-3 justify-center shadow-md"
+                                className="px-4 py-3 rounded-xl text-base font-bold text-white bg-linear-to-r from-blue-600 to-cyan-500 flex items-center gap-3 justify-center shadow-md hover:opacity-90 transition-opacity"
                             >
                                 <LogIn size={18} /> Đăng nhập / Đăng ký
                             </Link>

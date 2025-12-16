@@ -29,5 +29,7 @@ TABLES_ORDER = [
     # 5. Transactions
     "datphong", "datchongoi", "muontra", "giahan", "dattruoc", "yeucaugiao",
     # 6. Others
-    "thongbao", "baiviet"
+    "thongbao", "baiviet",
+    # 7. API RAG
+    "rag_chunks", "rag_documents"
 ]

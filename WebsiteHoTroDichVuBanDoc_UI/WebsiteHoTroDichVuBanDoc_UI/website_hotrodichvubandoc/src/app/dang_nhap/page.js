@@ -138,7 +138,7 @@ export default function DangNhapPage() {
     const [view, setView] = useState('login');
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden font-sans">
+        <div className="min-h-screen flex flex-col items-center justify-center p-4 pt-24 relative overflow-hidden font-sans">
 
             {/* Background giống Trang chủ */}
             <div className="absolute inset-0 bg-linear-to-br from-blue-900 via-indigo-900 to-slate-900 z-0"></div>

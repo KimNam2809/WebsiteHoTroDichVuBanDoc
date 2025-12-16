@@ -11,7 +11,9 @@ from app.connect.config import settings
 # Với các bảng trung gian dùng khóa phức hợp (2 cột), phải khai báo ở đây.
 TABLE_PK_MAP = {
     "tacpham_danhmuc": "matacpham, madanhmuc",
-    "tacpham_tukhoa": "matacpham, matukhoa"
+    "tacpham_tukhoa": "matacpham, matukhoa",
+    "rag_chunks": "id",
+    "rag_documents": "id"
     # Nếu có bảng nào khác dùng 2 khóa chính, hãy thêm vào đây
 }
 

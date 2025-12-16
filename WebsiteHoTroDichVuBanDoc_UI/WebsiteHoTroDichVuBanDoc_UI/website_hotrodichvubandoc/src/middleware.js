@@ -71,12 +71,11 @@ export async function middleware(request) {
 
     // 3. Nếu là Nhân viên (nhanVien hoặc nhan_vien)
     if (userRole === 'nhan_vien' || userRole === 'nhanVien') {
-        // Cố vào trang Admin cấp cao (chỉ dành cho Admin)
-        if (pathname.startsWith('/admin/quan_ly_tai_khoan') ||
-            pathname.startsWith('/admin/giam_sat') ||
-            pathname.startsWith('/admin/cau_hinh')) {
+        // Cấm vào trang Dashboard của người dùng thường -> Đẩy sang Admin Dashboard
+        if (pathname.startsWith('/tai_khoan')) {
             return NextResponse.redirect(new URL('/admin', request.url));
         }
+        // Đã login thì không vào lại trang login
         if (pathname === '/dang_nhap') {
             return NextResponse.redirect(new URL('/admin', request.url));
         }
