@@ -2,12 +2,12 @@
 
 /* === 1. BIẾN TOÀN CỤC === */
 :root {
-    /* Màu thương hiệu (Giữ lại từ code cũ) */
-    --primary-start: #4f46e5; /* indigo-600 */
-    --primary-mid: #7c3aed;  /* violet-600 */
-    --primary-end: #06b6d4;  /* cyan-500 */
+  /* Màu thương hiệu */
+    --primary-start: #4f46e5;
+    --primary-mid: #7c3aed;
+    --primary-end: #06b6d4;
 
-    /* Màu nền cơ bản Next.js */
+  /* Màu nền cơ bản Next.js */
     --foreground-rgb: 0, 0, 0;
     --background-start-rgb: 214, 219, 220;
     --background-end-rgb: 255, 255, 255;
@@ -17,8 +17,8 @@
 body {
     font-family: 'Inter', sans-serif;
     color: rgb(var(--foreground-rgb));
-    background: white; /* Đặt nền trắng sạch sẽ cho giao diện mới */
-    overflow-x: hidden; /* Tránh thanh cuộn ngang không mong muốn */
+    background: white; /* Nền trắng cho giao diện mới */
+    overflow-x: hidden; /* Ngăn thanh cuộn ngang */
 }
 
 /* === 3. ANIMATION CHO TRANG CHỦ (QUAN TRỌNG: SỬA LỖI TRẮNG TRANG) === */
@@ -50,41 +50,41 @@ body {
     width: 8px;
 }
 ::-webkit-scrollbar-track {
-    background: #f1f1f1; 
+    background: #f1f1f1;
 }
 ::-webkit-scrollbar-thumb {
-    background: #cbd5e1; 
+    background: #cbd5e1;
     border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8; 
+    background: #94a3b8;
 }
 
-/* === 5. CÁC UTILITIES CŨ (GIỮ LẠI ĐỂ KHÔNG LỖI TRANG KHÁC) === */
+/* === 5. CÁC UTILITIES CŨ (GIỮ LẠI ĐỂ TƯƠNG THÍCH) === */
 
 /* Gradient Text & BG */
-.gradient-bg { 
+.gradient-bg {
     background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-mid) 50%, var(--primary-end) 100%); 
 }
 
 /* Card Hover Effect */
-.card-hover { 
-    transition: all 0.3s ease; 
+.card-hover {
+    transition: all 0.3s ease;
 }
-.card-hover:hover { 
-    transform: translateY(-5px); 
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); 
+.card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
-/* Fade In cũ (Vẫn giữ để tương thích ngược) */
+/* Fade In cũ */
 .fade-in { animation: fadeIn 0.5s ease-in; }
-@keyframes fadeIn { 
-    from { opacity: 0; transform: translateY(20px); } 
-    to { opacity: 1; transform: translateY(0); } 
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Pattern nền cũ */
-.danang-pattern { 
+.danang-pattern {
     background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23f0f9ff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); 
 }
 
@@ -93,15 +93,15 @@ body {
 .step-completed { background: #10b981; color: white; }
 .step-inactive { background: #e5e7eb; color: #6b7280; }
 
-/* Image Utilities */
+/* Image Utilities & QR */
 .image-preview { max-width: 200px; max-height: 250px; object-fit: cover; }
 .qr-code { width: 200px; height: 200px; background: #f3f4f6; border: 2px dashed #d1d5db; display: flex; align-items: center; justify-content: center; }
 
 /* Marquee Animation (Tin tức chạy) */
 .animate-marquee { animation: marquee 30s linear infinite; }
-@keyframes marquee { 
-    0% { transform: translateX(100%); } 
-    100% { transform: translateX(-100%); } 
+@keyframes marquee {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
 }
 
 /* Cropper (Cắt ảnh) */
@@ -111,7 +111,7 @@ body {
 .modal-open { overflow: hidden; }
 .modal-content-scroll { overflow: auto; max-height: 90vh; }
 
-/* Typography rhythm */
+/* Typography & Buttons */
 h1,h2,h3 { letter-spacing: -0.02em; }
 button { transition: all .2s ease-in-out; }
 button:active { transform: translateY(1px); }
@@ -128,9 +128,6 @@ button:active { transform: translateY(1px); }
 }
 .libcard__bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
 .libcard__panel { position:absolute; inset: 8px; background:#ffffff; border-radius: 10px; z-index:1; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04); }
-.libcard__wipe { position: absolute; background:#ffffff; z-index: 1; }
-.libcard__wipe--header { top:10px; left:12px; right:12px; height:44px; border-radius:10px; }
-.libcard__wipe--body { top:56px; left:12px; right:12px; bottom:12px; border-radius:12px; }
 .libcard__brandbar { position:absolute; top:14px; left:20px; right:20px; height:28px; border-radius:8px; background: linear-gradient(90deg,#4f46e5,#06b6d4); z-index:2; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
 .libcard__photo { position: absolute; top: 64px; left: 22px; width: 84px; height: 112px; border-radius: 8px; object-fit: cover; background: #eee; border: 2px solid rgba(0,0,0,0.06); z-index: 2; }
 .libcard__field { position: absolute; left: 120px; right: 18px; color: #111827; z-index: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

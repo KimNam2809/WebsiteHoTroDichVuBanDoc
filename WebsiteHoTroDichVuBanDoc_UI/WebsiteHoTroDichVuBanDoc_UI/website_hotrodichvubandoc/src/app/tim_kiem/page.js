@@ -5,27 +5,24 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faArrowLeft, faArrowRight, faBook } from '@fortawesome/free-solid-svg-icons';
+import { Search, Filter, BookOpen, ChevronLeft, ChevronRight, Book, Calendar, User } from 'lucide-react';
 import { searchBooksAction, getAllDanhMucAction } from './actions';
 
 export default function CatalogPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
 
-    // Lấy params từ URL
+    // Params & State
     const currentQ = searchParams.get('q') || '';
     const currentCat = searchParams.get('category') || '';
     const currentPage = Number(searchParams.get('page')) || 1;
-    const pageSize = 8; // Khớp với limit của API
+    const pageSize = 8;
 
-    // State
     const [categories, setCategories] = useState([]);
     const [books, setBooks] = useState([]);
     const [totalBooks, setTotalBooks] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
 
-    // State input tạm
     const [inputSearch, setInputSearch] = useState(currentQ);
     const [inputCat, setInputCat] = useState(currentCat);
 
@@ -56,7 +53,6 @@ export default function CatalogPage() {
                 setBooks([]);
                 setTotalBooks(0);
             }
-
             setIsLoading(false);
         }
         fetchData();
@@ -78,10 +74,9 @@ export default function CatalogPage() {
         router.push(`/tim_kiem?${params.toString()}`);
     };
 
-    // Tính toán số trang dựa trên total trả về từ API
     const totalPages = Math.ceil(totalBooks / pageSize);
 
-    // Render dãy số trang (1, 2, 3...)
+    // Render Pagination
     const renderPageNumbers = () => {
         const pages = [];
         const maxVisiblePages = 5;
@@ -92,146 +87,180 @@ export default function CatalogPage() {
             startPage = Math.max(1, endPage - maxVisiblePages + 1);
         }
 
-        if (startPage > 1) {
-            pages.push(<button key={1} onClick={() => handlePageChange(1)} className="px-3 py-2 border rounded hover:bg-gray-50">1</button>);
-            if (startPage > 2) pages.push(<span key="dots1" className="px-2">...</span>);
-        }
-
         for (let i = startPage; i <= endPage; i++) {
             pages.push(
                 <button
                     key={i}
                     onClick={() => handlePageChange(i)}
-                    className={`px-3 py-2 border rounded transition-colors ${
-                        currentPage === i ? 'bg-purple-600 text-white border-purple-600' : 'hover:bg-gray-50 text-gray-700'
+                    className={`w-10 h-10 rounded-lg text-sm font-bold transition-all ${
+                        currentPage === i
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                     }`}
                 >
                     {i}
                 </button>
             );
         }
-
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) pages.push(<span key="dots2" className="px-2">...</span>);
-            pages.push(<button key={totalPages} onClick={() => handlePageChange(totalPages)} className="px-3 py-2 border rounded hover:bg-gray-50">{totalPages}</button>);
-        }
         return pages;
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-white shadow-lg grow w-full">
-            <h1 className="text-3xl font-bold mb-8 text-gray-800">Danh mục sách</h1>
+        <div className="min-h-screen bg-gray-50 pb-20">
+            {/* 1. HERO HEADER */}
+            <div className="relative bg-linear-to-r from-blue-900 to-indigo-900 h-64 flex items-center justify-center overflow-hidden">
+                <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                <div className="relative z-10 text-center px-4">
+                    <h1 className="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">Kho Tàng Tri Thức</h1>
+                    <p className="text-blue-200 text-lg max-w-2xl mx-auto">Tra cứu hàng ngàn đầu sách, tài liệu nghiên cứu và tạp chí khoa học.</p>
+                </div>
+            </div>
 
-            {/* Bộ lọc */}
-            <div className="bg-white p-6 rounded-lg shadow-lg mb-8 border border-gray-200">
-                <div className="grid md:grid-cols-4 gap-4">
-                    <div className="md:col-span-2">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-20">
+
+                {/* 2. SEARCH BAR (Glassmorphism) */}
+                <div className="bg-white rounded-2xl shadow-xl p-4 md:p-6 flex flex-col md:flex-row gap-4 items-center animate-in">
+                    <div className="flex-1 w-full relative group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 transition-colors" size={20} />
                         <input
                             type="text"
                             value={inputSearch}
                             onChange={(e) => setInputSearch(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                            placeholder="Nhập tên sách, tác giả..."
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                            placeholder="Nhập tên sách, tác giả, ISBN..."
+                            className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                         />
                     </div>
-                <select
-                    value={inputCat}
-                    onChange={(e) => setInputCat(e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                >
-                    <option value="">Tất cả danh mục</option>
-                    {categories.map((cat) => (
-                        <option key={cat.madanhmuc} value={cat.madanhmuc}>{cat.tendanhmuc}</option>
-                    ))}
-                </select>
-                <button
-                    onClick={handleSearch}
-                    className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 flex items-center justify-center"
-                >
-                    <FontAwesomeIcon icon={faSearch} className="mr-2" /> Tìm kiếm
-                </button>
-                </div>
-            </div>
 
-            {/* Kết quả Tìm kiếm */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {isLoading && <p className="col-span-full text-center py-10 text-gray-500">Đang tải dữ liệu...</p>}
-
-                {!isLoading && books.length === 0 && (
-                    <p className="col-span-full text-center py-10 text-gray-500">Không tìm thấy tài liệu nào.</p>
-                )}
-
-                {!isLoading && books.map((work) => (
-                    <div key={work.matacpham} className="bg-white p-4 rounded-lg shadow-md border border-gray-100 card-hover flex flex-col h-full">
-                        {/* Vì API tìm kiếm chưa trả về ảnh bìa, ta dùng ảnh placeholder hoặc icon sách */}
-                        <div className="relative w-full aspect-2/3 bg-gray-100 rounded-md mb-4 overflow-hidden shadow-sm">
-                            {work.anhbia ? (
-                                // Dùng Next.js Image để tối ưu
-                                <Image
-                                    src={work.anhbia}
-                                    alt={work.tentacpham}
-                                    fill
-                                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                                    className="object-cover w-full h-full hover:scale-105 transition-transform duration-300"
-                                />
-                            ) : (
-                                // Fallback nếu không có ảnh: Hiện icon sách
-                                <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
-                                    <FontAwesomeIcon icon={faBook} className="text-5xl" />
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex-1">
-                            <h3 className="text-lg font-bold text-gray-800 line-clamp-2 mb-1" title={work.tentacpham}>
-                                {work.tentacpham}
-                            </h3>
-                            <p className="text-sm text-purple-600 font-medium mb-2">{work.tacgia}</p>
-
-                            <div className="text-xs text-gray-500 space-y-1">
-                                <p>Năm XB: {work.namxuatban}</p>
-                                <p>ISBN: {work.isbn}</p>
-                            </div>
-
-                            <p className="text-xs text-gray-500 mt-2 line-clamp-2 italic">
-                                {work.mota}
-                            </p>
-                        </div>
-                        <div className="mt-4 pt-3 border-t border-gray-100">
-                            <Link
-                                href={`/tai_lieu/${work.matacpham}`}
-                                className="block w-full text-center px-4 py-2 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 font-medium transition-colors"
-                            >
-                                Xem chi tiết
-                            </Link>
+                    <div className="w-full md:w-64 relative">
+                        <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <select
+                            value={inputCat}
+                            onChange={(e) => setInputCat(e.target.value)}
+                            className="w-full pl-12 pr-10 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer"
+                        >
+                            <option value="">Tất cả danh mục</option>
+                            {categories.map((cat) => (
+                                <option key={cat.madanhmuc} value={cat.madanhmuc}>{cat.tendanhmuc}</option>
+                            ))}
+                        </select>
+                        {/* Custom Arrow */}
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                            <ChevronLeft className="-rotate-90 text-gray-400 w-4 h-4" />
                         </div>
                     </div>
-                ))}
-            </div>
-
-            {/* Phân trang */}
-            {!isLoading && totalPages > 1 && (
-                <div className="flex justify-center items-center mt-10 gap-2">
-                    <button
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage <= 1}
-                        className="px-3 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600"
-                    >
-                        <FontAwesomeIcon icon={faArrowLeft} />
-                    </button>
-
-                    {renderPageNumbers()}
 
                     <button
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage >= totalPages}
-                        className="px-3 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600"
+                        onClick={handleSearch}
+                        className="w-full md:w-auto px-8 py-3.5 bg-linear-to-r from-blue-600 to-cyan-500 text-white font-bold rounded-xl shadow-lg hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                     >
-                        <FontAwesomeIcon icon={faArrowRight} />
+                        <Search size={20} /> Tìm kiếm
                     </button>
                 </div>
-            )}
+
+                {/* 3. BOOK GRID */}
+                <div className="mt-12">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                            <BookOpen className="text-blue-600"/> Kết quả tìm kiếm
+                        </h2>
+                        <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                            {totalBooks} tài liệu
+                        </span>
+                    </div>
+
+                    {isLoading ? (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 animate-pulse">
+                            {[...Array(4)].map((_, i) => (
+                                <div key={i} className="h-80 bg-gray-200 rounded-2xl"></div>
+                            ))}
+                        </div>
+                    ) : books.length === 0 ? (
+                        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-300">
+                            <div className="inline-flex p-4 bg-gray-100 rounded-full mb-4 text-gray-400">
+                                <Search size={40} />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-700">Không tìm thấy kết quả</h3>
+                            <p className="text-gray-500 mt-2">Hãy thử từ khóa khác hoặc chọn danh mục rộng hơn.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                            {books.map((work) => (
+                                <Link
+                                    key={work.matacpham}
+                                    href={`/tai_lieu/${work.matacpham}`}
+                                    className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-gray-100 transition-all duration-300 hover:-translate-y-2 flex flex-col h-full"
+                                >
+                                    {/* Image Wrapper */}
+                                    <div className="relative aspect-3/4 overflow-hidden bg-gray-100">
+                                        {work.anhbia ? (
+                                            <Image
+                                                src={work.anhbia}
+                                                alt={work.tentacpham}
+                                                fill
+                                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                                                className="object-cover transition-transform duration-500 group-hover:scale-110"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50">
+                                                <Book size={48} strokeWidth={1} />
+                                                <span className="text-xs mt-2 font-medium uppercase tracking-wider">No Cover</span>
+                                            </div>
+                                        )}
+                                        {/* Overlay Gradient on Hover */}
+                                        <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                    </div>
+
+                                    {/* Content */}
+                                    <div className="p-5 flex-1 flex flex-col">
+                                        <div className="mb-2">
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-1 rounded-md">
+                                                {work.namxuatban || 'N/A'}
+                                            </span>
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-900 leading-tight mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors" title={work.tentacpham}>
+                                            {work.tentacpham}
+                                        </h3>
+                                        <p className="text-sm text-gray-500 font-medium mb-4 flex items-center gap-1">
+                                            <User size={14}/> {work.tacgia}
+                                        </p>
+
+                                        <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
+                                            <span className="text-xs font-semibold text-gray-400">Xem chi tiết</span>
+                                            <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                                <ChevronRight size={16} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* 4. PAGINATION */}
+                    {!isLoading && totalPages > 1 && (
+                        <div className="flex justify-center items-center mt-16 gap-3">
+                            <button
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage <= 1}
+                                className="w-10 h-10 flex items-center justify-center rounded-lg border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <ChevronLeft size={20} />
+                            </button>
+
+                            {renderPageNumbers()}
+
+                            <button
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage >= totalPages}
+                                className="w-10 h-10 flex items-center justify-center rounded-lg border bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <ChevronRight size={20} />
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

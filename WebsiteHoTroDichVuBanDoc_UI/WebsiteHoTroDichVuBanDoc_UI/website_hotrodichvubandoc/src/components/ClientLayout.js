@@ -1,5 +1,5 @@
 // src/components/ClientLayout.js
-'use client'; // Đánh dấu đây là Client Component
+'use client';
 
 import { useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';

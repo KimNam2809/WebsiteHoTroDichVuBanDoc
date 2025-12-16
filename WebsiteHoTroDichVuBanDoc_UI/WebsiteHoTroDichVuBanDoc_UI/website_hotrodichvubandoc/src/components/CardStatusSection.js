@@ -1,122 +1,135 @@
 // src/components/CardStatusSection.js
-// Xử lý logic hiển thị phức tạp (Popup, Link)
 'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faIdCard, faInfoCircle, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { CreditCard, CheckCircle, Clock, Info, UserCheck, XCircle } from 'lucide-react';
 
-export default function CardStatusSection({ profile }) {
+export default function CardStatusSection({ profile, isStaff }) {
     const [showPopup, setShowPopup] = useState(false);
 
-    // Logic kiểm tra trạng thái
+    // Xử lý dữ liệu
     const hasCard = profile.sothe && profile.sothe !== 'Chưa cấp';
     const latestReq = profile.yeu_cau_moi_nhat || {};
-
-    // Trạng thái đang chờ duyệt
     const isPending = latestReq.trang_thai === 'choDuyet';
-
-    // Trạng thái vừa được duyệt nhưng dữ liệu thẻ chưa kịp đồng bộ (Edge case)
     const isApprovedButNoCardYet = latestReq.trang_thai === 'daDuyet' && !hasCard;
 
-    // === CASE 1: Đã duyệt nhưng dữ liệu thẻ chưa kịp cập nhật (Edge case) ===
+    // --- CASE 1: NHÂN VIÊN ---
+    if (isStaff) {
+        return (
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><UserCheck size={20}/></div>
+                        <h3 className="font-bold text-gray-700">Thông tin nhân viên</h3>
+                    </div>
+                    <div className="mt-4">
+                        <p className="text-3xl font-extrabold text-blue-700">{profile.manhanviennoibo || 'NV---'}</p>
+                        <p className="text-sm text-gray-500 font-medium mt-1">{profile.phongban}</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // --- CASE 2: ĐÃ DUYỆT NHƯNG CHƯA CÓ THẺ ---
     if (isApprovedButNoCardYet) {
         return (
-            <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500 relative overflow-hidden">
-                <h3 className="font-semibold text-gray-600">Thẻ thư viện</h3>
-                <div className="mt-2">
-                    <p className="text-green-600 font-bold text-lg">Đã được duyệt!</p>
-                    <p className="text-sm text-gray-500">Hệ thống đang khởi tạo thẻ...</p>
-                    <button onClick={() => window.location.reload()} className="text-xs text-blue-600 underline mt-1">
-                        Tải lại trang
-                    </button>
+            <div className="bg-green-50 p-6 rounded-3xl border border-green-200 relative overflow-hidden">
+                <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle className="text-green-600" size={20}/>
+                    <h3 className="font-bold text-green-800">Thẻ thư viện</h3>
                 </div>
-                <FontAwesomeIcon icon={faIdCard} className="text-green-100 text-6xl absolute -bottom-4 -right-4" />
+                <div className="mt-2">
+                    <p className="text-xl font-bold text-green-700">Đã được duyệt!</p>
+                    <p className="text-sm text-green-600 mt-1">Hệ thống đang khởi tạo...</p>
+                    <button onClick={() => window.location.reload()} className="text-xs text-green-800 underline mt-2 font-medium">Tải lại trang</button>
+                </div>
             </div>
         );
     }
 
-    // === CASE 2: Chưa có thẻ nào & Đang chờ duyệt ===
+    // --- CASE 3: CHƯA CÓ THẺ (ĐANG CHỜ DUYỆT) ---
     if (!hasCard && isPending) {
         return (
-            <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-yellow-500 relative overflow-hidden">
-                <h3 className="font-semibold text-gray-600">Thẻ thư viện</h3>
-                <div className="mt-2">
-                    <p className="text-yellow-600 font-bold">Đang chờ duyệt</p>
-                    <p className="text-xs text-gray-500 mt-1">Hồ sơ đăng ký {latestReq.loai_the_dang_ky} đang được xử lý.</p>
+            <div className="bg-yellow-50 p-6 rounded-3xl border border-yellow-200 relative overflow-hidden">
+                <div className="flex items-center gap-2 mb-2">
+                    <Clock className="text-yellow-600" size={20}/>
+                    <h3 className="font-bold text-yellow-800">Thẻ thư viện</h3>
                 </div>
-                <FontAwesomeIcon icon={faIdCard} className="text-yellow-100 text-6xl absolute -bottom-4 -right-4" />
+                <div className="mt-2">
+                    <p className="text-xl font-bold text-yellow-700">Đang chờ duyệt</p>
+                    <p className="text-sm text-yellow-600 mt-1">Hồ sơ đang được xử lý.</p>
+                </div>
             </div>
         );
     }
 
-    // === CASE 3: Chưa có thẻ & Chưa đăng ký ===
+    // --- CASE 4: CHƯA CÓ THẺ (CHƯA ĐĂNG KÝ) ---
     if (!hasCard) {
         return (
-            <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500 relative overflow-hidden">
-                <h3 className="font-semibold text-gray-600">Thẻ thư viện</h3>
-                <div className="mt-2">
-                    <p className="text-gray-500 italic mb-2">Chưa có thẻ thành viên</p>
-                    <Link href="/dang_ky_the" className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
-                        Đăng ký ngay
-                    </Link>
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+                <div>
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="p-2 bg-gray-100 text-gray-500 rounded-lg"><CreditCard size={20}/></div>
+                        <h3 className="font-bold text-gray-700">Thẻ thư viện</h3>
+                    </div>
+                    <p className="text-gray-500 text-sm mt-2">Bạn chưa có thẻ thành viên.</p>
                 </div>
-                <FontAwesomeIcon icon={faIdCard} className="text-blue-100 text-6xl absolute -bottom-4 -right-4" />
+                <Link href="/dang_ky_the" className="mt-4 w-full py-2 bg-blue-600 text-white text-center rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm">
+                    Đăng ký ngay
+                </Link>
             </div>
         );
     }
 
-    // === CASE 4: Đã có thẻ (Có thể đang có yêu cầu mới chờ duyệt) ===
+    // --- CASE 5: ĐÃ CÓ THẺ (NORMAL) ---
     return (
-        <>
-            <p className="text-2xl font-bold text-blue-700">{profile.sothe}</p>
-            <p className="text-sm text-gray-600 font-medium">{profile.tenthe}</p>
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
 
-            <div className="mt-3 text-xs text-gray-500 space-y-1">
-                <p>Trạng thái: <span className="text-green-600 font-semibold">{profile.trangthaithe}</span></p>
+            <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><CreditCard size={20}/></div>
+                    <h3 className="font-bold text-gray-700">Thẻ thư viện</h3>
+                </div>
 
-                {/* Link Popup nếu đang có yêu cầu mới */}
-                {isPending && (
-                    <button
-                        onClick={() => setShowPopup(true)}
-                        className="text-orange-600 hover:underline font-medium flex items-center gap-1 mt-2"
-                    >
-                        <FontAwesomeIcon icon={faInfoCircle} />
-                        Đang có yêu cầu cấp mới...
-                    </button>
-                )}
+                <div className="mt-4">
+                    <p className="text-3xl font-extrabold text-blue-700 tracking-tight">{profile.sothe}</p>
+                    <p className="text-sm text-gray-500 font-medium mt-1">{profile.tenthe}</p>
+
+                    <div className="mt-4 flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-md uppercase">
+                            {profile.trangthaithe}
+                        </span>
+                    </div>
+
+                    {isPending && (
+                        <button onClick={() => setShowPopup(true)} className="text-orange-600 text-xs font-bold mt-3 flex items-center gap-1 hover:underline">
+                            <Info size={12}/> Đang có yêu cầu mới...
+                        </button>
+                    )}
+                </div>
             </div>
 
-            {/* Popup Modal cho Case 4 */}
+            {/* Popup Thông báo */}
             {showPopup && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 animate-fade-in">
-                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-                        <div className="flex justify-between items-center mb-4 border-b pb-2">
-                            <h3 className="text-lg font-bold text-gray-800">Trạng thái yêu cầu</h3>
-                            <button onClick={() => setShowPopup(false)} className="text-gray-400 hover:text-gray-600">
-                                <FontAwesomeIcon icon={faTimes} />
-                            </button>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 relative">
+                        <button onClick={() => setShowPopup(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><XCircle size={20}/></button>
+                        <h3 className="text-lg font-bold text-gray-800 mb-4">Trạng thái hồ sơ</h3>
+                        <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 mb-4">
+                            <p className="font-bold text-yellow-800">Đang chờ duyệt</p>
+                            <p className="text-sm text-yellow-700 mt-1">Yêu cầu cấp thẻ mới đang được xử lý.</p>
                         </div>
-                        <div className="space-y-3">
-                            <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
-                                <p className="font-semibold text-yellow-800">Đang chờ duyệt</p>
-                                <p className="text-sm text-gray-600">Bạn đã gửi yêu cầu cấp thẻ mới.</p>
-                            </div>
-                            <p><strong>Loại thẻ đăng ký:</strong> {latestReq.loai_the_dang_ky}</p>
+                        <div className="text-sm text-gray-600 space-y-1">
+                            <p><strong>Loại thẻ:</strong> {latestReq.loai_the_dang_ky}</p>
                             <p><strong>Mã hồ sơ:</strong> #{latestReq.ma_yeu_cau}</p>
-                            <p className="text-sm text-gray-500 mt-4">
-                                Vui lòng chờ nhân viên xét duyệt. Trong thời gian này, bạn vẫn có thể sử dụng thẻ cũ (nếu còn hạn).
-                            </p>
-                        </div>
-                        <div className="mt-6 text-right">
-                            <button onClick={() => setShowPopup(false)} className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded text-sm font-medium">
-                                Đóng
-                            </button>
                         </div>
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 }

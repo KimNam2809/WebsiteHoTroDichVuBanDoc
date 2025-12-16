@@ -2,9 +2,11 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers'; // 👈 1. Import hàm cookies của Next.js
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
 
 const FASTAPI_URL = process.env.FASTAPI_BACKEND_URL;
+const JWT_SECRET = new TextEncoder().encode(process.env.FASTAPI_JWT_SECRET);
 
 export async function loginAction(prevState, formData) {
     const username = formData.get('username');
@@ -48,11 +50,25 @@ export async function loginAction(prevState, formData) {
     redirect('/tai_khoan');
 }
 
-// 6. 👈 THAY ĐỔI HÀM LOGOUT
+// HÀM LOGOUT
 export async function logoutAction() {
-    // 1. Xóa cookie 'auth_token' của chúng ta
-    cookies().delete('auth_token');
+    const cookieStore = await cookies();
+    cookieStore.delete('auth_token');
+    redirect('/dang_nhap');
+}
 
-    // 2. Chuyển hướng về trang chủ
-    redirect('/');
+// LẤY THÔNG TIN USER (Cho Header dùng) ---
+export async function getSessionAction() {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+
+    if (!token) return null;
+
+    try {
+        const { payload } = await jwtVerify(token, JWT_SECRET);
+        // Trả về thông tin user (ví dụ: hoten, vaitro...)
+        return payload;
+    } catch (error) {
+        return null;
+    }
 }

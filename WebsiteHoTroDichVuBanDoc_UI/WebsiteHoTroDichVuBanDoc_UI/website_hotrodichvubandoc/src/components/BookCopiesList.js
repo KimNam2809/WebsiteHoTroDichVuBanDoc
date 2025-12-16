@@ -1,7 +1,8 @@
+// src/components/BookCopiesList.js
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, Check, Loader2, AlertCircle, BookOpen, UserCheck, Lock } from 'lucide-react';
+import { Calendar, Check, Loader2, BookOpen, UserCheck, Lock, MapPin, X } from 'lucide-react';
 import { borrowBookAction } from '@/app/tai_lieu/actions';
 import { getLoansByStatusAction } from '@/app/tai_khoan/actions';
 
@@ -11,20 +12,22 @@ export default function BookCopiesList({ copies }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
-
-    // Set chứa các ID bản sao MÀ TÔI (bạn đọc đang đăng nhập) ĐANG MƯỢN
     const [myBorrowedCopyIds, setMyBorrowedCopyIds] = useState(new Set());
 
     useEffect(() => {
         async function checkMyLoans() {
-            const [borrowing, overdue] = await Promise.all([
-                getLoansByStatusAction('daMuon'),
-                getLoansByStatusAction('quaHan')
-            ]);
-            const allMyLoans = [...(borrowing || []), ...(overdue || [])];
-
-            const ids = new Set(allMyLoans.map(loan => loan.maBanSao));
-            setMyBorrowedCopyIds(ids);
+            // Cần try-catch để tránh lỗi nếu user chưa login (API trả về lỗi)
+            try {
+                const [borrowing, overdue] = await Promise.all([
+                    getLoansByStatusAction('daMuon'),
+                    getLoansByStatusAction('quaHan')
+                ]);
+                const allMyLoans = [...(Array.isArray(borrowing) ? borrowing : []), ...(Array.isArray(overdue) ? overdue : [])];
+                const ids = new Set(allMyLoans.map(loan => loan.maBanSao));
+                setMyBorrowedCopyIds(ids);
+            } catch (e) {
+                console.log("User not logged in or error checking loans");
+            }
         }
         checkMyLoans();
     }, []);
@@ -57,72 +60,73 @@ export default function BookCopiesList({ copies }) {
     };
 
     return (
-        <div className="mt-10 border-t pt-6">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">Các bản sao vật lý ({copies.length})</h2>
-            <div className="overflow-x-auto bg-white rounded-lg shadow border border-gray-200">
+        <div className="animate-in">
+            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <BookOpen className="text-purple-600"/> Danh sách bản sao vật lý
+            </h3>
+
+            <div className="overflow-hidden bg-white rounded-xl shadow-sm border border-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Mã nội bộ</th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Vị trí</th>
-                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Trạng thái</th>
-                            <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">Hành động</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Mã bản sao</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Vị trí lưu trữ</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Thao tác</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                        {copies.length === 0 && (
+                            <tr>
+                                <td colSpan="4" className="px-6 py-8 text-center text-gray-500 italic">Chưa có bản sao nào được cập nhật.</td>
+                            </tr>
+                        )}
                         {copies.map((copy) => {
                             const isMine = myBorrowedCopyIds.has(copy.mabansao);
                             const isAvailable = copy.trangthaichomuon;
 
-                            // Logic hiển thị hàng
-                            let rowClass = "hover:bg-gray-50";
-                            if (isMine) rowClass = "bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-500";
-
                             return (
-                                <tr key={copy.mabansao} className={`transition-colors ${rowClass}`}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono font-medium text-blue-700">
-                                        {copy.mabansaonoibo}
+                                <tr key={copy.mabansao} className={`transition-colors ${isMine ? 'bg-blue-50/60' : 'hover:bg-gray-50'}`}>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded text-sm">
+                                            {copy.mabansaonoibo}
+                                        </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                        {copy.vitri}
+                                        <div className="flex items-center gap-2">
+                                            <MapPin size={16} className="text-gray-400"/> {copy.vitri}
+                                        </div>
                                     </td>
-
-                                    {/* CỘT TRẠNG THÁI */}
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                         {isMine ? (
-                                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-600 text-white shadow-sm flex items-center w-fit gap-1">
-                                                <UserCheck size={14} /> Bạn đang giữ
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                <UserCheck size={12} className="mr-1"/> Bạn đang giữ
                                             </span>
                                         ) : isAvailable ? (
-                                            <span className="px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
-                                                Có sẵn
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                <Check size={12} className="mr-1"/> Có sẵn
                                             </span>
                                         ) : (
-                                            <span className="px-2 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200 flex items-center w-fit gap-1">
-                                                <Lock size={12} /> Đã mượn
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                                <Lock size={12} className="mr-1"/> Đã mượn
                                             </span>
                                         )}
                                     </td>
-
-                                    {/* CỘT HÀNH ĐỘNG */}
-                                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                                    <td className="px-6 py-4 whitespace-nowrap text-right">
                                         {isMine ? (
-                                            <button disabled className="text-sm font-bold text-blue-700 cursor-default px-4 py-2">
-                                                Đang mượn
+                                            <button disabled className="text-sm font-semibold text-blue-600 opacity-50 cursor-not-allowed">
+                                                Đang sở hữu
                                             </button>
                                         ) : isAvailable ? (
                                             <button
                                                 onClick={() => openBorrowModal(copy)}
-                                                className="px-4 py-2 rounded-md text-sm font-bold bg-purple-600 text-white hover:bg-purple-700 shadow-sm transition-transform active:scale-95"
+                                                className="px-4 py-2 bg-linear-to-r from-purple-600 to-indigo-600 text-white text-sm font-bold rounded-lg shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all"
                                             >
-                                                Đăng ký mượn
+                                                Mượn ngay
                                             </button>
                                         ) : (
-                                            <button
-                                                disabled
-                                                className="px-4 py-2 rounded-md text-sm font-bold bg-gray-100 text-gray-400 cursor-not-allowed"
-                                            >
-                                                Đã được mượn
+                                            <button disabled className="text-sm font-semibold text-gray-400 cursor-not-allowed">
+                                                Không khả dụng
                                             </button>
                                         )}
                                     </td>
@@ -133,39 +137,64 @@ export default function BookCopiesList({ copies }) {
                 </table>
             </div>
 
-            {/* --- MODAL XÁC NHẬN --- */}
+            {/* --- MODAL XÁC NHẬN (Glassmorphism) --- */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-                        <div className="p-5 border-b bg-gray-50">
-                            <h3 className="text-lg font-bold text-gray-800">Xác nhận mượn sách</h3>
+                <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative transform transition-all scale-100">
+                        <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition">
+                            <X size={20}/>
+                        </button>
+
+                        <div className="p-6 pb-0">
+                            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                                <BookOpen className="text-purple-600" size={24}/>
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900">Xác nhận mượn sách</h3>
+                            <p className="text-sm text-gray-500 mt-1">Vui lòng kiểm tra kỹ thông tin bản sao và ngày trả dự kiến.</p>
                         </div>
+
                         <div className="p-6 space-y-4">
-                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                                <p className="text-xs font-bold text-blue-500 uppercase mb-1">Sách đang chọn</p>
+                            <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">Mã bản sao</span>
+                                    <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">Vị trí</span>
+                                </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="font-mono font-bold text-lg text-gray-800">{selectedCopy?.mabansaonoibo}</span>
-                                    <span className="text-sm text-gray-500">{selectedCopy?.vitri}</span>
+                                    <span className="font-mono font-bold text-xl text-gray-900">{selectedCopy?.mabansaonoibo}</span>
+                                    <span className="text-sm font-medium text-gray-700">{selectedCopy?.vitri}</span>
                                 </div>
                             </div>
+
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Ngày trả dự kiến</label>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Hạn trả sách dự kiến</label>
                                 <div className="relative">
                                     <input
                                         type="date"
                                         value={returnDate}
                                         min={new Date().toISOString().split('T')[0]}
                                         onChange={(e) => setReturnDate(e.target.value)}
-                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 pl-10"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none pl-11 font-medium text-gray-700 bg-gray-50 focus:bg-white transition-colors"
                                     />
-                                    <Calendar className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                                    <Calendar className="absolute left-3.5 top-3.5 text-gray-400" size={20} />
                                 </div>
+                                <p className="text-xs text-gray-500 mt-2">Lưu ý: Quá hạn trả sách sẽ bị tính phí phạt theo quy định.</p>
                             </div>
                         </div>
-                        <div className="p-5 border-t bg-gray-50 flex justify-end gap-3">
-                            <button onClick={() => setIsModalOpen(false)} disabled={isSubmitting} className="px-5 py-2 rounded-lg border bg-white hover:bg-gray-100 text-gray-700 font-medium">Hủy</button>
-                            <button onClick={handleBorrow} disabled={isSubmitting} className="px-6 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-md flex items-center gap-2">
-                                {isSubmitting ? <Loader2 className="animate-spin w-4 h-4"/> : <Check className="w-4 h-4"/>} Xác nhận
+
+                        <div className="p-6 pt-0 flex gap-3">
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                disabled={isSubmitting}
+                                className="flex-1 px-5 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-colors"
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                onClick={handleBorrow}
+                                disabled={isSubmitting}
+                                className="flex-1 px-5 py-3 rounded-xl bg-linear-to-r from-purple-600 to-indigo-600 text-white font-bold hover:shadow-lg hover:shadow-purple-500/30 transition-all flex items-center justify-center gap-2"
+                            >
+                                {isSubmitting ? <Loader2 className="animate-spin w-5 h-5"/> : <Check className="w-5 h-5"/>} Xác nhận
                             </button>
                         </div>
                     </div>
@@ -174,24 +203,31 @@ export default function BookCopiesList({ copies }) {
 
             {/* --- MODAL THÀNH CÔNG --- */}
             {showSuccessModal && (
-                <div className="fixed inset-0 z-110 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in zoom-in-95 duration-200">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm text-center overflow-hidden">
-                        <div className="bg-green-500 h-32 flex items-center justify-center relative overflow-hidden">
-                            <div className="absolute inset-0 bg-white/20 rotate-12 scale-150"></div>
-                            <div className="bg-white p-4 rounded-full shadow-lg relative z-10">
+                <div className="fixed inset-0 z-110 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in zoom-in-95 duration-300">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm text-center overflow-hidden relative">
+                        {/* Confetti Decoration (CSS) */}
+                        <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-green-400 via-blue-500 to-purple-600"></div>
+
+                        <div className="p-8 pb-0 flex flex-col items-center">
+                            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6 animate-bounce-slow">
                                 <Check className="w-10 h-10 text-green-600" strokeWidth={4} />
                             </div>
-                        </div>
-                        <div className="p-8">
-                            <h2 className="text-2xl font-bold text-gray-800 mb-2">Mượn thành công!</h2>
-                            <p className="text-gray-600 mb-6">
-                                Cuốn sách <strong>{selectedCopy?.mabansaonoibo}</strong> đã được thêm vào danh sách mượn của bạn.
+                            <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Đăng ký thành công!</h2>
+                            <p className="text-gray-600">
+                                Bạn đã đăng ký mượn cuốn sách <br/>
+                                <span className="font-mono font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded">{selectedCopy?.mabansaonoibo}</span>
                             </p>
+                        </div>
+
+                        <div className="p-8">
+                            <div className="bg-blue-50 text-blue-800 text-sm p-3 rounded-lg mb-6 text-left">
+                                💡 <strong>Tiếp theo:</strong> Vui lòng đến quầy thủ thư để nhận sách. Mang theo thẻ thành viên hoặc mã QR trên ứng dụng.
+                            </div>
                             <button
                                 onClick={() => setShowSuccessModal(false)}
-                                className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold shadow-lg transition-transform active:scale-95"
+                                className="w-full py-3.5 bg-gray-900 hover:bg-black text-white rounded-xl font-bold shadow-lg transition-transform active:scale-95"
                             >
-                                Tuyệt vời
+                                Đã hiểu, cảm ơn!
                             </button>
                         </div>
                     </div>

@@ -8,6 +8,7 @@ import QRCode from 'react-qr-code';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { registerCardAction, getCardTypesAction, getProvincesAction, getWardsByProvinceAction } from '../actions';
+import { ArrowLeft, Upload, Loader2, CheckCircle, CreditCard, User, Calendar, Phone, Mail, MapPin, Truck } from 'lucide-react';
 
 // Bảng giá định nghĩa tạm thời (vì API chưa trả về giá)
 // Key là 'maloaithe' từ API
@@ -29,9 +30,9 @@ function SubmitButton() {
         <button
             type="submit"
             disabled={pending}
-            className="w-full py-3 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold text-lg disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            className="w-full py-4 px-6 bg-linear-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] font-bold text-lg disabled:opacity-70 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
         >
-            {pending ? 'Đang gửi hồ sơ...' : 'Gửi hồ sơ đăng ký'}
+            {pending ? <><Loader2 className="animate-spin" /> Đang xử lý...</> : 'Gửi hồ sơ đăng ký'}
         </button>
     );
 }
@@ -194,250 +195,222 @@ export default function FormDangKyPage() {
         const qrContent = `PAYMENT|${data.mayeucauthe}|${totalCost}`;
 
         return (
-            <div className="max-w-md mx-auto mt-10 bg-white p-8 rounded-lg shadow-lg text-center animate-fade-in">
-                <div className="text-6xl mb-4">✅</div>
-                <h1 className="text-2xl font-bold text-green-600 mb-4">Đăng ký thành công!</h1>
-                <p className="text-gray-700 mb-6">Mã hồ sơ: <strong className="text-blue-600">{data.mayeucauthe}</strong></p>
-                <div className="p-4 bg-white inline-block rounded-lg border shadow-sm">
-                    <QRCode value={qrContent} size={200} />
-                </div>
-                <p className="font-bold text-xl mt-4 text-blue-800">Tổng tiền: {totalCost.toLocaleString('vi-VN')} VNĐ</p>
-                <p className="text-sm text-gray-500 mt-2">Quét mã để thanh toán phí làm thẻ</p>
-                <div className="mt-8 space-x-4">
-                    <Link href="/" className="text-gray-600 hover:underline">Trang chủ</Link>
-                    <Link href="/tai_khoan" className="text-purple-600 hover:underline font-medium">Về Dashboard</Link>
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-2xl text-center animate-in zoom-in-95 duration-300 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-green-400 to-blue-500"></div>
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <CheckCircle className="w-10 h-10 text-green-600" strokeWidth={3} />
+                    </div>
+                    <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Đăng ký thành công!</h1>
+                    <p className="text-gray-500 mb-6">Hồ sơ của bạn đã được ghi nhận. Vui lòng thanh toán để hoàn tất.</p>
+=
+                    <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 mb-6 inline-block">
+                        <QRCode value={qrContent} size={180} className="mx-auto" />
+                        <p className="text-xs text-gray-400 mt-3 font-mono">MDH: {data.mayeucauthe}</p>
+                    </div>
+
+                    <div className="space-y-2 mb-8">
+                        <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">Phí làm thẻ</span>
+                            <span className="font-medium text-gray-900">{(totalCost - (ship ? SHIPPING_FEE : 0)).toLocaleString()} đ</span>
+                        </div>
+                        {ship && (
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">Phí giao hàng</span>
+                                <span className="font-medium text-gray-900">{SHIPPING_FEE.toLocaleString()} đ</span>
+                            </div>
+                        )}
+                        <div className="flex justify-between text-lg font-bold border-t pt-2 text-blue-600">
+                            <span>Tổng cộng</span>
+                            <span>{totalCost.toLocaleString()} đ</span>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                        <Link href="/" className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition-colors">
+                            Trang chủ
+                        </Link>
+                        <Link href="/dang_ky_the/tra_cuu" className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30">
+                            Theo dõi hồ sơ
+                        </Link>
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-4xl mx-auto mt-10 bg-white p-8 rounded-lg shadow-lg">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">Đăng ký thẻ bạn đọc</h1>
-                <Link href="/dang_ky_the" className="text-blue-600 hover:underline flex items-center">
-                    <span className="mr-1">&larr;</span> Quay lại
-                </Link>
+        <div className="min-h-screen bg-gray-50 py-12 font-sans">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+                {/* Header Form */}
+                <div className="mb-8 flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-extrabold text-gray-900">Điền thông tin hồ sơ</h1>
+                        <p className="text-gray-500 mt-1">Vui lòng nhập chính xác thông tin để in thẻ.</p>
+                    </div>
+                    <Link href="/dang_ky_the" className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors shadow-sm">
+                        <ArrowLeft size={20} />
+                    </Link>
+                </div>
+
+                <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+                    {/* Error Box */}
+                    {(state?.error || clientError) && (
+                        <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700 flex items-start gap-3">
+                            <span className="text-xl">⚠️</span>
+                            <span className="font-medium">{state?.error || clientError}</span>
+                        </div>
+                    )}
+
+                    <form action={formAction} onSubmit={handleSubmit} className="p-8 md:p-10 space-y-8">
+
+                        {/* Section 1: Loại thẻ */}
+                        <section>
+                            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-sm">1</span>
+                                Chọn loại thẻ
+                            </h3>
+                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                {isLoading ? (
+                                    <div className="animate-pulse h-12 bg-gray-200 rounded-lg"></div>
+                                ) : (
+                                    <div className="relative">
+                                        <select
+                                            id="ma_loai_the"
+                                            name="ma_loai_the"
+                                            onChange={(e) => setLoaiThe(e.target.value)}
+                                            value={loaiThe}
+                                            className="block w-full pl-12 pr-10 py-3 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none outline-none font-medium"
+                                        >
+                                            {cardTypesList.map((card) => (
+                                                <option key={card.maloaithe} value={card.maloaithe}>
+                                                    {card.tenthe} — {PRICE_MAP[card.maloaithe]?.toLocaleString('vi-VN') || 0} đ
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20}/>
+                                    </div>
+                                )}
+                                {!isLoading && loaiThe && (
+                                    <p className="text-sm text-blue-600 mt-2 pl-1 flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
+                                        {cardTypesList.find(c => String(c.maloaithe) === loaiThe)?.mota}
+                                    </p>
+                                )}
+                            </div>
+                        </section>
+
+                        {/* Section 2: Thông tin cá nhân */}
+                        <section>
+                            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-sm">2</span>
+                                Thông tin cá nhân
+                            </h3>
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <div className="col-span-2 md:col-span-1">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">Họ và tên <span className="text-red-500">*</span></label>
+                                    <div className="relative">
+                                        <input type="text" name="ho_ten" placeholder="Nguyễn Văn A" className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" required />
+                                        <User className="absolute left-3.5 top-3.5 text-gray-400" size={18}/>
+                                    </div>
+                                </div>
+                                <div className="col-span-2 md:col-span-1">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">Ngày sinh <span className="text-red-500">*</span></label>
+                                    <div className="relative">
+                                        <input type="date" name="ngay_sinh" className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" required />
+                                        <Calendar className="absolute left-3.5 top-3.5 text-gray-400" size={18}/>
+                                    </div>
+                                </div>
+                                <div className="col-span-2 md:col-span-1">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">Số điện thoại <span className="text-red-500">*</span></label>
+                                    <div className="relative">
+                                        <input type="tel" name="sdt" maxLength={11} placeholder="0905..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" required />
+                                        <Phone className="absolute left-3.5 top-3.5 text-gray-400" size={18}/>
+                                    </div>
+                                </div>
+                                <div className="col-span-2 md:col-span-1">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">CCCD / CMND <span className="text-red-500">*</span></label>
+                                    <div className="relative">
+                                        <input type="text" name="cccd" maxLength={12} placeholder="12 chữ số" className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" required />
+                                        <CreditCard className="absolute left-3.5 top-3.5 text-gray-400" size={18}/>
+                                    </div>
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">Email <span className="text-red-500">*</span></label>
+                                    <div className="relative">
+                                        <input type="email" name="email" placeholder="example@email.com" className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" required />
+                                        <Mail className="absolute left-3.5 top-3.5 text-gray-400" size={18}/>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Section 3: Địa chỉ & Ảnh */}
+                        <section>
+                            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-sm">3</span>
+                                Địa chỉ & Ảnh thẻ
+                            </h3>
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <div className="col-span-2 space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <select onChange={handleProvinceChange} value={selectedProvince} className="p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 outline-none" required>
+                                            <option value="">Chọn Tỉnh/Thành</option>
+                                            {provinces.map(p => <option key={p.matinhthanhpho} value={p.matinhthanhpho}>{p.tentinhthanhpho}</option>)}
+                                        </select>
+                                        <select name="ma_phuong_xa" disabled={!selectedProvince} className="p-3 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100" required>
+                                            <option value="">Chọn Phường/Xã</option>
+                                            {wards.map(w => <option key={w.maphuongxa} value={w.maphuongxa}>{w.tenphuongxa}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="relative">
+                                        <input type="text" name="dia_chi" placeholder="Số nhà, tên đường..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" required />
+                                        <MapPin className="absolute left-3.5 top-3.5 text-gray-400" size={18}/>
+                                    </div>
+                                </div>
+
+                                <div className="col-span-2">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2 ml-1">Ảnh thẻ (3x4) <span className="text-red-500">*</span></label>
+                                    <label className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-colors ${previewUrl ? 'border-blue-500 bg-blue-50/30' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'}`}>
+                                        {previewUrl ? (
+                                            <Image src={previewUrl} alt="Preview" width={100} height={130} className="object-cover rounded-lg shadow-sm border border-gray-200" unoptimized />
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center pt-5 pb-6 text-gray-400">
+                                                <Upload className="w-10 h-10 mb-3" strokeWidth={1.5} />
+                                                <p className="text-sm"><span className="font-bold text-blue-600">Nhấn để tải lên</span> hoặc kéo thả</p>
+                                                <p className="text-xs text-gray-400 mt-1">PNG, JPG (Max 50MB)</p>
+                                            </div>
+                                        )}
+                                        <input type="file" name="anh_the" accept="image/png, image/jpeg" onChange={handleImageChange} className="hidden" required />
+                                    </label>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Thanh toán */}
+                        <div className="bg-linear-to-br from-gray-50 to-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                            <label className="flex items-center justify-between cursor-pointer p-2 hover:bg-white rounded-lg transition-colors">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${ship ? 'bg-blue-600 border-blue-600' : 'border-gray-400'}`}>
+                                        {ship && <CheckCircle size={14} className="text-white"/>}
+                                    </div>
+                                    <input type="checkbox" name="giao_hang" checked={ship} onChange={(e) => setShip(e.target.checked)} className="hidden" />
+                                    <div className="flex items-center gap-2 text-gray-700 font-medium">
+                                        <Truck size={18} className="text-blue-500"/> Giao thẻ tận nhà (+30k)
+                                    </div>
+                                </div>
+                            </label>
+                            <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
+                                <span className="text-gray-500 font-medium">Tổng thanh toán</span>
+                                <span className="text-2xl font-extrabold text-blue-700">{totalCost.toLocaleString('vi-VN')} đ</span>
+                            </div>
+                        </div>
+
+                        <SubmitButton />
+                    </form>
+                </div>
             </div>
-
-            {/* Hiển thị lỗi từ Server hoặc Client */}
-            {(state?.error || clientError) && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-md flex items-start">
-                    <span className="mr-2">⚠️</span>
-                    <span>{state?.error || clientError}</span>
-                </div>
-            )}
-
-            {/* Form với sự kiện onSubmit để validate */}
-            <form action={formAction} onSubmit={handleSubmit} className="space-y-6">
-                {/* Hàng 1: Loại thẻ */}
-                <div>
-                    <label htmlFor="ma_loai_the" className="block text-sm font-medium mb-1 text-gray-700">Loại thẻ <span className="text-red-500">*</span></label>
-                    {isLoading ? (
-                        <div className="animate-pulse h-10 bg-gray-200 rounded"></div>
-                    ) : (
-                        <select
-                            id="ma_loai_the"
-                            name="ma_loai_the"
-                            onChange={(e) => setLoaiThe(e.target.value)}
-                            value={loaiThe}
-                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        >
-                            {cardTypesList.map((card) => (
-                                <option key={card.maloaithe} value={card.maloaithe}>
-                                    {card.tenthe} ({PRICE_MAP[card.maloaithe]?.toLocaleString('vi-VN') || 0} đ)
-                                </option>
-                            ))}
-                        </select>
-                    )}
-                    {!isLoading && loaiThe && (
-                        <p className="text-sm text-gray-500 mt-1 italic">
-                            {cardTypesList.find(c => String(c.maloaithe) === loaiThe)?.mota}
-                        </p>
-                    )}
-                </div>
-
-                {/* Hàng 2: Thông tin cá nhân */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Họ và tên <span className="text-red-500">*</span></label>
-                        <input
-                            type="text"
-                            name="ho_ten"
-                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Nguyễn Văn A"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Ngày sinh <span className="text-red-500">*</span></label>
-                        <input
-                            type="date"
-                            name="ngay_sinh"
-                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                            required
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Định dạng: YYYY-MM-DD</p>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Giới tính <span className="text-red-500">*</span></label>
-                        <select name="gioi_tinh" className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500" required>
-                            <option value="">-- Chọn giới tính --</option>
-                            <option value="Nam">Nam</option>
-                            <option value="Nữ">Nữ</option>
-                            <option value="Khác">Khác</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Nghề nghiệp</label>
-                        <input type="text" name="nghe_nghiep" className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500" placeholder="Sinh viên/Học sinh..." />
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Số CCCD <span className="text-red-500">*</span></label>
-                        <input
-                            type="text"
-                            name="cccd"
-                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="048203001234"
-                            maxLength={12}
-                            required
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Bắt buộc 9 (CMND) hoặc 12 chữ số (CCCD)</p>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Số điện thoại <span className="text-red-500">*</span></label>
-                        <input
-                            type="tel"
-                            name="sdt"
-                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="0905123456"
-                            maxLength={11}
-                            required
-                        />
-                        <p className="text-xs text-gray-500 mt-1">10 hoặc 11 số, bắt đầu bằng số 0</p>
-                    </div>
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">Email <span className="text-red-500">*</span></label>
-                    <input
-                        type="email"
-                        name="email"
-                        className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="nguyenvana@example.com"
-                        required
-                    />
-                </div>
-
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Địa chỉ (Số nhà, tên đường) <span className="text-red-500">*</span></label>
-                        <input
-                            type="text"
-                            name="dia_chi"
-                            className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500"
-                            placeholder="123 Tôn Đức Thắng"
-                            required
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Combobox Tỉnh/Thành */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Tỉnh / Thành phố <span className="text-red-500">*</span></label>
-                            <select
-                                className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500"
-                                value={selectedProvince}
-                                onChange={handleProvinceChange}
-                                required
-                            >
-                                <option value="">-- Chọn Tỉnh/Thành --</option>
-                                {provinces.map((p) => (
-                                    <option key={p.matinhthanhpho} value={p.matinhthanhpho}>
-                                        {p.tentinhthanhpho}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Combobox Phường/Xã */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Phường / Xã <span className="text-red-500">*</span></label>
-                            <select
-                                name="ma_phuong_xa" // Quan trọng: Tên này sẽ được gửi lên API
-                                className="mt-1 block w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500"
-                                required
-                                disabled={!selectedProvince} // Khóa nếu chưa chọn tỉnh
-                            >
-                                <option value="">-- Chọn Phường/Xã --</option>
-                                {wards.map((w) => (
-                                    <option key={w.maphuongxa} value={w.maphuongxa}>
-                                        {w.tenphuongxa}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Tải ảnh */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Ảnh thẻ (3x4) <span className="text-red-500">*</span></label>
-                    <div className={`mt-1 p-6 border-2 border-dashed rounded-lg text-center transition-colors ${previewUrl ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}`}>
-                        {previewUrl ? (
-                            <div className="relative inline-block">
-                                <Image src={previewUrl} alt="Preview" width={120} height={160} className="mx-auto mb-4 rounded border object-cover shadow-sm" unoptimized />
-                                <p className="text-sm text-green-600 font-medium">✓ Ảnh hợp lệ</p>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center text-gray-500">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mb-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <p>Nhấn để chọn ảnh hoặc kéo thả vào đây</p>
-                                <p className="text-xs mt-1">(Định dạng .jpg/.png, dung lượng &lt; tối đa 50MB)</p>
-                            </div>
-                        )}
-                        <input
-                            type="file"
-                            name="anh_the"
-                            accept="image/png, image/jpeg"
-                            onChange={handleImageChange}
-                            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 mt-4 cursor-pointer"
-                            required
-                        />
-                    </div>
-                </div>
-
-                {/* Thanh toán */}
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-800">Thanh toán</h3>
-                    <div className="flex items-center justify-between mb-2">
-                        <label className="flex items-center cursor-pointer select-none">
-                            <input
-                                type="checkbox"
-                                name="giao_hang"
-                                checked={ship}
-                                onChange={(e) => setShip(e.target.checked)}
-                                className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                            />
-                            <span className="ml-2 text-gray-700">Giao hàng tận nơi (+30.000 VNĐ)</span>
-                        </label>
-                    </div>
-                    <div className="flex justify-between text-xl font-bold border-t border-gray-200 pt-3 mt-2">
-                        <span>Tổng tiền:</span>
-                        <span className="text-blue-700">{totalCost.toLocaleString('vi-VN')} VNĐ</span>
-                    </div>
-                </div>
-
-                <SubmitButton />
-            </form>
         </div>
     );
 }

@@ -3,7 +3,60 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, ArrowRight, Book, Users, Clock, Zap, MapPin, Calendar, Star, TrendingUp } from 'lucide-react';
+import {
+  Search, ArrowRight, Book, Users, Clock, Zap, MapPin,
+  Calendar, Star, TrendingUp, ChevronLeft, ChevronRight,
+  Smartphone, Download
+} from 'lucide-react';
+
+// DỮ LIỆU SLIDESHOW (CÓ THỂ THAY BẰNG API SAU NÀY)
+const highlightSlides = [
+  {
+    id: 1,
+    category: "MỚI NHẤT",
+    title: "Khai trương không gian đọc sách Thực tế ảo (VR/AR)",
+    desc: "Trải nghiệm đọc sách trong không gian vũ trụ, khám phá giải phẫu học 3D với công nghệ VR mới nhất được tài trợ bởi Tập đoàn công nghệ.",
+    date: "16/12/2025",
+    views: "1.2k",
+    color: "from-blue-900 via-blue-800 to-black"
+  },
+  {
+    id: 2,
+    category: "SỰ KIỆN",
+    title: "Giao lưu trực tuyến: Văn hóa đọc trong kỷ nguyên số",
+    desc: "Trò chuyện cùng nhà văn Nguyễn Nhật Ánh và các chuyên gia về tương lai của sách giấy trước sự bùng nổ của AI.",
+    date: "15/12/2025",
+    views: "980",
+    color: "from-purple-900 via-indigo-900 to-black"
+  },
+  {
+    id: 3,
+    category: "THÔNG BÁO",
+    title: "Triển khai hệ thống mượn trả sách Drive-thru",
+    desc: "Giờ đây bạn có thể nhận sách đã đặt ngay tại cổng thư viện mà không cần gửi xe. Tiện lợi, nhanh chóng, an toàn.",
+    date: "14/12/2025",
+    views: "2.5k",
+    color: "from-emerald-900 via-teal-900 to-black"
+  },
+  {
+    id: 4,
+    category: "HOẠT ĐỘNG",
+    title: "Ngày hội trao đổi sách cũ 2025",
+    desc: "Mang những cuốn sách bạn đã đọc xong đến để đổi lấy những hành trình mới. Hơn 5000 đầu sách đang chờ đón.",
+    date: "12/12/2025",
+    views: "1.5k",
+    color: "from-orange-900 via-red-900 to-black"
+  },
+  {
+    id: 5,
+    category: "CÔNG NGHỆ",
+    title: "Nâng cấp Wifi 6 miễn phí toàn bộ khuôn viên",
+    desc: "Tốc độ truy cập tăng gấp 5 lần, hỗ trợ kết nối đồng thời 2000 thiết bị phục vụ nhu cầu học tập và tra cứu.",
+    date: "10/12/2025",
+    views: "3.1k",
+    color: "from-cyan-900 via-blue-900 to-black"
+  }
+];
 
 export default function HomePage() {
   // Logic observer để tạo hiệu ứng fade-in khi cuộn
@@ -22,6 +75,20 @@ export default function HomePage() {
   }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
+
+  // --- LOGIC SLIDESHOW ---
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Tự động chuyển slide sau 5 giây
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev === highlightSlides.length - 1 ? 0 : prev + 1));
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const nextSlide = () => setCurrentSlide((prev) => (prev === highlightSlides.length - 1 ? 0 : prev + 1));
+  const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? highlightSlides.length - 1 : prev - 1));
 
   return (
     <div className="overflow-x-hidden">
@@ -169,60 +236,239 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 4. NEWS & EVENTS (Bento Grid Layout) */}
+      {/* 4. NEWS & EVENTS */}
       <section className="py-20 bg-slate-50">
         <div className="container mx-auto px-4">
-          <div className="flex justify-between items-end mb-10">
+
+          {/* Header Section */}
+          <div className="flex justify-between items-end mb-10 reveal opacity-0 translate-y-4">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">Tin tức & Sự kiện</h2>
-              <p className="text-gray-500 mt-2">Cập nhật những hoạt động mới nhất tại thư viện</p>
+              <span className="text-blue-600 font-bold text-sm tracking-wider uppercase mb-2 block">Cập nhật liên tục</span>
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900">Tin tức & Sự kiện nổi bật</h2>
             </div>
-            <Link href="#" className="hidden md:flex items-center text-blue-600 font-semibold hover:gap-2 transition-all">
-              Xem tất cả <ArrowRight size={18} className="ml-1"/>
+            <Link href="#" className="hidden md:flex items-center px-5 py-2 rounded-full border border-gray-300 text-gray-700 font-semibold hover:bg-gray-100 hover:text-blue-600 transition-all">
+              Xem tất cả <ArrowRight size={18} className="ml-2"/>
             </Link>
           </div>
 
-          <div className="grid md:grid-cols-4 md:grid-rows-2 gap-6 h-auto md:h-[500px]">
-            {/* Main Article - Large */}
-            <div className="md:col-span-2 md:row-span-2 group relative rounded-2xl overflow-hidden shadow-lg cursor-pointer reveal opacity-0 scale-95 transition-all duration-500">
-              <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent z-10"></div>
-               {/* Thay bằng Image thật nếu có */}
-              <div className="absolute inset-0 bg-blue-900 group-hover:scale-105 transition-transform duration-700"></div>
-              <div className="absolute bottom-0 left-0 p-8 z-20 text-white">
-                <span className="bg-red-600 text-xs font-bold px-2 py-1 rounded mb-3 inline-block">MỚI NHẤT</span>
-                <h3 className="text-2xl font-bold mb-2">Khai trương không gian đọc sách thực tế ảo (VR)</h3>
-                <p className="text-gray-300 line-clamp-2">Trải nghiệm đọc sách trong không gian vũ trụ với công nghệ VR mới nhất được tài trợ bởi...</p>
+          {/* MAIN GRID LAYOUT: 3 Cột Trái (Tin tức) - 1 Cột Phải (Sự kiện) */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+
+            {/* --- CỘT TRÁI (Chiếm 3 phần) --- */}
+            <div className="lg:col-span-3 space-y-8">
+
+              {/* 1. SLIDESHOW (Tin lớn nhất) */}
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl h-[450px] group reveal opacity-0 translate-y-4">
+                {highlightSlides.map((slide, index) => (
+                  <div
+                    key={slide.id}
+                    className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+                  >
+                    {/* Giả lập ảnh nền bằng Gradient (Thay bằng Image thật nếu có) */}
+                    <div className={`absolute inset-0 bg-linear-to-br ${slide.color}`}></div>
+                    <div className="absolute inset-0 bg-black/40"></div> {/* Overlay tối */}
+
+                    {/* Nội dung Slide */}
+                    <div className="absolute bottom-0 left-0 p-8 md:p-12 w-full md:w-3/4 text-white">
+                      <span className="bg-white/20 backdrop-blur-md border border-white/30 text-xs font-bold px-3 py-1 rounded-full mb-4 inline-block shadow-sm tracking-wider">
+                        {slide.category}
+                      </span>
+                      <h3 className="text-2xl md:text-4xl font-bold mb-4 leading-tight drop-shadow-lg">
+                        {slide.title}
+                      </h3>
+                      <p className="text-gray-200 line-clamp-2 mb-6 text-sm md:text-lg max-w-2xl">
+                        {slide.desc}
+                      </p>
+                      <div className="flex items-center text-xs md:text-sm text-gray-300 gap-6">
+                        <span className="flex items-center gap-2"><Calendar size={16}/> {slide.date}</span>
+                        <span className="flex items-center gap-2"><Users size={16}/> {slide.views} lượt xem</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Slide Controls */}
+                <div className="absolute bottom-8 right-8 z-20 flex gap-2">
+                  <button onClick={prevSlide} className="p-2 rounded-full bg-white/10 hover:bg-white/30 text-white backdrop-blur-md transition">
+                    <ChevronLeft size={24} />
+                  </button>
+                  <button onClick={nextSlide} className="p-2 rounded-full bg-white/10 hover:bg-white/30 text-white backdrop-blur-md transition">
+                    <ChevronRight size={24} />
+                  </button>
+                </div>
+
+                {/* Slide Indicators */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+                  {highlightSlides.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setCurrentSlide(idx)}
+                      className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === currentSlide ? 'bg-white w-6' : 'bg-white/40'}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* 2. CÁC TIN VỪA (Grid 2 cột bên dưới Slide) */}
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Tin Vừa 1 */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 reveal opacity-0 translate-y-4 cursor-pointer group">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    <span className="text-xs font-bold text-gray-400 uppercase">Hoạt động</span>
+                  </div>
+                  <h4 className="font-bold text-lg text-gray-800 mb-3 group-hover:text-blue-600 line-clamp-2">
+                    Hội thảo: &quot;Ứng dụng AI trong việc tìm kiếm tài liệu học thuật&quot;
+                  </h4>
+                  <p className="text-gray-500 text-sm line-clamp-2 mb-4">
+                    Hướng dẫn sinh viên cách sử dụng các công cụ AI để tối ưu hóa quá trình nghiên cứu và trích dẫn tài liệu.
+                  </p>
+                  <div className="text-sm text-gray-400 mt-auto flex items-center justify-between border-t pt-3">
+                    <p className="flex items-center gap-2"><Clock size={16} className="text-green-600"/> 18/12/2025</p>
+                    <span className="text-xs font-medium text-blue-600 group-hover:underline">Chi tiết &rarr;</span>
+                  </div>
+                </div>
+
+                {/* Tin Vừa 2 */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 reveal opacity-0 translate-y-4 cursor-pointer group">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                    <span className="text-xs font-bold text-gray-400 uppercase">Thông báo</span>
+                  </div>
+                  <h4 className="font-bold text-lg text-gray-800 mb-3 group-hover:text-blue-600 line-clamp-2">
+                    Bảo trì hệ thống mượn trả tự động khu vực tầng 1
+                  </h4>
+                  <p className="text-gray-500 text-sm line-clamp-2 mb-4">
+                    Hệ thống sẽ tạm ngưng hoạt động để nâng cấp firmware, vui lòng sử dụng quầy thủ thư trong thời gian này.
+                  </p>
+                  <div className="text-sm text-gray-400 mt-auto flex items-center justify-between border-t pt-3">
+                    <p className="flex items-center gap-2"><Clock size={16} className="text-purple-600"/> 20:00 Hôm nay</p>
+                    <span className="text-xs font-medium text-blue-600 group-hover:underline">Chi tiết &rarr;</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. BANNER QUẢNG CÁO APP (Rộng bằng Tin lớn + Tin vừa) */}
+              <div className="relative rounded-2xl overflow-hidden bg-linear-to-r from-blue-700 to-indigo-800 text-white p-8 flex flex-col md:flex-row items-center justify-between shadow-2xl group cursor-pointer reveal opacity-0 translate-y-4">
+                <div className="relative z-10 max-w-xl">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="bg-white/20 text-xs font-bold px-3 py-1 rounded-lg backdrop-blur-sm border border-white/20 flex items-center gap-1">
+                      <Smartphone size={14}/> Mobile App
+                    </span>
+                    <span className="text-yellow-400 text-xs font-bold">★ 4.9/5.0</span>
+                  </div>
+                  <h3 className="text-2xl md:text-3xl font-bold mb-2">Thư viện số trong tầm tay bạn</h3>
+                  <p className="text-blue-100 mb-6 text-sm md:text-base">
+                    Quản lý mượn trả, gia hạn sách, đọc Ebook và nhận thông báo sự kiện chỉ với 1 chạm. Tải ngay để nhận ưu đãi thành viên VIP.
+                  </p>
+                  <div className="flex gap-3">
+                    <button className="bg-white text-blue-800 px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-50 transition-colors shadow-lg flex items-center gap-2">
+                      <Download size={18}/> App Store
+                    </button>
+                    <button className="bg-transparent border border-white/40 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-white/10 transition-colors flex items-center gap-2">
+                      <Download size={18}/> Google Play
+                    </button>
+                  </div>
+                </div>
+
+                {/* Hình minh họa điện thoại (CSS thuần) */}
+                <div className="hidden md:block relative z-10 transform group-hover:translate-x--10px transition-transform duration-500">
+                  <div className="w-32 h-64 bg-gray-900 rounded-2rem border-4 border-gray-700 shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 h-4 bg-gray-800 rounded-b-xl"></div>
+                    <div className="w-full h-full bg-white flex flex-col items-center justify-center space-y-2 pt-8">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full"></div>
+                      <div className="w-20 h-2 bg-gray-100 rounded"></div>
+                      <div className="w-16 h-2 bg-gray-100 rounded"></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Decorative BG */}
+                <div className="absolute -right-20 -bottom-40 w-96 h-96 bg-blue-500 rounded-full opacity-30 blur-3xl"></div>
+                <div className="absolute -left-20 -top-40 w-80 h-80 bg-purple-500 rounded-full opacity-30 blur-3xl"></div>
+              </div>
+
+            </div>
+
+            {/* --- CỘT PHẢI (Sự kiện - Vertical List) --- */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm sticky top-24 reveal opacity-0 translate-x-4 h-full flex flex-col">
+                <h4 className="font-bold text-gray-800 mb-6 flex items-center gap-2 pb-4 border-b">
+                  <Calendar size={20} className="text-blue-600"/> Sự kiện sắp tới
+                </h4>
+
+                <div className="space-y-6 flex-1">
+                  {/* Event Item 1 */}
+                  <div className="flex gap-4 items-start group cursor-pointer hover:bg-gray-50 p-2 rounded-lg -mx-2 transition-colors">
+                    <div className="bg-blue-50 text-blue-700 w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 border border-blue-100 group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm">
+                      <span className="text-[10px] font-bold uppercase">Tháng 12</span>
+                      <span className="text-xl font-extrabold leading-none">20</span>
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-gray-800 text-sm group-hover:text-blue-600 transition-colors leading-tight mb-1">
+                        CLB Sách: Văn học trinh thám hiện đại
+                      </h5>
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <Clock size={12}/> 14:00 • Phòng họp 3
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Event Item 2 */}
+                  <div className="flex gap-4 items-start group cursor-pointer hover:bg-gray-50 p-2 rounded-lg -mx-2 transition-colors">
+                    <div className="bg-orange-50 text-orange-700 w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 border border-orange-100 group-hover:bg-orange-600 group-hover:text-white transition-colors shadow-sm">
+                      <span className="text-[10px] font-bold uppercase">Tháng 12</span>
+                      <span className="text-xl font-extrabold leading-none">24</span>
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-gray-800 text-sm group-hover:text-orange-600 transition-colors leading-tight mb-1">
+                        Giao lưu tác giả Nguyễn Nhật Ánh
+                      </h5>
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <Clock size={12}/> 08:00 • Sảnh chính
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Event Item 3 */}
+                  <div className="flex gap-4 items-start group cursor-pointer hover:bg-gray-50 p-2 rounded-lg -mx-2 transition-colors">
+                    <div className="bg-indigo-50 text-indigo-700 w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition-colors shadow-sm">
+                      <span className="text-[10px] font-bold uppercase">Tháng 12</span>
+                      <span className="text-xl font-extrabold leading-none">28</span>
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-gray-800 text-sm group-hover:text-indigo-600 transition-colors leading-tight mb-1">
+                        Workshop: Kỹ năng viết CV ấn tượng
+                      </h5>
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <Clock size={12}/> 15:30 • Phòng Studio
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Event Item 4 */}
+                  <div className="flex gap-4 items-start group cursor-pointer hover:bg-gray-50 p-2 rounded-lg -mx-2 transition-colors">
+                    <div className="bg-pink-50 text-pink-700 w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 border border-pink-100 group-hover:bg-pink-600 group-hover:text-white transition-colors shadow-sm">
+                      <span className="text-[10px] font-bold uppercase">Tháng 1</span>
+                      <span className="text-xl font-extrabold leading-none">05</span>
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-gray-800 text-sm group-hover:text-pink-600 transition-colors leading-tight mb-1">
+                        Triển lãm tranh: &quot;Sắc màu Đà Nẵng&quot;
+                      </h5>
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <Clock size={12}/> 09:00 • Tầng 3
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <button className="w-full mt-6 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:text-blue-600 transition-colors">
+                  Xem lịch đầy đủ
+                </button>
               </div>
             </div>
 
-            {/* Event 1 */}
-            <div className="md:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition reveal opacity-0 translate-y-4 delay-100">
-              <div className="flex items-start justify-between mb-4">
-                <div className="bg-purple-100 text-purple-700 p-2 rounded-lg"><Calendar size={20}/></div>
-                <span className="text-xs font-bold text-gray-400">15 THÁNG 12</span>
-              </div>
-              <h4 className="font-bold text-gray-800 mb-2">Workshop: Kỹ năng tra cứu số</h4>
-              <p className="text-sm text-gray-500">Hội trường A, 14:00 - 16:00</p>
-            </div>
-
-             {/* Event 2 */}
-            <div className="md:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition reveal opacity-0 translate-y-4 delay-200">
-              <div className="flex items-start justify-between mb-4">
-                <div className="bg-green-100 text-green-700 p-2 rounded-lg"><Users size={20}/></div>
-                <span className="text-xs font-bold text-gray-400">18 THÁNG 12</span>
-              </div>
-              <h4 className="font-bold text-gray-800 mb-2">CLB Sách: Văn học hiện đại</h4>
-              <p className="text-sm text-gray-500">Phòng họp nhóm 2, 09:00</p>
-            </div>
-
-            {/* Small News */}
-            <div className="md:col-span-2 bg-linear-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white flex items-center justify-between shadow-lg reveal opacity-0 translate-y-4 delay-300">
-              <div>
-                <h4 className="text-xl font-bold mb-1">Ứng dụng thư viện đã có mặt!</h4>
-                <p className="text-blue-100 text-sm">Tải ngay trên iOS và Android để quản lý mượn trả tiện lợi.</p>
-              </div>
-              <button className="bg-white text-blue-600 px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-50">Tải ngay</button>
-            </div>
           </div>
         </div>
       </section>

@@ -77,3 +77,4 @@ class TraCuuYeuCauResponse(DBModel):
     trang_thai: str       # 'choDuyet', 'daDuyet', 'tuChoi', 'THE_DANG_HOAT_DONG'
     ly_do_tu_choi: Optional[str] = None
     sothe: Optional[str] = None # [Mới] Hiển thị số thẻ nếu đã có
+    anh_the_url: Optional[str] = None

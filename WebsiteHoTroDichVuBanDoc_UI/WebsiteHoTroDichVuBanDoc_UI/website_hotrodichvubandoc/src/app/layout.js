@@ -5,7 +5,7 @@ import { config } from '@fortawesome/fontawesome-svg-core';
 import '@fortawesome/fontawesome-svg-core/styles.css';
 import Header from '@/components/Header';
 import Chatbot from '@/components/Chatbot';
-// import Footer from '@/components/Footer';
+import Footer from '@/components/Footer';
 
 config.autoAddCss = false;
 const inter = Inter({ subsets: ['latin', 'vietnamese'], weight: ['300', '400', '500', '600', '700', '800'] });
@@ -23,8 +23,9 @@ export default function RootLayout({ children }) {
         <main className="grow">
           {children}
         </main>
-        {/* Nếu bạn chưa có Footer, có thể tạm comment dòng dưới */}
-        {/* <Footer /> */}
+
+        <Footer />
+
         <Chatbot />
       </body>
     </html>

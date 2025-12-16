@@ -635,6 +635,7 @@ def tra_cuu_yeu_cau_the(
                 )
 
                 if existing_member.data:
+                    info = existing_member.get("thongtinbosung") or {}
                     for member in existing_member.data:
                         cards = member.get("thebandoc", [])
                         for card in cards:
@@ -650,7 +651,8 @@ def tra_cuu_yeu_cau_the(
                                     "ngay_dang_ky": None,
                                     "trang_thai": "THE_DANG_HOAT_DONG",
                                     "sothe": card.get("sothe"),
-                                    "ly_do_tu_choi": None
+                                    "ly_do_tu_choi": None,
+                                    "anh_the_url": info.get("anh_the_url")
                                 }
                                 result_list.append(active_card_item)
             except Exception as e:
@@ -683,7 +685,8 @@ def tra_cuu_yeu_cau_the(
                 "ngay_dang_ky": item["thoigianbatdau"],
                 "trang_thai": item["trangthaiquytrinh"],
                 "ly_do_tu_choi": info.get("ly_do_tu_choi"),
-                "sothe": None
+                "sothe": None,
+                "anh_the_url": info.get("anh_the_url")
             }
             result_list.append(req_item)
 
