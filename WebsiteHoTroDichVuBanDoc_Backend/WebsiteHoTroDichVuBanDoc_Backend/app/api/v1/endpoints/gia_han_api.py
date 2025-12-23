@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from app.models.gia_han import GiaHan, GiaHanCreate, GiaHanUpdate
 from app.connect.db import supabase_client
-from app.connect.auth import get_current_staff_profile, get_current_reader_profile, get_current_user_from_db, get_renewal_owner_or_staff, get_loan_owner_or_staff
+from app.connect.auth import get_current_staff_profile, get_current_user_from_db, get_renewal_owner_or_staff, get_loan_owner_or_staff
 from app.utils import to_json_safe
 import logging, ast
 

@@ -14,7 +14,11 @@ class TacPhamFullInfo(DBModel):
     so_luong_tong: int
 
 class ChatRequest(DBModel):
+    user_id: int
+    session_id: str = None # Optional, nếu không có server sẽ tự tạo
     message: str
 
+# Output Model
 class ChatResponse(DBModel):
     reply: str
+    session_id: str # Trả lại để Client lưu dùng tiếp

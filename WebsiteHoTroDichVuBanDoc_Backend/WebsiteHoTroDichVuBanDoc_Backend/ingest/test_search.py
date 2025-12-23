@@ -1,60 +1,43 @@
-from sentence_transformers import SentenceTransformer
-from supabase import create_client
-from dotenv import load_dotenv
-import os
+import requests
+import time
+import uuid
 
-# Load env
-load_dotenv()
+API_URL = "http://127.0.0.1:8000/api/v1/chatbot/chat"
+TEST_USER_ID = 1
+# Tạo session mới mỗi lần chạy test để đảm bảo sạch sẽ
+SESSION_ID = f"test_session_{int(time.time())}"
 
-supabase = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_SERVICE_KEY")
-)
+def send_message(message):
+    payload = {
+        "user_id": TEST_USER_ID,
+        "session_id": SESSION_ID,
+        "message": message
+    }
+    print(f"\n👱 User: {message}")
 
-# Load model (CHUNG với ingest)
-model = SentenceTransformer(
-    "BAAI/bge-m3",
-    trust_remote_code=True
-)
+    try:
+        response = requests.post(API_URL, json=payload)
+        if response.status_code == 200:
+            data = response.json()
+            print(f"🤖 AI: {data['reply']}")
+        else:
+            print(f"❌ Error: {response.text}")
+    except Exception as e:
+        print(f"❌ Connection Error: {e}")
 
-def embed_query(query: str):
-    """
-    bge-m3 BẮT BUỘC phân biệt query / document
-    """
-    query = "query: " + query
-    emb = model.encode(
-        [query],
-        normalize_embeddings=True
-    )
-    return emb[0].tolist()
+def run_test():
+    print(f"🧪 BẮT ĐẦU TEST VỚI SESSION: {SESSION_ID}")
 
-def search(query, limit=5):
-    query_embedding = embed_query(query)
+    # 1. Hỏi sách
+    send_message("Có cuốn sách nào về lập trình có thể mượn bây giờ không?")
+    time.sleep(2) # Chờ DB lưu
 
-    response = supabase.rpc(
-        "match_rag_documents",
-        {
-            "query_embedding": query_embedding,
-            "match_count": limit
-        }
-    ).execute()
+    # 2. Hỏi vị trí (Check ngữ cảnh)
+    send_message("Sách này nằm ở đâu?")
+    time.sleep(2)
 
-    return response.data
+    # 3. Hỏi tác giả
+    send_message("Tác giả là ai?")
 
 if __name__ == "__main__":
-    query = "Thủ tục cấp thẻ thư viện cho sinh viên"
-
-    print("🔍 QUERY:", query)
-    print("=" * 70)
-
-    results = search(query)
-
-    if not results:
-        print("❌ Không tìm thấy kết quả nào")
-    else:
-        for i, r in enumerate(results, 1):
-            print(f"\n📌 Result {i}")
-            print("📂 Category:", r["category"])
-            print("📄 Source:", r["source"])
-            print("📊 Similarity:", round(r["similarity"], 4))
-            print("📝 Content:\n", r["content"])
+    run_test()
