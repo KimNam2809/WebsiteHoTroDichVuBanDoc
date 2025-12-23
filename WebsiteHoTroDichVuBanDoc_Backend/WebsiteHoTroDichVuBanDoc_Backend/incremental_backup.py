@@ -12,8 +12,8 @@ from app.connect.config import settings
 TABLE_PK_MAP = {
     "tacpham_danhmuc": "matacpham, madanhmuc",
     "tacpham_tukhoa": "matacpham, matukhoa",
-    "rag_chunks": "id",
-    "rag_documents": "id"
+    # "rag_chunks": "id",
+    # "rag_documents": "id"
     # Nếu có bảng nào khác dùng 2 khóa chính, hãy thêm vào đây
 }
 

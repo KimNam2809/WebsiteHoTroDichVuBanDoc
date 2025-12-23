@@ -6,7 +6,7 @@ from app.api.v1.endpoints import (
     loai_the_api, the_ban_doc_api, yeu_cau_the_api, yeu_cau_giao_api, van_chuyen_api, thong_bao_api,
     cho_ngoi_api, dat_cho_ngoi_api, phong_api, dat_phong_api,
     tinh_thanh_pho_api, phuong_xa_api, auth_api,
-    ai_api, rag_api
+    ai_api, rag_api, chatbot_api
 )
 
 api_router = APIRouter()
@@ -58,3 +58,5 @@ api_router.include_router(mock_national_db_api.router, prefix="/mock-national-db
 api_router.include_router(ai_api.router, prefix="/ai", tags=["Tìm Kiếm AI"])
 # API RAG - Truy vấn tài liệu với Vector
 api_router.include_router(rag_api.router, prefix="/rag", tags=["RAG - Truy Vấn Tài Liệu"])
+# API Chatbot Thủ thư AI
+api_router.include_router(chatbot_api.router, prefix="/chatbot", tags=["Chatbot Thủ Thư AI"])

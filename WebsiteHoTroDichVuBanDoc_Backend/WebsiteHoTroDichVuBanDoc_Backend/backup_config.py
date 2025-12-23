@@ -30,6 +30,6 @@ TABLES_ORDER = [
     "datphong", "datchongoi", "muontra", "giahan", "dattruoc", "yeucaugiao",
     # 6. Others
     "thongbao", "baiviet",
-    # 7. API RAG
-    "rag_chunks", "rag_documents"
+    # # 7. API RAG
+    # "rag_chunks", "rag_documents"
 ]

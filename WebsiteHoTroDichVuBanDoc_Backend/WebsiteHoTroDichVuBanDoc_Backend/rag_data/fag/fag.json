@@ -1,0 +1,22 @@
+[
+    {
+        "question": "Thư viện có mở cửa vào thứ Hai không?",
+        "answer": "Không. Thư viện nghỉ phục vụ vào Thứ Hai hàng tuần."
+    },
+    {
+        "question": "Tôi có thể gia hạn sách đang mượn không?",
+        "answer": "Có. Bạn có thể gia hạn nếu sách chưa có người đặt trước và chưa vượt quá số lần gia hạn."
+    },
+    {
+        "question": "Sinh viên mượn được bao nhiêu cuốn?",
+        "answer": "Số lượng và thời gian mượn phụ thuộc vào loại thẻ sinh viên bạn đăng ký."
+    },
+    {
+        "question": "Tôi có thể đặt chỗ ngồi học tập không?",
+        "answer": "Có. Bạn có thể đặt chỗ ngồi hoặc phòng học thông qua hệ thống thư viện."
+    },
+    {
+        "question": "Làm sao để báo mất thẻ thư viện?",
+        "answer": "Bạn cần báo ngay cho thư viện để khóa thẻ và làm thủ tục cấp lại."
+    }
+]

@@ -1,6 +1,9 @@
 from typing import List, Optional
 from datetime import datetime
 from app.models.db_base import DBModel
+from app.models.danh_muc import DanhMuc
+from app.models.ban_sao import BanSao
+
 
 class TacPhamBase(DBModel):
     tenTacPham: str
@@ -46,3 +49,10 @@ class BookSearchResult(DBModel):
     mota: Optional[str] = None
     namxuatban: Optional[int] = None
     similarity: float       # Điểm tương đồng (VD: 0.89 = 89% giống)
+
+class TacPhamFullInfo(DBModel):
+    thong_tin_chung: TacPham
+    danh_muc: List[DanhMuc]
+    ban_sao: List[BanSao]
+    so_luong_co_san: int
+    so_luong_tong: int

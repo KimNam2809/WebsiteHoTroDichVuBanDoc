@@ -3,9 +3,8 @@ import re, time
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status, Query
 from typing import List, Optional
 from app.connect.auth import get_current_staff_profile
-from app.models.tac_pham import TacPham, TacPhamCreate, TacPhamUpdate, TimKiemTacPham
+from app.models.tac_pham import TacPham, TacPhamCreate, TacPhamUpdate, TimKiemTacPham, TacPhamFullInfo
 from app.models.ban_sao import BanSao
-from app.models.custom_response import TacPhamFullInfo
 from app.connect.db import supabase_client
 import logging
 
