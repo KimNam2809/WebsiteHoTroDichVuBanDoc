@@ -86,28 +86,45 @@ def renew_book(user_id: int, book_name_keyword: str):
         current_due = datetime.strptime(target_loan['ngaytra'], "%Y-%m-%d")
         new_due = current_due + timedelta(days=7)
 
+        # Tính toán ngày để thông báo cho người dùng biết tình trạng
+        today = datetime.now().date()
+        due_date = datetime.strptime(target_loan['ngaytra'], "%Y-%m-%d").date()
+
+        # Logic tính ngày trả mới (Ví dụ cộng 7 ngày từ hôm nay hoặc từ hạn cũ)
+        # Thường gia hạn tính từ ngày thao tác hoặc cộng nối tiếp. Ở đây cộng nối tiếp.
+        if today > due_date:
+            # Nếu đang quá hạn (nhưng <= 2 ngày nên RPC mới cho qua), tính từ hôm nay cho công bằng
+            new_due = today + timedelta(days=7)
+            msg_suffix = "(Đã được ân hạn quá hạn)"
+        else:
+            new_due = due_date + timedelta(days=7)
+            msg_suffix = ""
+
         params = {
             "p_ma_muon_tra": target_loan['mamuontra'],
-            "p_ma_nhan_vien": None, # Null vì user tự gia hạn
+            "p_ma_nhan_vien": None,
             "p_ngay_tra_moi": new_due.strftime("%Y-%m-%d"),
-            "p_ly_do_gia_han": "Gia hạn qua Chatbot AI"
+            "p_ly_do_gia_han": "Chatbot renew"
         }
 
-        # 4. Gọi RPC
         rpc_res = supabase_client.rpc("fn_gia_han", params).execute()
 
-        # Xử lý lỗi từ RPC (nếu có)
+        # Bắt lỗi từ RPC (nếu quá hạn > 2 ngày, RPC sẽ ném lỗi BUSINESS_ERROR)
         if hasattr(rpc_res, 'error') and rpc_res.error:
-            return f"Lỗi gia hạn: {rpc_res.error}"
+            err_msg = str(rpc_res.error)
+            if "BUSINESS_ERROR" in err_msg:
+                # Trích xuất thông báo tiếng Việt từ RPC
+                try:
+                    clean_msg = err_msg.split('MESSAGE:')[1].split('DETAIL:')[0].strip().replace('"', '')
+                    return f"⚠️ Thất bại: {clean_msg}"
+                except:
+                    return f"⚠️ Thất bại: {err_msg}"
+            return f"Lỗi: {err_msg}"
 
-        return f"✅ Thành công! Sách đã được gia hạn đến ngày {new_due.strftime('%d/%m/%Y')}."
+        return f"✅ Gia hạn thành công sách '{target_loan['bansao']['tacpham']['tentacpham']}'! {msg_suffix}\nHạn trả mới: {new_due.strftime('%d/%m/%Y')}."
 
     except Exception as e:
-        # Xử lý thông báo lỗi đẹp hơn nếu là lỗi nghiệp vụ
-        err_msg = str(e)
-        if "BUSINESS_ERROR" in err_msg:
-            return f"Không thể gia hạn: {err_msg.split('MESSAGE:')[1].split('DETAIL:')[0].strip()}"
-        return f"Lỗi hệ thống khi gia hạn: {err_msg}"
+        return f"Lỗi hệ thống gia hạn: {str(e)}"
 
 # --- 3. ĐẶT TRƯỚC (RESERVE) ---
 def reserve_book(user_id: int, book_name_keyword: str):

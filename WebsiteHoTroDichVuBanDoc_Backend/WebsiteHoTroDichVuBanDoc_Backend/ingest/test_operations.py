@@ -21,17 +21,17 @@ def run():
     print("🚀 TEST FINAL FIX (RESERVE & RENEW)")
 
     # 1. Kiểm tra để biết tên sách chính xác
-    send("Tôi đang mượn cuốn nào?")
+    send("tôi đang mượn những sách gì?")
+    time.sleep(2)
+
+    # 1. Kiểm tra để biết tên sách chính xác
+    send("Gia hạn cuốn Cho tôi xin một vé đi tuổi thơ giúp tôi.")
     time.sleep(2)
 
     # 2. Gia hạn (Dùng tên cụ thể để tránh AI hỏi lại)
     # Vì trong log bạn có cuốn này, nên test luôn
-    send("Gia hạn cuốn Cho tôi xin một vé đi tuổi thơ.")
+    send("Đặt trước cho tôi cuốn Harry Potter và Hòn Đá Phù Thủy.")
     time.sleep(2)
-
-    # 3. Đặt trước Mắt Biếc
-    # Kỳ vọng: AI trả về output từ Tool (Có ID sách, Vị trí...), không tự bịa chuyện.
-    send("Đặt trước cuốn Mắt Biếc nhé.")
 
 if __name__ == "__main__":
     run()

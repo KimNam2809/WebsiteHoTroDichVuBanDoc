@@ -48,7 +48,7 @@ def check_book_availability_realtime(book_name: str):
         if count > 0:
             return f"Sách '{book['tentacpham']}' hiện CÒN {count} bản trên kệ. Bạn có thể đến mượn ngay."
         else:
-            return f"Sách '{book['tentacpham']}' hiện ĐÃ HẾT (đang được mượn hết). Vui lòng đặt trước hoặc quay lại sau."
+            return f"Sách '{book['tentacpham']}' hiện ĐÃ ĐƯỢC MƯỢN HẾT. Bạn có thể đặt trước để nhận thông báo ngay khi bạn đọc khác trả sách"
 
     except Exception as e:
         return f"Lỗi kiểm tra tình trạng sách: {str(e)}"

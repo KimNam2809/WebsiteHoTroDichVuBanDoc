@@ -1,5 +1,4 @@
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from app.models.tac_pham import TacPham
 from app.models.ban_sao import BanSao
 from app.models.danh_muc import DanhMuc
@@ -13,12 +12,17 @@ class TacPhamFullInfo(DBModel):
     so_luong_co_san: int
     so_luong_tong: int
 
+class ClientAction(DBModel):
+    type: str  # "none", "navigate", "show_tool_result"
+    payload: Optional[str] = None # Đường dẫn URL hoặc nội dung khác
+    label: Optional[str] = None # Nhãn của nút bấm (VD: "Đi đến trang đăng ký")
+
 class ChatRequest(DBModel):
     user_id: int
-    session_id: str = None # Optional, nếu không có server sẽ tự tạo
+    session_id: Optional[str] = None
     message: str
 
-# Output Model
 class ChatResponse(DBModel):
     reply: str
-    session_id: str # Trả lại để Client lưu dùng tiếp
+    session_id: str
+    action: Optional[ClientAction] = None
