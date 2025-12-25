@@ -1,142 +1,159 @@
-# File: app/services/brain.py
 import re
+import json
 from langchain_ollama import ChatOllama
-from langchain_core.callbacks import CallbackManager
-from langchain_core.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from app.api.v1.services.rag_service import query_rag_context
 from app.api.v1.services.history_service import get_recent_history_as_text, save_chat_history
-from app.api.v1.tools.action_tools import check_my_status, renew_book, reserve_book, quick_book_seat
+from app.api.v1.tools.db_tools import search_library_sql, get_facility_status, search_articles_sql, search_equipment_sql
+from app.api.v1.tools.action_tools import check_personal_dashboard, handle_book_action
 
 class LibraryBrain:
     def __init__(self):
-        self.llm = ChatOllama(
-            model="llama3",
-            base_url="http://localhost:11434",
-            temperature=0.0, # Giữ nhiệt độ 0 để AI không sáng tạo bừa bãi
-            # callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]) # Tắt stream log để đỡ rối
-        )
+        self.llm = ChatOllama(model="llama3", base_url="http://localhost:11434", temperature=0.0)
+        self.nav_map = {
+            "card": {"url": "/account/card-request", "label": "Đăng ký thẻ"},
+            "room": {"url": "/booking/room", "label": "Đặt phòng họp"},
+            "ship": {"url": "/services/delivery", "label": "Yêu cầu giao sách"}
+        }
 
-    def contextualize_query(self, history: str, current_query: str) -> str:
-        if not history: return current_query
-
-        # Kỹ thuật Few-Shot: Đưa ví dụ input/output để AI bắt chước
-        prompt = f"""
-        Bạn là một công cụ viết lại câu (Rewriting Tool).
-        Nhiệm vụ: Dựa vào lịch sử, viết lại câu nói hiện tại của user cho đầy đủ chủ ngữ/vị ngữ.
-
-        QUY TẮC TUYỆT ĐỐI:
-        1. KHÔNG giải thích, KHÔNG thêm "Lý giải", KHÔNG thêm "Here is...".
-        2. CHỈ trả về duy nhất 1 câu kết quả.
-        3. Nếu là câu lệnh (Gia hạn, Đặt trước), GIỮ NGUYÊN ý định.
-
-        VÍ DỤ MẪU:
-        - History: User: Sách Đắc Nhân Tâm ở đâu? AI: Kệ A.
-        - Current: Nó còn không?
-        -> Output: Sách Đắc Nhân Tâm còn không?
-
-        - History: User: Tôi muốn mượn sách.
-        - Current: Gia hạn cuốn đó.
-        -> Output: Gia hạn cuốn sách tôi đang mượn.
-
-        LỊCH SỬ THỰC TẾ:
-        {history}
-
-        CÂU HIỆN TẠI: {current_query}
-
-        OUTPUT:
+    def extract_search_keyword(self, history: str, query: str):
         """
-        try:
-            new_query = self.llm.invoke(prompt).content.strip()
-            # Hậu xử lý: Nếu AI vẫn cố tình giải thích dài dòng, ta lấy dòng đầu tiên hoặc fallback về query cũ
-            if "\n" in new_query or len(new_query) > len(current_query) * 3:
-                print(f"⚠️ Rephrase quá dài, dùng query gốc: {new_query}")
-                return current_query
+        Nhiệm vụ: Chỉ trích xuất ĐÚNG từ khóa chính (tên sách, tác giả, tên phòng).
+        Chống AI giải thích dài dòng.
+        """
+        prompt = f"""
+        [LỊCH SỬ]: {history}
+        [CÂU HỎI]: {query}
 
-            # Loại bỏ các ký tự thừa
-            new_query = new_query.replace('"', '').replace("Output:", "").strip()
-            print(f"🔄 Rephrased: '{current_query}' -> '{new_query}'")
-            return new_query
+        NHIỆM VỤ: Dựa vào lịch sử và câu hỏi, hãy trả về DUY NHẤT tên đối tượng (sách/người/phòng) được nhắc đến.
+        QUY TẮC:
+        - KHÔNG giải thích.
+        - KHÔNG trả lời bằng tiếng Anh.
+        - Nếu không có đối tượng cụ thể, trả về 'NONE'.
+        - Nếu câu hỏi dùng 'nó', 'sách này', hãy lấy tên từ lịch sử.
+
+        TÊN ĐỐI TƯỢNG:"""
+
+        try:
+            res = self.llm.invoke(prompt).content.strip()
+            # Hậu xử lý để chặn AI nói dài
+            keyword = res.split('\n')[0].replace('"', '').replace("'", "").replace(".", "")
+            if len(keyword) > 50: # Nếu quá dài là AI đang giải thích -> lấy 5 từ đầu
+                keyword = " ".join(keyword.split()[:5])
+            return None if "NONE" in keyword.upper() else keyword
         except:
-            return current_query
+            return None
+
+    def extract_entities(self, query: str, history: str):
+        """Trích xuất đa tham số dưới dạng JSON sạch."""
+        prompt = f"""
+        Nhiệm vụ: Trích xuất thông tin từ câu hỏi dựa vào lịch sử chat. Trả về JSON.
+        BẮT BUỘC:
+        1. Chỉ trả về JSON, không giải thích, không dùng tiếng Anh.
+        2. Nếu dùng 'nó', 'quyển đó', lấy tên từ LỊCH SỬ.
+        3. Nếu không có thông tin, để giá trị là null.
+
+        Cấu trúc JSON:
+        {{
+            "book_name": "tên sách",
+            "author": "tên tác giả",
+            "room_name": "tên phòng",
+            "device_name": "tên thiết bị"
+        }}
+
+        [LỊCH SỬ]: {history}
+        [CÂU HỎI]: {query}
+        JSON:"""
+
+        try:
+            res = self.llm.invoke(prompt).content.strip()
+            # Tìm kiếm khối JSON trong chuỗi trả về
+            json_match = re.search(r'\{.*\}', res, re.DOTALL)
+            if json_match:
+                return json.loads(json_match.group())
+            return {}
+        except:
+            return {}
 
     def process_chat(self, user_query: str, user_id: int, session_id: str):
-        # 1. Rephrase
-        history_text = get_recent_history_as_text(user_id, session_id)
-        refined_query = self.contextualize_query(history_text, user_query)
+        # 0. Ưu tiên ngữ cảnh ngược (Lấy lịch sử mới nhất trước)
+        history = get_recent_history_as_text(user_id, session_id)
+        q_lower = user_query.lower()
 
-        # 2. RAG
-        context = query_rag_context(refined_query)
+        # 1. PHÂN LOẠI INTENT (Dựa trên 12 nhóm nghiệp vụ)
 
-        # 3. System Prompt (Cập nhật tên Tool)
-        system_prompt = f"""
+        # Trích xuất đa tham số
+        entities = self.extract_entities(user_query, history)
+
+        # --- Nhóm Điều hướng (Navigation) ---
+        if any(w in q_lower for w in ["làm thẻ", "đăng ký thẻ", "yeu cau the"]):
+            return {"reply": "Mời bạn điền form đăng ký thẻ tại đây.", "action": {"type": "navigate", "payload": self.nav_map['card']}}
+
+        if any(w in q_lower for w in ["giao tài liệu", "ship", "vận chuyển"]):
+            return {"reply": "Mời bạn tạo yêu cầu giao sách tận nhà.", "action": {"type": "navigate", "payload": self.nav_map['ship']}}
+
+        # --- Nhóm Hành động AI (Action Tools) ---
+        if any(w in q_lower for w in ["tôi mượn", "phạt", "nợ", "tình trạng của tôi"]):
+            return {"reply": check_personal_dashboard(user_id), "action": None}
+
+        if "gia hạn" in q_lower or "đặt trước" in q_lower:
+            action = "renew" if "gia hạn" in q_lower else "reserve"
+            target = entities.get("book_name")
+            if target:
+                return {"reply": handle_book_action(user_id, target, action), "action": None}
+
+        # --- Nhóm Tra cứu DB (DB Tools) ---
+        # if any(w in q_lower for w in ["bài viết", "tin tức", "thông báo", "hướng dẫn về", "blog"]):
+        #     keyword = self.extract_target(user_query, history)
+        #     return {"reply": search_articles_sql(keyword if keyword else "mới nhất"), "action": None}
+
+        # if any(w in q_lower for w in ["máy tính", "máy chiếu", "thiết bị", "điều hòa", "wifi"]):
+        #     device = self.extract_target(user_query, history)
+        #     return {"reply": search_equipment_sql(device_name=device), "action": None}
+
+        if any(w in q_lower for w in ["tìm sách", "có sách", "tác giả", "về chủ đề"]):
+            # Truyền tham số dưới dạng keyword arguments để tránh lỗi positional error
+            return {"reply": search_library_sql(
+                keyword=entities.get("book_name"),
+                author=entities.get("author")
+            ), "action": None}
+
+        if any(w in q_lower for w in ["máy tính", "thiết bị", "phòng", "chỗ trống"]):
+            if entities.get("device_name"):
+                return {"reply": search_equipment_sql(
+                    device_name=entities.get("device_name"),
+                    room_name=entities.get("room_name")
+                ), "action": None}
+            return {"reply": get_facility_status(entities.get("room_name")), "action": None}
+
+        # --- Nhóm Hỏi đáp linh tinh (RAG) ---
+        context = query_rag_context(user_query)
+        # Ép AI trả lời bằng tiếng Việt và bám sát ngữ cảnh 2025
+        prompt = f"""
         <SYSTEM>
-        Bạn là Trợ lý Thư viện Đà Nẵng.
-        User ID: {user_id}.
+        Bạn là Trợ lý AI Thư viện Đà Nẵng năm 2025.
+        Dữ liệu tham khảo: {context}
+        Lịch sử trò chuyện: {history}
 
-        NHIỆM VỤ ƯU TIÊN: GỌI TOOL KHI CẦN THIẾT.
-
-        DANH SÁCH TOOL:
-        1. Kiểm tra trạng thái (Mượn sách/Phạt): ||TOOL:check_status||
-            (Dùng khi: "Tôi đang mượn gì", "Kiểm tra phạt", "Có nợ gì không")
-
-        2. Gia hạn sách: ||TOOL:renew|Tên_Sách_Cụ_Thể||
-            (Dùng khi: "Gia hạn cuốn X", "Mượn thêm ngày")
-
-        3. Đặt trước sách: ||TOOL:reserve|Tên_Sách_Cụ_Thể||
-
-        LƯU Ý QUAN TRỌNG:
-        - Nếu người dùng KHÔNG nói tên sách cụ thể, ĐỪNG tự điền "Tên_Sách". Hãy hỏi lại tên sách.
-        - Trả lời bằng tiếng Việt.
+        Nhiệm vụ:
+        - Trả lời câu hỏi người dùng một cách chuyên nghiệp, chính xác. lịch sự.
+        - Nếu người dùng hỏi về bài viết cụ thể, hãy nhắc họ nhấn vào link đính kèm.
+        - Không bịa đặt thông tin nếu không có trong dữ liệu.
+        - Luôn trả lời bằng tiếng Việt và chỉ trả lời bằng tiếng Anh nếu người dùng yêu cầu.
         </SYSTEM>
-
-        Lịch sử:
-        {history_text}
-
-        User: {refined_query}
+        User: {user_query}
         Assistant:
         """
 
-        print("--- Sending to AI ---")
-        response = self.llm.invoke(system_prompt).content.strip()
-        print(f"🤖 AI Raw: {response}")
+        final_response = self.llm.invoke(prompt).content
 
-        # 4. XỬ LÝ TOOL
+        # Lưu lịch sử và trả về
+        save_chat_history(user_id, session_id, "user", user_query)
+        save_chat_history(user_id, session_id, "assistant", final_response)
 
-        # A. Check Status (Tool Mới)
-        if "||TOOL:check_status||" in response:
-            result = "\n" + check_my_status(user_id)
-            response = response.replace("||TOOL:check_status||", result)
+        return {"reply": final_response, "action": None}
 
-        # B. Renew
-        elif "||TOOL:renew|" in response:
-            match = re.search(r"\|\|TOOL:renew\|(.*?)\|\|", response)
-            book_name = match.group(1).strip() if match else ""
-
-            # CHẶN LỖI PLACEHOLDER
-            if book_name in ["Tên_Sách", "Tên_Sách_Cụ_Thể", "your_book_name"]:
-                response = "Vui lòng cho tôi biết cụ thể tên cuốn sách bạn muốn gia hạn."
-            elif not book_name:
-                response = "Vui lòng cung cấp tên sách để gia hạn."
-            else:
-                result = "\n" + renew_book(user_id, book_name)
-                response = response.split("||")[0] + result
-
-        # C. Reserve
-        elif "||TOOL:reserve|" in response:
-            match = re.search(r"\|\|TOOL:reserve\|(.*?)\|\|", response)
-            book_name = match.group(1).strip() if match else ""
-
-            if book_name in ["Tên_Sách", "Tên_Sách_Cụ_Thể"]:
-                response = "Vui lòng cho tôi biết cụ thể tên cuốn sách bạn muốn đặt trước."
-            elif not book_name:
-                response = "Vui lòng cung cấp tên sách để đặt trước."
-            else:
-                result = "\n" + reserve_book(user_id, book_name)
-                response = response.split("||")[0] + result
-
-        # Lưu lịch sử
-        if user_id:
-            save_chat_history(user_id, session_id, "user", user_query)
-            save_chat_history(user_id, session_id, "assistant", response)
-
-        return response
+    def extract_target(self, query: str, history: str):
+        """Trích xuất danh từ mục tiêu, ưu tiên Recency Bias (Ngữ cảnh mới nhất)."""
+        prompt = f"Lịch sử chat (mới nhất ở dưới):\n{history}\nCâu hiện tại: {query}\nTrích xuất tên riêng/danh từ/tên sách/tên chủ đề được nhắc đến GẦN NHẤT. Chỉ trả về tên, không giải thích. Nếu không có, trả về 'NONE'."
+        res = self.llm.invoke(prompt).content.strip()
+        return "" if "NONE" in res else res

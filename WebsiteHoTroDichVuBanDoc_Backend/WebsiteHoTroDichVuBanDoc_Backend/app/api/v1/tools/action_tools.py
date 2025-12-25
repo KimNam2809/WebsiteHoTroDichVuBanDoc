@@ -1,214 +1,96 @@
-# File: app/tools/action_tools.py
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from app.connect.db import supabase_client
-import json
 
-# --- 1. KIỂM TRA PHẠT ---
-def check_my_status(user_id: int):
-    """
-    Kiểm tra tổng quan: Sách đang mượn + Tiền phạt.
-    """
+def get_user_id_by_auth(manguoidung_id: int):
+    """Lấy mã bạn đọc từ mã người dùng."""
+    res = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", manguoidung_id).single().execute()
+    return res.data['mabandoc'] if res.data else None
+
+def check_personal_dashboard(user_id: int):
+    """Tổng hợp toàn bộ trạng thái cá nhân dựa trên schema."""
     try:
-        # 1. Lấy maBanDoc
-        profile_res = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).single().execute()
-        if not profile_res.data:
-            return "Bạn chưa có hồ sơ bạn đọc."
+        mbd = get_user_id_by_auth(user_id)
+        if not mbd: return "Bạn chưa có hồ sơ bạn đọc."
 
-        ma_ban_doc = profile_res.data["mabandoc"]
+        # 1. Mượn trả & Phạt
+        mt = supabase_client.table("muontra").select("ngaytra, tienphat, bansao(tacpham(tentacpham))")\
+            .eq("mabandoc", mbd).eq("trangthaimuon", "daMuon").execute()
 
-        msg = []
+        # 2. Đặt chỗ & Đặt phòng
+        dc = supabase_client.table("datchongoi").select("thoigianbatdau, chongoi(tenchongoi)")\
+            .eq("mabandoc", mbd).eq("trangthaidatcho", "kichHoat").execute()
 
-        # 2. Kiểm tra sách ĐANG MƯỢN (daMuon)
-        loan_res = supabase_client.table("muontra").select(
-            "ngaytra, bansao(tacpham(tentacpham))"
-        ).eq("mabandoc", ma_ban_doc).eq("trangthaimuon", "daMuon").execute()
+        summary = []
+        if mt.data:
+            summary.append("📚 Đang mượn: " + ", ".join([f"{i['bansao']['tacpham']['tentacpham']} (Hạn: {i['ngaytra']})" for i in mt.data]))
+            fines = sum(float(i['tienphat']) for i in mt.data if i['tienphat'])
+            if fines > 0: summary.append(f"⚠️ Nợ phạt: {fines:,.0f} VNĐ")
+        if dc.data:
+            summary.append("🪑 Đang đặt chỗ: " + ", ".join([f"{i['chongoi']['tenchongoi']}" for i in dc.data]))
 
-        if loan_res.data:
-            books = [f"- {item['bansao']['tacpham']['tentacpham']} (Hạn: {item['ngaytra']})" for item in loan_res.data]
-            msg.append(f"📚 Sách đang mượn:\n" + "\n".join(books))
-        else:
-            msg.append("Bạn hiện không mượn cuốn sách nào.")
+        return "\n".join(summary) if summary else "Bạn hiện không có hoạt động mượn trả hay đặt chỗ nào."
+    except Exception as e: return f"Lỗi dashboard: {str(e)}"
 
-        # 3. Kiểm tra TIỀN PHẠT (tienphat > 0)
-        fine_res = supabase_client.table("muontra").select(
-            "tienphat, bansao(tacpham(tentacpham))"
-        ).eq("mabandoc", ma_ban_doc).gt("tienphat", 0).execute()
+def handle_book_action(user_id: int, book_name: str, action_type: str):
+    """Xử lý Gia hạn (renew) hoặc Đặt trước (reserve) sách."""
+    mbd = get_user_id_by_auth(user_id)
+    if action_type == "renew":
+        # Tìm phiếu mượn gần nhất của sách này
+        res = supabase_client.table("muontra").select("mamuontra, ngaytra")\
+            .eq("mabandoc", mbd).eq("trangthaimuon", "daMuon")\
+            .ilike("bansao.tacpham.tentacpham", f"%{book_name}%").limit(1).execute()
+        if not res.data: return f"Bạn không mượn sách '{book_name}'."
 
-        if fine_res.data:
-            total = sum(item['tienphat'] for item in fine_res.data)
-            msg.append(f"\n⚠️ CẢNH BÁO PHẠT: Tổng {total:,.0f}đ.")
+        # Gọi RPC đã sửa với logic ân hạn 2 ngày
+        params = {"p_ma_muon_tra": res.data[0]['mamuontra'], "p_ma_nhan_vien": None,
+                "p_ngay_tra_moi": (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d"),
+                "p_ly_do_gia_han": "AI Assistant"}
+        rpc = supabase_client.rpc("fn_gia_han", params).execute()
+        return "✅ Gia hạn thành công." if not hasattr(rpc, 'error') else f"❌ {rpc.error['message']}"
 
-        return "\n".join(msg)
+    if action_type == "reserve":
+        existing = supabase_client.table("dattruoc")\
+            .select("madattruoc")\
+            .eq("mabandoc", mbd)\
+            .eq("trangthaidattruoc", "kichHoat")\
+            .ilike("bansao.tacpham.tentacpham", f"%{book_name}%")\
+            .execute()
 
-    except Exception as e:
-        return f"Lỗi kiểm tra trạng thái: {str(e)}"
+        if existing.data:
+            return f"Thông báo: Bạn đã thực hiện đặt trước cuốn sách '{book_name}' rồi. Hệ thống đang ghi nhận yêu cầu của bạn, vui lòng không đặt lại."
 
-# --- 2. GIA HẠN SÁCH ---
-def renew_book(user_id: int, book_name_keyword: str):
-    """
-    Gia hạn sách.
-    Logic:
-    1. Tìm maBanDoc.
-    2. Tìm phiếu mượn 'daMuon' khớp tên sách.
-    3. Gọi RPC fn_gia_han.
-    """
+        # Tìm bản sao đang bận
+        res = supabase_client.table("bansao").select("mabansao").eq("trangthaichomuon", False)\
+            .ilike("tacpham.tentacpham", f"%{book_name}%").limit(1).execute()
+        if not res.data: return f"Sách '{book_name}' hiện có sẵn, mời bạn mượn trực tiếp."
+
+        rpc = supabase_client.rpc("fn_dat_truoc", {"p_ma_ban_sao": res.data[0]['mabansao'], "p_ma_ban_doc": mbd}).execute()
+        return "✅ Đã đặt trước thành công."
+
+def increment_article_view(article_id: int):
+    """Tăng số lượt xem cho bài viết khi người dùng nhấn xem qua chatbot."""
     try:
-        # 1. Lấy maBanDoc
-        profile_res = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).single().execute()
-        if not profile_res.data: return "Bạn chưa có hồ sơ bạn đọc."
-        ma_ban_doc = profile_res.data["mabandoc"]
+        # Lấy số lượt xem hiện tại
+        current = supabase_client.table("baiviet").select("soluotxem").eq("mabaiviet", article_id).single().execute()
+        if current.data:
+            new_views = current.data['soluotxem'] + 1
+            supabase_client.table("baiviet").update({"soluotxem": new_views}).eq("mabaiviet", article_id).execute()
+            return True
+    except:
+        return False
 
-        # 2. Tìm phiếu mượn
-        res = supabase_client.table("muontra").select(
-            "mamuontra, ngaytra, solangiahan, solangiahantoida, bansao(tacpham(tentacpham))"
-        ).eq("mabandoc", ma_ban_doc).eq("trangthaimuon", "daMuon").execute()
-
-        loans = res.data
-        target_loan = None
-
-        for loan in loans:
-            # An toàn khi truy xuất nested dict
-            try:
-                title = loan['bansao']['tacpham']['tentacpham']
-            except:
-                title = ""
-
-            if book_name_keyword.lower() in title.lower():
-                target_loan = loan
-                break
-
-        if not target_loan:
-            return f"Bạn hiện không mượn cuốn sách nào có tên chứa '{book_name_keyword}'."
-
-        # 3. Chuẩn bị tham số cho RPC
-        # Logic ngày trả mới: Ngày hiện tại của phiếu + 7 ngày (hoặc quy định khác)
-        # Lưu ý: Hàm RPC fn_gia_han yêu cầu p_ngay_tra_moi
-        current_due = datetime.strptime(target_loan['ngaytra'], "%Y-%m-%d")
-        new_due = current_due + timedelta(days=7)
-
-        # Tính toán ngày để thông báo cho người dùng biết tình trạng
-        today = datetime.now().date()
-        due_date = datetime.strptime(target_loan['ngaytra'], "%Y-%m-%d").date()
-
-        # Logic tính ngày trả mới (Ví dụ cộng 7 ngày từ hôm nay hoặc từ hạn cũ)
-        # Thường gia hạn tính từ ngày thao tác hoặc cộng nối tiếp. Ở đây cộng nối tiếp.
-        if today > due_date:
-            # Nếu đang quá hạn (nhưng <= 2 ngày nên RPC mới cho qua), tính từ hôm nay cho công bằng
-            new_due = today + timedelta(days=7)
-            msg_suffix = "(Đã được ân hạn quá hạn)"
-        else:
-            new_due = due_date + timedelta(days=7)
-            msg_suffix = ""
-
-        params = {
-            "p_ma_muon_tra": target_loan['mamuontra'],
-            "p_ma_nhan_vien": None,
-            "p_ngay_tra_moi": new_due.strftime("%Y-%m-%d"),
-            "p_ly_do_gia_han": "Chatbot renew"
-        }
-
-        rpc_res = supabase_client.rpc("fn_gia_han", params).execute()
-
-        # Bắt lỗi từ RPC (nếu quá hạn > 2 ngày, RPC sẽ ném lỗi BUSINESS_ERROR)
-        if hasattr(rpc_res, 'error') and rpc_res.error:
-            err_msg = str(rpc_res.error)
-            if "BUSINESS_ERROR" in err_msg:
-                # Trích xuất thông báo tiếng Việt từ RPC
-                try:
-                    clean_msg = err_msg.split('MESSAGE:')[1].split('DETAIL:')[0].strip().replace('"', '')
-                    return f"⚠️ Thất bại: {clean_msg}"
-                except:
-                    return f"⚠️ Thất bại: {err_msg}"
-            return f"Lỗi: {err_msg}"
-
-        return f"✅ Gia hạn thành công sách '{target_loan['bansao']['tacpham']['tentacpham']}'! {msg_suffix}\nHạn trả mới: {new_due.strftime('%d/%m/%Y')}."
-
-    except Exception as e:
-        return f"Lỗi hệ thống gia hạn: {str(e)}"
-
-# --- 3. ĐẶT TRƯỚC (RESERVE) ---
-def reserve_book(user_id: int, book_name_keyword: str):
-    """
-    Đặt trước tài liệu.
-    Logic:
-    1. Tìm maBanDoc.
-    2. Tìm sách (TacPham).
-    3. Tìm bản sao khả dụng (trangthaichomuon=true).
-    4. Gọi RPC fn_dat_truoc.
-    """
+def check_room_availability(room_id: int, start_time: str, end_time: str):
+    """Kiểm tra xem phòng có bị trùng lịch đặt hay không."""
     try:
-        # 1. Lấy maBanDoc
-        profile_res = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).single().execute()
-        if not profile_res.data: return "Bạn chưa có hồ sơ bạn đọc."
-        ma_ban_doc = profile_res.data["mabandoc"]
+        # Kiểm tra bảng datphong
+        res = supabase_client.table("datphong")\
+            .select("*")\
+            .eq("maphong", room_id)\
+            .eq("trangthai", "kichHoat")\
+            .filter("thoigianbatdau", "lt", end_time)\
+            .filter("thoigianketthuc", "gt", start_time)\
+            .execute()
 
-        # 2. Tìm sách (Lấy ID sách đầu tiên khớp tên)
-        book_res = supabase_client.table("tacpham").select("matacpham, tentacpham")\
-            .ilike("tentacpham", f"%{book_name_keyword}%").limit(1).execute()
-
-        if not book_res.data:
-            return f"Không tìm thấy sách '{book_name_keyword}' trong thư viện."
-
-        book = book_res.data[0]
-
-        # 3. Tìm bản sao khả dụng
-        # Logic: Tìm bản sao của sách này mà CHƯA BỊ ĐẶT TRƯỚC (cần check kỹ hơn nếu hệ thống phức tạp)
-        # Ở đây ta tìm bản sao có trangthaichomuon = True để user mượn luôn,
-        # HOẶC bản sao đang được mượn để đặt gạch?
-        # -> Theo yêu cầu: "nếu còn bản sao có thể mượn".
-        # -> Nếu còn bản sao mượn được thì AI nên bảo user đi mượn luôn
-        # -> Thường Đặt trước dùng khi HẾT sách.
-        # -> Nhưng OK, nên cứ làm theo flow gọi RPC fn_dat_truoc.
-
-        # Tìm bản sao bất kỳ để đặt (ưu tiên cái đang rảnh)
-        copy_res = supabase_client.table("bansao").select("mabansao, vitri")\
-            .eq("matacpham", book['matacpham'])\
-            .limit(1).execute()
-
-        if not copy_res.data:
-            return f"Sách '{book['tentacpham']}' hiện không có bản sao nào trong hệ thống."
-
-        target_copy = copy_res.data[0]
-
-        # KIỂM TRA TRƯỚC KHI GỌI RPC
-        # Nếu sách đang có sẵn (trangthaichomuon = True), báo user đi mượn luôn
-        if target_copy.get('trangthaichomuon') == True: # Hoặc logic tương đương
-            location = target_copy.get('vitri', 'Quầy thủ thư')
-            return f"Tin vui! Cuốn sách '{book['tentacpham']}' hiện ĐANG CÓ SẴN tại thư viện (Vị trí: {location}). Bạn có thể đến mượn ngay mà không cần đặt trước."
-
-        # 4. Gọi RPC
-        params = {
-            "p_ma_ban_sao": target_copy['mabansao'],
-            "p_ma_ban_doc": ma_ban_doc
-        }
-
-        rpc_res = supabase_client.rpc("fn_dat_truoc", params).execute()
-
-        if hasattr(rpc_res, 'error') and rpc_res.error:
-            return f"Lỗi đặt trước: {rpc_res.error}"
-
-        return f"✅ Đã đặt trước thành công sách '{book['tentacpham']}'. Vui lòng kiểm tra email để nhận thông báo khi có sách."
-
-    except Exception as e:
-        err_msg = str(e)
-        if "BUSINESS_ERROR" in err_msg:
-            # Cố gắng trích xuất message lỗi sạch
-            try:
-                msg = err_msg.split('MESSAGE:')[1].split('DETAIL:')[0].strip().replace('"', '')
-                return f"Thất bại: {msg}"
-            except:
-                return f"Thất bại: {err_msg}"
-        return f"Lỗi hệ thống khi đặt trước: {err_msg}"
-
-# --- 4. HÀM GIẢ (MOCK) ĐẶT CHỖ (Nếu chưa có RPC) ---
-def quick_book_seat(user_id: int):
-    # Bạn chưa gửi schema DatCho, nên tạm thời mock
-    return "Tính năng đặt chỗ ngồi đang được bảo trì. Vui lòng thử lại sau."
-
-def check_overdue_books(user_id: int):
-    # TODO: Kết nối DB để check bảng MuonTra
-    return "Hệ thống kiểm tra: Bạn hiện không có sách quá hạn. (Mockup)"
-
-def quick_book_seat(user_id: int):
-    # TODO: Logic đặt chỗ
-    return "Đã đặt chỗ ngồi thành công cho bạn tại Phòng đọc tổng hợp. (Mockup)"
+        return len(res.data) == 0 # Trả về True nếu không có lịch trùng
+    except:
+        return False

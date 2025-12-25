@@ -6,8 +6,6 @@ import uuid
 
 # Import Brain của bạn
 from app.api.v1.services.brain import LibraryBrain
-# Import service lưu lịch sử (nếu bạn có dùng)
-# from app.api.v1.services.history_service import save_chat_history
 
 router = APIRouter()
 
@@ -19,17 +17,16 @@ print("✅ LibraryBrain sẵn sàng!")
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     try:
-        # Nếu Client không gửi session_id (lần đầu chat), tự tạo mới
         current_session = request.session_id if request.session_id else str(uuid.uuid4())
 
-        # Truyền session_id vào brain
-        ai_reply = brain.process_chat(request.message, request.user_id, current_session)
+        # brain.process_chat trả về dict {"reply": "...", "action": {...}}
+        result = brain.process_chat(request.message, request.user_id, current_session)
 
         return ChatResponse(
-            reply=ai_reply,
-            session_id=current_session
+            reply=result["reply"],  # Đảm bảo lấy đúng key "reply" là string
+            session_id=current_session,
+            action=result.get("action")
         )
-
     except Exception as e:
         print(f"❌ Lỗi API Chat: {e}")
         raise HTTPException(status_code=500, detail=str(e))
