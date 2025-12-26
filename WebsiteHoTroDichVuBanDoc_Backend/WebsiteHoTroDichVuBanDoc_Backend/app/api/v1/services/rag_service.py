@@ -1,4 +1,3 @@
-# app/services/rag_service.py
 from app.connect.db import supabase_client
 from sentence_transformers import SentenceTransformer
 

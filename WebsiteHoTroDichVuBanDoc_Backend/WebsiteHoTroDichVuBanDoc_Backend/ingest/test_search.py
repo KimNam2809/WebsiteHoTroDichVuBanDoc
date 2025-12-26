@@ -29,27 +29,20 @@ def run_test():
     print(f"🧪 BẮT ĐẦU TEST VỚI SESSION: {SESSION_ID}")
 
     # 1. Hỏi đáp chung về thư viện
-    send_message("Thư viện nằm ở đâu?")
+    send_message("Các bài viết về sự kiện của thư viện là những bài viết nào?")
     time.sleep(2) # Chờ DB lưu
 
     # 2. Hỏi đáp cụ thể về địa chỉ
-    send_message("Địa chỉ cụ thể?")
+    send_message("Có các chỗ ngồi nào hiện có thể đặt chỗ không?")
     time.sleep(2) # Chờ DB lưu
 
     # 3. Hỏi giờ mở cửa
-    send_message("Giờ mở cửa của thư viện là khi nào?")
+    send_message("Thư viện có các loại thẻ nào?")
     time.sleep(2) # Chờ DB lưu
 
-    # 4. Hỏi sách
-    send_message("Có cuốn sách nào về lập trình có thể mượn bây giờ không?")
+    # 3. Hỏi giờ mở cửa
+    send_message("Phòng đọc có các thiết bị nào?")
     time.sleep(2) # Chờ DB lưu
-
-    # 5. Hỏi vị trí (Check ngữ cảnh)
-    send_message("Tôi đang mượn những sách gì?")
-    time.sleep(2)
-
-    # 6. Hỏi tác giả
-    send_message("Đặt trước giúp tôi cuốn Mắt Biếc.")
 
 if __name__ == "__main__":
     run_test()

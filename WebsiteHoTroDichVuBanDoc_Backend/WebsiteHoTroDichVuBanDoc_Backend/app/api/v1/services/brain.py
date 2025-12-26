@@ -3,7 +3,7 @@ import json
 from langchain_ollama import ChatOllama
 from app.api.v1.services.rag_service import query_rag_context
 from app.api.v1.services.history_service import get_recent_history_as_text, save_chat_history
-from app.api.v1.tools.db_tools import search_library_sql, get_facility_status, search_articles_sql, search_equipment_sql
+from app.api.v1.tools.db_tools import search_library_sql, get_facility_status, search_articles_sql, search_equipment_sql, search_seats_sql
 from app.api.v1.tools.action_tools import check_personal_dashboard, handle_book_action
 
 class LibraryBrain:
@@ -44,6 +44,7 @@ class LibraryBrain:
             return None
 
     def extract_entities(self, query: str, history: str):
+        # "action_type": "loại hành động"
         """Trích xuất đa tham số dưới dạng JSON sạch."""
         prompt = f"""
         Nhiệm vụ: Trích xuất thông tin từ câu hỏi dựa vào lịch sử chat. Trả về JSON.
@@ -57,7 +58,8 @@ class LibraryBrain:
             "book_name": "tên sách",
             "author": "tên tác giả",
             "room_name": "tên phòng",
-            "device_name": "tên thiết bị"
+            "device_name": "tên thiết bị",
+            "article_topic": "chủ đề bài viết"
         }}
 
         [LỊCH SỬ]: {history}
@@ -117,13 +119,21 @@ class LibraryBrain:
                 author=entities.get("author")
             ), "action": None}
 
-        if any(w in q_lower for w in ["máy tính", "thiết bị", "phòng", "chỗ trống"]):
+        if any(w in q_lower for w in ["máy tính", "máy chiếu", "thiết bị", "điều hòa", "wifi"]  ):
             if entities.get("device_name"):
                 return {"reply": search_equipment_sql(
                     device_name=entities.get("device_name"),
                     room_name=entities.get("room_name")
                 ), "action": None}
             return {"reply": get_facility_status(entities.get("room_name")), "action": None}
+
+        if any(w in q_lower for w in ["bài viết", "tin tức", "thông báo", "hướng dẫn về", "blog"]):
+            topic = entities.get("article_topic") or ""
+            return {"reply": search_articles_sql(article_topic=topic), "action": None}
+
+        if any(w in q_lower for w in ["chỗ ngồi", "đặt chỗ", "ghế trống"]):
+            room = entities.get("room_name")
+            return {"reply": search_seats_sql(room_name=room), "action": None}
 
         # --- Nhóm Hỏi đáp linh tinh (RAG) ---
         context = query_rag_context(user_query)
