@@ -14,44 +14,118 @@ def get_user_id_by_auth(manguoidung_id: int):
         return None
 
 def check_personal_dashboard(user_id: int):
+    """
+    Tổng hợp toàn bộ trạng thái cá nhân:
+    1. Thông tin thẻ & Yêu cầu thẻ.
+    2. Sách đang mượn (muontra).
+    3. Sách đặt trước (dattruoc).
+    4. Chỗ ngồi/Phòng đã đặt (datchongoi).
+    """
     try:
-        mbd = get_user_id_by_auth(user_id)
-        if not mbd: return "Bạn chưa có hồ sơ bạn đọc. Vui lòng đăng ký thẻ thư viện."
+        # 1. Lấy thông tin Bạn đọc & Thẻ & Yêu cầu thẻ
+        profile_query = supabase_client.table("bandoc")\
+            .select("mabandoc, hoten, thebandoc(sothe, ngayhethan, trangthaithe), yeucauthe(trangthaiquytrinh, hinhthucyeucau)")\
+            .eq("manguoidung", user_id).limit(1).execute()
 
-        # Lấy danh sách mượn (đã fix query)
-        # Lưu ý: Supabase-py cú pháp select nested: "col, relation(col)"
+        if not profile_query.data:
+            return "⚠️ Bạn chưa có hồ sơ bạn đọc. Vui lòng đăng ký thẻ thư viện để sử dụng các dịch vụ cá nhân."
+
+        profile = profile_query.data[0]
+        mbd = profile['mabandoc']
+        hoten = profile['hoten']
+
+        summary = [f"👤 **Xin chào {hoten}!**\nDưới đây là thông tin hoạt động của bạn:"]
+
+        # --- A. THÔNG TIN THẺ ---
+        cards = profile.get('thebandoc', [])
+        requests = profile.get('yeucauthe', [])
+
+        if cards:
+            c = cards[0]
+            status = "Hoạt động" if c['trangthaithe'] else "Khóa"
+            # Format ngày hết hạn
+            exp_date = c['ngayhethan']
+            if exp_date:
+                try: exp_date = datetime.strptime(exp_date, '%Y-%m-%d').strftime('%d/%m/%Y')
+                except: pass
+            summary.append(f"💳 **Thẻ:** {c['sothe']} (Hết hạn: {exp_date}) - {status}")
+        elif requests:
+            r = requests[0] # Lấy yêu cầu mới nhất
+            summary.append(f"📝 **Yêu cầu thẻ:** Đang xử lý ({r['trangthaiquytrinh']})")
+        else:
+            summary.append("💳 **Thẻ:** Chưa có thẻ (Vui lòng đăng ký).")
+
+        # --- B. SÁCH ĐANG MƯỢN (muontra) ---
         mt = supabase_client.table("muontra")\
-            .select("ngaytra, tienphat, bansao(mathietbinoibo, tacpham(tentacpham))")\
+            .select("ngaytra, tienphat, bansao(mabansao, tacpham(tentacpham))")\
             .eq("mabandoc", mbd).eq("trangthaimuon", "daMuon").execute()
 
-        # Lấy danh sách đặt trước
-        dt = supabase_client.table("dattruoc")\
-            .select("thoidiemdattruoc, bansao(tacpham(tentacpham))")\
-            .eq("mabandoc", mbd).eq("trangthaidattruoc", "kichHoat").execute()
-
-        summary = []
         if mt.data:
             books = []
             for item in mt.data:
-                # Xử lý nested data an toàn
                 bs = item.get('bansao') or {}
                 tp = bs.get('tacpham') or {}
-                title = tp.get('tentacpham', 'Sách không rõ tên')
-                books.append(f"- {title} (Hạn: {item['ngaytra']})")
-            summary.append("📚 **Sách đang mượn:**\n" + "\n".join(books))
+                title = tp.get('tentacpham', 'Sách không tên')
+
+                due_date = item['ngaytra']
+                if due_date:
+                    try: due_date = datetime.strptime(due_date, '%Y-%m-%d').strftime('%d/%m/%Y')
+                    except: pass
+
+                fines = f" - ⚠️ Phạt: {item['tienphat']:,.0f}đ" if item.get('tienphat') and item['tienphat'] > 0 else ""
+                books.append(f"- {title} (Hạn: {due_date}){fines}")
+            summary.append(f"\n📚 **Đang mượn ({len(books)}):**\n" + "\n".join(books))
+        else:
+            summary.append("\n📚 **Đang mượn:** Không có sách nào.")
+
+        # --- C. SÁCH ĐẶT TRƯỚC (dattruoc) ---
+        dt = supabase_client.table("dattruoc")\
+            .select("thoidiemdattruoc, bansao(tacpham(tentacpham))")\
+            .eq("mabandoc", mbd).eq("trangthaidattruoc", "kichHoat").execute()
 
         if dt.data:
             reserves = []
             for item in dt.data:
                 bs = item.get('bansao') or {}
                 tp = bs.get('tacpham') or {}
-                title = tp.get('tentacpham', 'Sách không rõ tên')
-                reserves.append(f"- {title} (Đặt lúc: {item['thoidiemdattruoc'][:10]})")
-            summary.append("📌 **Sách đang đặt trước:**\n" + "\n".join(reserves))
+                title = tp.get('tentacpham', 'Sách không tên')
 
-        return "\n\n".join(summary) if summary else "Bạn hiện không mượn hoặc đặt trước cuốn sách nào."
+                # Format thời gian đặt
+                time_str = item['thoidiemdattruoc']
+                if time_str:
+                    try: time_str = datetime.fromisoformat(time_str.replace('Z', '+00:00')).strftime('%d/%m/%Y %H:%M')
+                    except: time_str = time_str[:16]
+
+                reserves.append(f"- {title} (Đặt lúc: {time_str})")
+            summary.append(f"\n📌 **Đang đặt trước ({len(reserves)}):**\n" + "\n".join(reserves))
+
+        # --- D. ĐẶT CHỖ / PHÒNG (datchongoi) ---
+        # Lưu ý: Bảng datphong (theo schema) dùng cho người tổ chức sự kiện và không có mabandoc.
+        # User cá nhân đặt chỗ/phòng thông qua bảng datchongoi.
+        dc = supabase_client.table("datchongoi")\
+            .select("thoigianbatdau, thoigianketthuc, chongoi(tenchongoi, phong(tenphong))")\
+            .eq("mabandoc", mbd).eq("trangthaidatcho", "kichHoat").execute()
+
+        if dc.data:
+            bookings = []
+            for item in dc.data:
+                seat = item.get('chongoi') or {}
+                room = seat.get('phong') or {}
+                seat_name = seat.get('tenchongoi', 'Chỗ không tên')
+                room_name = room.get('tenphong', 'Phòng không tên')
+
+                start = item['thoigianbatdau']
+                if start:
+                    try: start = datetime.fromisoformat(start.replace('Z', '+00:00')).strftime('%H:%M %d/%m')
+                    except: start = start[:16]
+
+                bookings.append(f"- {seat_name} tại {room_name} (Bắt đầu: {start})")
+            summary.append(f"\n🪑 **Chỗ ngồi/Phòng đã đặt ({len(bookings)}):**\n" + "\n".join(bookings))
+
+        return "\n".join(summary)
+
     except Exception as e:
-        return f"Lỗi kiểm tra thông tin: {str(e)}"
+        return f"Lỗi truy xuất hồ sơ: {str(e)}"
 
 def handle_book_action(user_id: int, book_name: str, action_type: str):
     """

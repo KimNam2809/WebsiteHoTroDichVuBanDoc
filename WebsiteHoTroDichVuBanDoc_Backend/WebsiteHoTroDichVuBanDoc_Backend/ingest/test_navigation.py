@@ -16,11 +16,12 @@ def send(msg):
         print(f"\r🤖 AI Text: {data['reply']}")
 
         if data.get('action'):
-            print(f"🚀 ACTION TRIGGERED: {data['action']['type']}")
-            print(f"   Label: {data['action']['label']}")
-            print(f"   URL: {data['action']['payload']}")
-        else:
-            print("   (No Action)")
+            act = data['action']
+            print(f"🚀 ACTION: {act['type']}")
+            if act['type'] == 'navigate':
+                # Kiểm tra kỹ payload
+                payload = act.get('payload', {})
+                print(f"   -> URL: {payload.get('url')} | Label: {payload.get('label')}")
 
     except Exception as e:
         print(f"\n❌ Error: {e}")
@@ -36,11 +37,19 @@ def run():
     send("Tôi đang mượn sách gì?")
     time.sleep(2)
 
-    # 3. Test Navigation (Nhóm 3) - Đăng ký thẻ
+    # 3. Test Tool Action (Nhóm 2)
+    send("Tôi muốn xem thông tin thẻ bạn đọc của mình.")
+    time.sleep(2)
+
+    # 4. Test Tool Action (Nhóm 2)
+    send("Tôi đang đặt những chỗ ngồi nào?")
+    time.sleep(2)
+
+    # 5. Test Navigation (Nhóm 3) - Đăng ký thẻ
     send("Tôi muốn đăng ký làm thẻ thư viện.")
     time.sleep(2)
 
-    # 4. Test Navigation (Nhóm 3) - Đặt phòng
+    # 6. Test Navigation (Nhóm 3) - Đặt phòng
     send("Lớp tôi muốn mượn phòng họp nhóm.")
 
 if __name__ == "__main__":

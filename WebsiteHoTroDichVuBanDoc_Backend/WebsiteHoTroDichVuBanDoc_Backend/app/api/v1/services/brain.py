@@ -87,11 +87,26 @@ class LibraryBrain:
         entities = self.extract_entities(user_query, history)
 
         # --- Nhóm Điều hướng (Navigation) ---
-        if any(w in q_lower for w in ["làm thẻ", "đăng ký thẻ", "yeu cau the"]):
-            return {"reply": "Mời bạn điền form đăng ký thẻ tại đây.", "action": {"type": "navigate", "payload": self.nav_map['card']}}
+        # Đăng ký thẻ / Làm thẻ
+        if any(w in q_lower for w in ["làm thẻ", "đăng ký thẻ", "cấp thẻ"]):
+            return {
+                "reply": "Để đăng ký thẻ thư viện, bạn vui lòng điền thông tin tại trang đăng ký sau:",
+                "action": {"type": "navigate", "payload": self.nav_map['card']} # Đảm bảo nav_map có đủ 'url' và 'label'
+            }
 
-        if any(w in q_lower for w in ["giao tài liệu", "ship", "vận chuyển"]):
-            return {"reply": "Mời bạn tạo yêu cầu giao sách tận nhà.", "action": {"type": "navigate", "payload": self.nav_map['ship']}}
+        # Đặt phòng / Mượn phòng (Nghiệp vụ phức tạp -> Điều hướng)
+        if any(w in q_lower for w in ["đặt phòng", "mượn phòng", "phòng họp nhóm", "thuê phòng"]):
+            return {
+                "reply": "Để đặt phòng họp/nhóm, mời bạn truy cập hệ thống đặt phòng trực tuyến:",
+                "action": {"type": "navigate", "payload": self.nav_map['room']}
+            }
+
+        # Giao sách (Ship)
+        if any(w in q_lower for w in ["giao sách", "ship", "vận chuyển"]):
+            return {
+                "reply": "Bạn có thể yêu cầu giao tài liệu tận nơi tại đây:",
+                "action": {"type": "navigate", "payload": self.nav_map['ship']}
+            }
 
         # --- Nhóm Hành động AI (Action Tools) ---
         if any(w in q_lower for w in ["tôi mượn", "phạt", "nợ", "tình trạng của tôi"]):
@@ -104,13 +119,16 @@ class LibraryBrain:
                 return {"reply": handle_book_action(user_id, target, action), "action": None}
 
         # --- Nhóm Tra cứu DB (DB Tools) ---
-        # if any(w in q_lower for w in ["bài viết", "tin tức", "thông báo", "hướng dẫn về", "blog"]):
-        #     keyword = self.extract_target(user_query, history)
-        #     return {"reply": search_articles_sql(keyword if keyword else "mới nhất"), "action": None}
+        personal_keywords = [
+            "tôi đang mượn", "sách của tôi", "lịch sử mượn",
+            "tôi đã đặt", "kiểm tra phạt", "nợ bao nhiêu",
+            "thông tin thẻ", "hồ sơ của tôi", "yêu cầu thẻ"
+        ]
 
-        # if any(w in q_lower for w in ["máy tính", "máy chiếu", "thiết bị", "điều hòa", "wifi"]):
-        #     device = self.extract_target(user_query, history)
-        #     return {"reply": search_equipment_sql(device_name=device), "action": None}
+        if any(w in q_lower for w in personal_keywords):
+            # Gọi hàm check_personal_dashboard (Đã sửa ở bước trước)
+            dashboard_info = check_personal_dashboard(user_id)
+            return {"reply": dashboard_info, "action": None}
 
         if any(w in q_lower for w in ["tìm sách", "có sách", "tác giả", "về chủ đề"]):
             # Truyền tham số dưới dạng keyword arguments để tránh lỗi positional error
