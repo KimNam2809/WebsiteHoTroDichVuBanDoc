@@ -21,5 +21,9 @@ class Settings(BaseSettings):
 
     GOOGLE_API_KEY: str
 
+    OPENAI_API_KEY: str
+
+    USE_OPENAI: bool = True
+
 # Tạo đối tượng settings để sử dụng trong ứng dụng
 settings = Settings()

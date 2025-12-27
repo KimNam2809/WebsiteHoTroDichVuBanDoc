@@ -1,8 +1,9 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from app.models.tac_pham import TacPham
 from app.models.ban_sao import BanSao
 from app.models.danh_muc import DanhMuc
 from app.models.db_base import DBModel
+
 
 # Model trả về cho API Full Info
 class TacPhamFullInfo(DBModel):
@@ -24,5 +25,5 @@ class ChatRequest(DBModel):
 
 class ChatResponse(DBModel):
     reply: str
-    session_id: str
-    action: Optional[ClientAction] = None
+    session_id: Optional[str] = None
+    action: Optional[Dict[str, Any]] = None

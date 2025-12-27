@@ -3,7 +3,7 @@ import time
 import uuid
 
 API_URL = "http://127.0.0.1:8000/api/v1/chatbot/chat"
-TEST_USER_ID = 8
+TEST_USER_ID = 7
 SESSION_ID = f"final_fix_{int(time.time())}"
 
 def send(msg):
@@ -25,12 +25,12 @@ def run():
     time.sleep(2)
 
     # 1. Kiểm tra để biết tên sách chính xác
-    send("Gia hạn cuốn Cho tôi xin một vé đi tuổi thơ giúp tôi.")
+    send("Gia hạn cuốn Nhà Giả Kim.")
     time.sleep(2)
 
     # 2. Gia hạn (Dùng tên cụ thể để tránh AI hỏi lại)
     # Vì trong log bạn có cuốn này, nên test luôn
-    send("Đặt trước cho tôi cuốn Harry Potter và Hòn Đá Phù Thủy.")
+    send("Đặt trước cho tôi cuốn Tắt Đèn.")
     time.sleep(2)
 
 if __name__ == "__main__":
