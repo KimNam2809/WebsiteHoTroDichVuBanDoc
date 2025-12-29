@@ -10,13 +10,21 @@ def save_chat_history(user_id: int, session_id: str, role: str, content: str):
     """Lưu tin nhắn kèm Session ID"""
     def _save():
         try:
-            data = {
-                "manguoidung": user_id,
-                "session_id": session_id, # <--- Mới
-                "vaitro": role,
-                "noidung": content,
-                "thoigian": datetime.now(timezone.utc).isoformat()
-            }
+            if user_id:
+                data = {
+                    "manguoidung": user_id,
+                    "session_id": session_id, # <--- Mới
+                    "vaitro": role,
+                    "noidung": content,
+                    "thoigian": datetime.now(timezone.utc).isoformat()
+                }
+            else:
+                data = {
+                    "session_id": session_id, # <--- Mới
+                    "vaitro": role,
+                    "noidung": content,
+                    "thoigian": datetime.now(timezone.utc).isoformat()
+                }
             supabase_client.table("lichsuchatbot").insert(data).execute()
         except Exception as e:
             print(f"❌ Lỗi lưu lịch sử chat: {e}")

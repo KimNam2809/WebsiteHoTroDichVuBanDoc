@@ -44,5 +44,10 @@ def run_test():
     send_message("Phòng đọc có các thiết bị nào?")
     time.sleep(2) # Chờ DB lưu
 
+    send_message("Tác giả Nguyễn Nhật Ánh có những tác phẩm nào tại thư viện?")
+    time.sleep(2) # Chờ DB lưu
+
+    send_message("Cảm ơn bạn!")
+
 if __name__ == "__main__":
     run_test()

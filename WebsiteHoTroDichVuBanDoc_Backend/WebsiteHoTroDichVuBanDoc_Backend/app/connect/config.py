@@ -25,5 +25,7 @@ class Settings(BaseSettings):
 
     USE_OPENAI: bool = True
 
+    GROQ_API_KEY: str
+
 # Tạo đối tượng settings để sử dụng trong ứng dụng
 settings = Settings()

@@ -10,15 +10,15 @@ async function fetchWithAuth(endpoint, options = {}) {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
 
-    const headers = {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` })
-    };
+    if (!token) return null;
 
     const res = await fetch(`${FASTAPI_URL}${endpoint}`, {
-        ...options,
-        headers: { ...headers, ...options.headers },
-        cache: 'no-store'
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            ...options.headers
+        },
+        ...options
     });
     return res;
 }
@@ -75,5 +75,59 @@ export async function borrowBookAction(maBanSao, ngayTra) {
     } catch (error) {
         console.error("Borrow error:", error);
         return { error: "Lỗi kết nối đến hệ thống." };
+    }
+}
+
+// Action Đặt trước sách
+export async function reserveBookAction(maBanSao) {
+    try {
+        // 1. Lấy thông tin user
+        const profileRes = await fetchWithAuth('/api/v1/nguoi-dung/profile');
+        if (!profileRes || !profileRes.ok) return { error: "Không thể xác thực người dùng." };
+
+        const profileData = await profileRes.json();
+        const maBanDoc = profileData.mabandoc || profileData.id;
+
+        if (!maBanDoc) return { error: "Tài khoản chưa có hồ sơ bạn đọc." };
+
+        // 2. Gửi request đặt trước
+        // Gửi maBanDoc ở cả URL (cho Depends check quyền) và Body (cho logic nghiệp vụ)
+        const endpoint = `/api/v1/dat-truoc/?maBanDoc=${maBanDoc}`;
+        const payload = {
+            maBanSao: Number(maBanSao),
+            maBanDoc: Number(maBanDoc)
+        };
+
+        const res = await fetchWithAuth(endpoint, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            cache: 'no-store'
+        });
+
+        // 3. Xử lý kết quả
+        if (res.ok) {
+            // Sửa Warning: Thêm 'page' vào tham số thứ 2
+            revalidatePath('/tai_lieu/[id]', 'page');
+            return { success: true };
+        }
+
+        // Xử lý lỗi từ backend
+        const errorText = await res.text();
+        let errorMessage = "Đặt trước thất bại.";
+        try {
+            const jsonErr = JSON.parse(errorText);
+            if (jsonErr.detail) {
+                errorMessage = Array.isArray(jsonErr.detail)
+                    ? jsonErr.detail.map(e => e.msg).join(', ')
+                    : jsonErr.detail;
+            }
+        } catch (e) {
+            errorMessage = errorText;
+        }
+
+        return { error: errorMessage };
+
+    } catch (error) {
+        return { error: "Lỗi kết nối hệ thống." };
     }
 }

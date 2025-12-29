@@ -1,47 +1,21 @@
-import re
-import json
+import re, time, json
 from langchain_ollama import ChatOllama
+from langchain_groq import ChatGroq
 from app.api.v1.services.rag_service import query_rag_context
 from app.api.v1.services.history_service import get_recent_history_as_text, save_chat_history
 from app.api.v1.tools.db_tools import search_library_sql, get_facility_status, search_articles_sql, search_equipment_sql, search_seats_sql
 from app.api.v1.tools.action_tools import check_personal_dashboard, handle_book_action
+from app.connect.config import settings
 
 class LibraryBrain:
     def __init__(self):
-        self.llm = ChatOllama(model="llama3", base_url="http://localhost:11434", temperature=0.0)
+        # self.llm = ChatOllama(model="llama3", base_url="http://localhost:11434", temperature=0.0)
+        self.llm = ChatGroq(temperature=0, model_name="llama-3.3-70b-versatile", api_key=settings.GROQ_API_KEY)
         self.nav_map = {
             "card": {"url": "/account/card-request", "label": "Đăng ký thẻ"},
             "room": {"url": "/booking/room", "label": "Đặt phòng họp"},
             "ship": {"url": "/services/delivery", "label": "Yêu cầu giao sách"}
         }
-
-    def extract_search_keyword(self, history: str, query: str):
-        """
-        Nhiệm vụ: Chỉ trích xuất ĐÚNG từ khóa chính (tên sách, tác giả, tên phòng).
-        Chống AI giải thích dài dòng.
-        """
-        prompt = f"""
-        [LỊCH SỬ]: {history}
-        [CÂU HỎI]: {query}
-
-        NHIỆM VỤ: Dựa vào lịch sử và câu hỏi, hãy trả về DUY NHẤT tên đối tượng (sách/người/phòng) được nhắc đến.
-        QUY TẮC:
-        - KHÔNG giải thích.
-        - KHÔNG trả lời bằng tiếng Anh.
-        - Nếu không có đối tượng cụ thể, trả về 'NONE'.
-        - Nếu câu hỏi dùng 'nó', 'sách này', hãy lấy tên từ lịch sử.
-
-        TÊN ĐỐI TƯỢNG:"""
-
-        try:
-            res = self.llm.invoke(prompt).content.strip()
-            # Hậu xử lý để chặn AI nói dài
-            keyword = res.split('\n')[0].replace('"', '').replace("'", "").replace(".", "")
-            if len(keyword) > 50: # Nếu quá dài là AI đang giải thích -> lấy 5 từ đầu
-                keyword = " ".join(keyword.split()[:5])
-            return None if "NONE" in keyword.upper() else keyword
-        except:
-            return None
 
     def extract_entities(self, query: str, history: str):
         # "action_type": "loại hành động"
@@ -77,14 +51,25 @@ class LibraryBrain:
             return {}
 
     def process_chat(self, user_query: str, user_id: int, session_id: str):
+        start_time = time.time()
         # 0. Ưu tiên ngữ cảnh ngược (Lấy lịch sử mới nhất trước)
         history = get_recent_history_as_text(user_id, session_id)
         q_lower = user_query.lower()
 
-        # 1. PHÂN LOẠI INTENT (Dựa trên 12 nhóm nghiệp vụ)
-
         # Trích xuất đa tham số
         entities = self.extract_entities(user_query, history)
+
+        personal_keywords = [
+            "tôi đang mượn", "tôi đã mượn", "sách của tôi", "lịch sử mượn",
+            "tôi đã đặt", "tôi đang đặt", "kiểm tra phạt", "nợ bao nhiêu",
+            "thông tin thẻ", "hồ sơ của tôi", "yêu cầu thẻ"
+        ]
+
+        if any(w in q_lower for w in personal_keywords):
+            # Gọi hàm check_personal_dashboard (Đã sửa ở bước trước)
+            print(f"⚡ Fast Path: Dashboard ({time.time() - start_time:.2f}s)")
+            dashboard_info = check_personal_dashboard(user_id)
+            return {"reply": dashboard_info, "action": None}
 
         # --- Nhóm Điều hướng (Navigation) ---
         # Đăng ký thẻ / Làm thẻ
@@ -119,16 +104,6 @@ class LibraryBrain:
                 return {"reply": handle_book_action(user_id, target, action), "action": None}
 
         # --- Nhóm Tra cứu DB (DB Tools) ---
-        personal_keywords = [
-            "tôi đang mượn", "sách của tôi", "lịch sử mượn",
-            "tôi đã đặt", "kiểm tra phạt", "nợ bao nhiêu",
-            "thông tin thẻ", "hồ sơ của tôi", "yêu cầu thẻ"
-        ]
-
-        if any(w in q_lower for w in personal_keywords):
-            # Gọi hàm check_personal_dashboard (Đã sửa ở bước trước)
-            dashboard_info = check_personal_dashboard(user_id)
-            return {"reply": dashboard_info, "action": None}
 
         if any(w in q_lower for w in ["tìm sách", "có sách", "tác giả", "về chủ đề"]):
             # Truyền tham số dưới dạng keyword arguments để tránh lỗi positional error

@@ -102,25 +102,46 @@ def check_personal_dashboard(user_id: int):
         # --- D. ĐẶT CHỖ / PHÒNG (datchongoi) ---
         # Lưu ý: Bảng datphong (theo schema) dùng cho người tổ chức sự kiện và không có mabandoc.
         # User cá nhân đặt chỗ/phòng thông qua bảng datchongoi.
-        dc = supabase_client.table("datchongoi")\
-            .select("thoigianbatdau, thoigianketthuc, chongoi(tenchongoi, phong(tenphong))")\
-            .eq("mabandoc", mbd).eq("trangthaidatcho", "kichHoat").execute()
+        try:
+            dc = supabase_client.table("datchongoi")\
+                .select("thoigianbatdau, thoigianketthuc, trangthaidatcho, chongoi(tenchongoi, phong(tenphong))")\
+                .eq("mabandoc", mbd)\
+                .in_("trangthaidatcho", ["kichHoat", "dangSuDung", "choDuyet"]) \
+                .execute()
 
-        if dc.data:
-            bookings = []
-            for item in dc.data:
-                seat = item.get('chongoi') or {}
-                room = seat.get('phong') or {}
-                seat_name = seat.get('tenchongoi', 'Chỗ không tên')
-                room_name = room.get('tenphong', 'Phòng không tên')
+            if dc.data and len(dc.data) > 0:
+                bookings = []
+                for item in dc.data:
+                    seat = item.get('chongoi') or {}
+                    room = seat.get('phong') or {}
+                    seat_name = seat.get('tenchongoi', 'Chỗ ?')
+                    room_name = room.get('tenphong', 'Phòng ?')
+                    status_raw = item.get('trangthaidatcho', '')
 
-                start = item['thoigianbatdau']
-                if start:
-                    try: start = datetime.fromisoformat(start.replace('Z', '+00:00')).strftime('%H:%M %d/%m')
-                    except: start = start[:16]
+                    # Việt hóa trạng thái cho thân thiện
+                    status_map = {
+                        "kichHoat": "Đã đặt",
+                        "dangSuDung": "Đang ngồi",
+                        "choDuyet": "Chờ duyệt"
+                    }
+                    status_vn = status_map.get(status_raw, status_raw)
 
-                bookings.append(f"- {seat_name} tại {room_name} (Bắt đầu: {start})")
-            summary.append(f"\n🪑 **Chỗ ngồi/Phòng đã đặt ({len(bookings)}):**\n" + "\n".join(bookings))
+                    start = item['thoigianbatdau']
+                    if start:
+                        try: start = datetime.fromisoformat(start.replace('Z', '+00:00')).strftime('%H:%M %d/%m')
+                        except: start = start[:16]
+
+                    bookings.append(f"- {seat_name} ({room_name}) lúc {start} [{status_vn}]")
+
+                summary.append(f"\n🪑 **Chỗ ngồi/Phòng đã đặt ({len(bookings)}):**\n" + "\n".join(bookings))
+
+            else:
+                # --- KHẮC PHỤC Ở ĐÂY ---
+                # Nếu không tìm thấy chỗ nào Active, thông báo rõ ràng cho người dùng biết.
+                summary.append("\n🪑 **Chỗ ngồi/Phòng:** Bạn hiện chưa có lịch đặt chỗ nào đang hoạt động.")
+
+        except Exception as e:
+            summary.append(f"\n⚠️ Lỗi lấy thông tin chỗ ngồi: {str(e)}")
 
         return "\n".join(summary)
 

@@ -19,7 +19,7 @@ class ClientAction(DBModel):
     label: Optional[str] = None # Nhãn của nút bấm (VD: "Đi đến trang đăng ký")
 
 class ChatRequest(DBModel):
-    user_id: int
+    user_id: Optional[int] = None
     session_id: Optional[str] = None
     message: str
 

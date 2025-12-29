@@ -1,11 +1,12 @@
-// src/components/Chatbot.js
+// src/components/ChatWidget.js
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Sparkles, User, Book, Calendar, HelpCircle, Loader2, ChevronRight } from 'lucide-react';
+import { useRouter } from 'next/navigation'; // Để xử lý điều hướng
+import { MessageCircle, X, Send, Sparkles, User, Book, Calendar, HelpCircle, Loader2, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { sendChatMessageAction } from '@/app/actions/chat';
 
-// 1. Hàm tạo lời chào theo thời gian
 const getGreeting = (userName) => {
     const hour = new Date().getHours();
     let timeGreeting = "Chào buổi sáng";
@@ -14,47 +15,51 @@ const getGreeting = (userName) => {
     return `${timeGreeting}, ${userName || 'bạn'}!`;
 };
 
-// 2. Hàm lấy gợi ý theo vai trò người dùng
 const getSuggestions = (role) => {
     const common = [
-        { label: "Tìm sách nhanh", action: "search:kinh tế", icon: Book },
-        { label: "Giờ mở cửa", action: "info:hours", icon: HelpCircle },
+        { label: "Tìm sách kinh tế", action: "Tìm sách kinh tế", icon: Book },
+        { label: "Giờ mở cửa", action: "Thư viện mở cửa lúc nào?", icon: HelpCircle },
     ];
 
     if (!role || role === 'guest') return [
-        { label: "Đăng ký thẻ thế nào?", action: "guide:register", icon: User },
+        { label: "Hướng dẫn làm thẻ", action: "Làm thẻ thư viện cần những gì?", icon: User },
         ...common
     ];
 
     if (role === 'ban_doc' || role === 'nguoiDung') return [
-        { label: "Sách đang mượn", action: "check:loans", icon: Book },
-        { label: "Gia hạn sách", action: "action:renew", icon: Calendar },
+        { label: "Sách đang mượn", action: "Tôi đang mượn sách gì?", icon: Book },
+        { label: "Gia hạn sách", action: "Tôi muốn gia hạn sách", icon: Calendar },
         ...common
     ];
 
     // Nhân viên
     return [
-        { label: "Tra cứu hồ sơ", action: "admin:lookup", icon: User },
-        { label: "Thống kê hôm nay", action: "admin:stats", icon: Sparkles },
+        { label: "Tra cứu hồ sơ", action: "Tra cứu hồ sơ bạn đọc", icon: User },
+        { label: "Thống kê hôm nay", action: "Thống kê hoạt động hôm nay", icon: Sparkles },
     ];
 };
 
-export default function Chatbot({ user }) {
+export default function ChatWidget({ user }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [input, setInput] = useState('');
     const [messages, setMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
-    const scrollRef = useRef(null);
 
-    // Tự động cuộn xuống cuối khi có tin nhắn mới
+    // State lưu Session ID của phiên chat
+    const [sessionId, setSessionId] = useState(null);
+
+    const scrollRef = useRef(null);
+    const router = useRouter(); // Dùng để điều hướng
+
+    // Tự động cuộn
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages, isOpen]);
 
-    // Khởi tạo tin nhắn chào mừng khi mở box lần đầu
+    // Khởi tạo tin nhắn chào mừng
     useEffect(() => {
         if (isOpen && messages.length === 0) {
             const greeting = getGreeting(user?.hoten);
@@ -63,7 +68,7 @@ export default function Chatbot({ user }) {
                     id: 1,
                     type: 'bot',
                     text: `${greeting} Tôi là trợ lý AI của thư viện. Bạn cần tôi giúp gì hôm nay?`,
-                    isGreeting: true // Đánh dấu để hiển thị Suggestion
+                    isGreeting: true
                 }
             ]);
         }
@@ -72,47 +77,73 @@ export default function Chatbot({ user }) {
     const handleSend = async (text = input) => {
         if (!text.trim()) return;
 
-        // 1. Thêm tin nhắn người dùng
+        // 1. UI: Thêm tin nhắn người dùng ngay lập tức
         const userMsg = { id: Date.now(), type: 'user', text: text };
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setIsLoading(true);
 
-        // 2. GIẢ LẬP GỌI API (Sau này sẽ thay bằng fetch tới FastAPI)
-        try {
-            await new Promise(r => setTimeout(r, 1200)); // Delay giả lập
+        // 2. GỌI API THỰC TẾ
+        const result = await sendChatMessageAction({
+            userId: user?.id || user?.manguoidung || null,
+            sessionId: sessionId,
+            message: text
+        });
 
-            // Logic phản hồi giả lập
-            let botText = "Tôi đang xử lý yêu cầu của bạn...";
+        setIsLoading(false);
 
-            if (text.toLowerCase().includes("tìm sách")) {
-                botText = "Tôi đã tìm thấy vài cuốn sách liên quan. Bạn có muốn xem chi tiết không?";
-            } else if (text.toLowerCase().includes("mượn")) {
-                botText = "Để mượn sách, bạn vui lòng cung cấp mã bản sao hoặc tên sách cụ thể nhé.";
-            }
+        // 3. Xử lý phản hồi từ AI
+        if (result.success) {
+            const { reply, session_id, action } = result.data;
 
-            const botResponse = {
+            // Cập nhật Session ID cho lần chat sau
+            if (session_id) setSessionId(session_id);
+
+            // Thêm tin nhắn của Bot
+            const botMsg = {
                 id: Date.now() + 1,
                 type: 'bot',
-                text: botText
+                text: reply,
+                action: action // Lưu kèm action nếu có
             };
+            setMessages(prev => [...prev, botMsg]);
 
-            setMessages(prev => [...prev, botResponse]);
-        } catch (error) {
-            setMessages(prev => [...prev, { id: Date.now(), type: 'bot', text: "Xin lỗi, tôi gặp sự cố kết nối." }]);
-        } finally {
-            setIsLoading(false);
+        } else {
+            // Xử lý lỗi
+            setMessages(prev => [...prev, {
+                id: Date.now() + 1,
+                type: 'bot',
+                text: result.error || "Xin lỗi, tôi gặp sự cố kết nối."
+            }]);
         }
     };
 
-    const handleSuggestionClick = (action, label) => {
-        handleSend(label);
+    const handleSuggestionClick = (actionText) => {
+        handleSend(actionText);
+    };
+
+    // Hàm xử lý khi click vào nút hành động (Navigation)
+    const handleActionClick = (action) => {
+        if (action.type === 'navigate' && action.payload?.url) {
+            setIsOpen(false); // Đóng chat
+            router.push(action.payload.url); // Chuyển trang
+        }
+    };
+
+    // Hàm render nội dung tin nhắn (Hỗ trợ xuống dòng cơ bản)
+    const renderMessageText = (text) => {
+        return text.split('\n').map((line, i) => (
+            <span key={i}>
+                {line}
+                <br />
+            </span>
+        ));
     };
 
     return (
         <div className="fixed bottom-6 right-6 z-100 flex flex-col items-end gap-4 font-sans">
 
-            {/* 1. TOOLTIP KHI HOVER (Hiển thị text nhỏ) */}
+            {/* Tooltip (Giữ nguyên) */}
             <AnimatePresence>
                 {isHovered && !isOpen && (
                     <motion.div
@@ -122,13 +153,12 @@ export default function Chatbot({ user }) {
                         className="bg-white px-4 py-3 rounded-xl shadow-xl border border-gray-100 text-sm text-gray-700 font-medium mb-2 mr-2 max-w-[220px] text-right relative"
                     >
                         Bạn có thể hỏi đáp nhanh chóng với Chatbot AI 🤖
-                        {/* Mũi tên tooltip */}
                         <div className="absolute -bottom-1.5 right-6 w-3 h-3 bg-white border-b border-r border-gray-100 transform rotate-45"></div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            {/* 2. CỬA SỔ CHAT (Giao diện mới) */}
+            {/* Cửa sổ Chat */}
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
@@ -137,7 +167,7 @@ export default function Chatbot({ user }) {
                         exit={{ opacity: 0, y: 50, scale: 0.9 }}
                         className="w-[350px] sm:w-[380px] h-[550px] bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col origin-bottom-right"
                     >
-                        {/* Header Chat */}
+                        {/* Header */}
                         <div className="bg-linear-to-r from-blue-600 to-cyan-500 p-4 flex items-center justify-between shrink-0 shadow-sm">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white relative shadow-inner border border-white/10">
@@ -146,13 +176,10 @@ export default function Chatbot({ user }) {
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-white text-lg leading-tight">Smart Assistant</h3>
-                                    <p className="text-blue-100 text-xs font-medium">Luôn sẵn sàng hỗ trợ</p>
+                                    <p className="text-blue-100 text-xs font-medium">Trợ lý ảo thông minh</p>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => setIsOpen(false)}
-                                className="text-white/80 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors"
-                            >
+                            <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
@@ -160,19 +187,34 @@ export default function Chatbot({ user }) {
                         {/* Body Chat */}
                         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50 custom-scrollbar">
                             {messages.map((msg) => (
-                                <div key={msg.id} className={`flex w-full ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    {msg.type === 'bot' && (
-                                        <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white shrink-0 mr-2 mt-1 shadow-sm">
-                                            <Sparkles size={14} />
+                                <div key={msg.id} className={`flex w-full flex-col ${msg.type === 'user' ? 'items-end' : 'items-start'}`}>
+                                    <div className={`flex max-w-[85%] ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        {msg.type === 'bot' && (
+                                            <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white shrink-0 mr-2 mt-1 shadow-sm">
+                                                <Sparkles size={14} />
+                                            </div>
+                                        )}
+                                        <div className={`p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                                            msg.type === 'user'
+                                            ? 'bg-blue-600 text-white rounded-tr-none'
+                                            : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'
+                                        }`}>
+                                            {renderMessageText(msg.text)}
+                                        </div>
+                                    </div>
+
+                                    {/* 4. RENDER ACTION BUTTON (Nếu có) */}
+                                    {msg.type === 'bot' && msg.action && msg.action.type === 'navigate' && (
+                                        <div className="mt-2 ml-10 animate-in fade-in slide-in-from-bottom-2">
+                                            <button
+                                                onClick={() => handleActionClick(msg.action)}
+                                                className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold border border-blue-100 hover:bg-blue-100 hover:border-blue-300 transition-all shadow-sm group"
+                                            >
+                                                {msg.action.payload.label || "Xem chi tiết"}
+                                                <ExternalLink size={12} className="group-hover:translate-x-0.5 transition-transform"/>
+                                            </button>
                                         </div>
                                     )}
-                                    <div className={`max-w-[85%] p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                                        msg.type === 'user'
-                                        ? 'bg-blue-600 text-white rounded-tr-none'
-                                        : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'
-                                    }`}>
-                                        {msg.text}
-                                    </div>
                                 </div>
                             ))}
 
@@ -184,12 +226,12 @@ export default function Chatbot({ user }) {
                                     </div>
                                     <div className="bg-white p-3 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm flex items-center gap-2">
                                         <Loader2 className="animate-spin text-blue-600" size={16} />
-                                        <span className="text-xs text-gray-500 font-medium">Đang suy nghĩ...</span>
+                                        <span className="text-xs text-gray-500 font-medium">Đang xử lý...</span>
                                     </div>
                                 </div>
                             )}
 
-                            {/* 3. GỢI Ý CHỨC NĂNG (Chỉ hiện sau câu chào và khi không loading) */}
+                            {/* Gợi ý chức năng */}
                             {messages.length === 1 && !isLoading && (
                                 <div className="mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 ml-1">Gợi ý cho bạn</p>
@@ -197,7 +239,7 @@ export default function Chatbot({ user }) {
                                         {getSuggestions(user?.vaitro).map((item, idx) => (
                                             <button
                                                 key={idx}
-                                                onClick={() => handleSuggestionClick(item.action, item.label)}
+                                                onClick={() => handleSuggestionClick(item.action)}
                                                 className="flex flex-col items-center justify-center p-3 bg-white border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-all gap-2 shadow-sm group active:scale-95"
                                             >
                                                 <div className="p-2 bg-gray-50 rounded-full text-gray-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
@@ -211,7 +253,7 @@ export default function Chatbot({ user }) {
                             )}
                         </div>
 
-                        {/* Footer Input */}
+                        {/* Input Area (Giữ nguyên) */}
                         <div className="p-3 bg-white border-t border-gray-100">
                             <form
                                 onSubmit={(e) => { e.preventDefault(); handleSend(); }}
@@ -233,14 +275,14 @@ export default function Chatbot({ user }) {
                                 </button>
                             </form>
                             <p className="text-[10px] text-center text-gray-400 mt-2">
-                                AI có thể đưa ra thông tin chưa chính xác. Vui lòng kiểm tra lại.
+                                Powered by Gemini AI. Thông tin chỉ mang tính tham khảo.
                             </p>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            {/* BUTTON KÍCH HOẠT (Trigger) */}
+            {/* Trigger Button (Giữ nguyên) */}
             <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
