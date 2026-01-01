@@ -50,7 +50,7 @@ def run():
     time.sleep(2)
 
     # 6. Test Navigation (Nhóm 3) - Đặt phòng
-    send("Lớp tôi muốn mượn phòng họp nhóm.")
+    send("Địa chỉ của thư viện ở đâu?")
 
 if __name__ == "__main__":
     run()

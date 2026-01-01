@@ -3,7 +3,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation'; // Để xử lý điều hướng
-import { MessageCircle, X, Send, Sparkles, User, Book, Calendar, HelpCircle, Loader2, ExternalLink } from 'lucide-react';
+import Image from 'next/image';
+import { MessageCircle, X, Send, Sparkles, User, Book, Calendar, HelpCircle, Loader2, ExternalLink, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { sendChatMessageAction } from '@/app/actions/chat';
 
@@ -140,10 +141,48 @@ export default function ChatWidget({ user }) {
         ));
     };
 
+    // --- COMPONENT CON: THẺ SÁCH MINI ---
+    const BookCard = ({ book }) => (
+        <div
+            onClick={() => {
+                setIsOpen(false); // Đóng chat nếu muốn
+                router.push(`/tai_lieu/${book.id}`);
+            }}
+            className="flex items-start gap-3 p-3 mt-2 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group max-w-[280px]"
+        >
+            {/* Ảnh bìa */}
+            <div className="relative w-12 h-16 shrink-0 rounded-md overflow-hidden bg-gray-100 border border-gray-100">
+                {book.cover ? (
+                    <Image
+                        src={book.cover}
+                        alt={book.title}
+                        fill
+                        className="object-cover group-hover:scale-110 transition-transform duration-500"
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <Book size={20} />
+                    </div>
+                )}
+            </div>
+
+            {/* Thông tin */}
+            <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-bold text-gray-800 line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors">
+                    {book.title}
+                </h4>
+                <p className="text-xs text-gray-500 mt-1 truncate">{book.author}</p>
+                <div className="flex items-center gap-1 mt-2 text-[10px] font-bold text-blue-600 bg-blue-50 w-fit px-2 py-0.5 rounded-full">
+                    Xem chi tiết <ChevronRight size={10} />
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <div className="fixed bottom-6 right-6 z-100 flex flex-col items-end gap-4 font-sans">
 
-            {/* Tooltip (Giữ nguyên) */}
+            {/* Tooltip */}
             <AnimatePresence>
                 {isHovered && !isOpen && (
                     <motion.div
@@ -203,7 +242,16 @@ export default function ChatWidget({ user }) {
                                         </div>
                                     </div>
 
-                                    {/* 4. RENDER ACTION BUTTON (Nếu có) */}
+                                    {/* --- XỬ LÝ ACTION HIỂN THỊ SÁCH --- */}
+                                    {msg.type === 'bot' && msg.action && msg.action.type === 'show_books' && (
+                                        <div className="ml-10 mt-2 flex flex-col gap-2 w-full pr-4 animate-in fade-in slide-in-from-bottom-2">
+                                            {msg.action.payload.map((book) => (
+                                                <BookCard key={book.id} book={book} />
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* RENDER ACTION BUTTON (Nếu có) */}
                                     {msg.type === 'bot' && msg.action && msg.action.type === 'navigate' && (
                                         <div className="mt-2 ml-10 animate-in fade-in slide-in-from-bottom-2">
                                             <button
@@ -253,7 +301,7 @@ export default function ChatWidget({ user }) {
                             )}
                         </div>
 
-                        {/* Input Area (Giữ nguyên) */}
+                        {/* Input Area */}
                         <div className="p-3 bg-white border-t border-gray-100">
                             <form
                                 onSubmit={(e) => { e.preventDefault(); handleSend(); }}
@@ -282,7 +330,7 @@ export default function ChatWidget({ user }) {
                 )}
             </AnimatePresence>
 
-            {/* Trigger Button (Giữ nguyên) */}
+            {/* Trigger Button */}
             <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}

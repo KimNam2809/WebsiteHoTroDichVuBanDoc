@@ -12,7 +12,7 @@ class LibraryBrain:
         # self.llm = ChatOllama(model="llama3", base_url="http://localhost:11434", temperature=0.0)
         self.llm = ChatGroq(temperature=0, model_name="llama-3.3-70b-versatile", api_key=settings.GROQ_API_KEY)
         self.nav_map = {
-            "card": {"url": "/account/card-request", "label": "Đăng ký thẻ"},
+            "card": {"url": "/dang_ky_the", "label": "Đăng ký thẻ"},
             "room": {"url": "/booking/room", "label": "Đặt phòng họp"},
             "ship": {"url": "/services/delivery", "label": "Yêu cầu giao sách"}
         }
@@ -32,6 +32,8 @@ class LibraryBrain:
             "book_name": "tên sách",
             "author": "tên tác giả",
             "room_name": "tên phòng",
+            "category": "Thể loại hoặc từ khoá (Ví dụ: 'trinh thám', 'lập trình', 'văn học')",
+            "available": "true/false (Nếu người dùng hỏi 'có thể mượn ngay', 'còn sách không', 'mượn bây giờ')",
             "device_name": "tên thiết bị",
             "article_topic": "chủ đề bài viết"
         }}
@@ -60,9 +62,9 @@ class LibraryBrain:
         entities = self.extract_entities(user_query, history)
 
         personal_keywords = [
-            "tôi đang mượn", "tôi đã mượn", "sách của tôi", "lịch sử mượn",
-            "tôi đã đặt", "tôi đang đặt", "kiểm tra phạt", "nợ bao nhiêu",
-            "thông tin thẻ", "hồ sơ của tôi", "yêu cầu thẻ"
+            "tôi đang mượn", "thẻ của tôi", "lịch sử mượn", "kiểm tra phạt", "hồ sơ của tôi",
+            "tôi đang đặt", "chỗ ngồi của tôi", "lịch đặt", "ghế đã đặt",
+            "bao giờ hết hạn", "khi nào hết hạn", "sách chưa trả", "đang giữ", "nợ bao nhiêu", "thông tin thẻ bạn đọc"
         ]
 
         if any(w in q_lower for w in personal_keywords):
@@ -73,7 +75,7 @@ class LibraryBrain:
 
         # --- Nhóm Điều hướng (Navigation) ---
         # Đăng ký thẻ / Làm thẻ
-        if any(w in q_lower for w in ["làm thẻ", "đăng ký thẻ", "cấp thẻ"]):
+        if any(w in q_lower for w in ["làm thẻ", "đăng ký thẻ", "cấp thẻ", "muốn làm thẻ", "cấp thẻ mới", "form thẻ", "link làm thẻ"]):
             return {
                 "reply": "Để đăng ký thẻ thư viện, bạn vui lòng điền thông tin tại trang đăng ký sau:",
                 "action": {"type": "navigate", "payload": self.nav_map['card']} # Đảm bảo nav_map có đủ 'url' và 'label'
@@ -105,12 +107,31 @@ class LibraryBrain:
 
         # --- Nhóm Tra cứu DB (DB Tools) ---
 
-        if any(w in q_lower for w in ["tìm sách", "có sách", "tác giả", "về chủ đề"]):
-            # Truyền tham số dưới dạng keyword arguments để tránh lỗi positional error
-            return {"reply": search_library_sql(
-                keyword=entities.get("book_name"),
-                author=entities.get("author")
-            ), "action": None}
+        if any(w in q_lower for w in ["tìm sách", "có sách", "về chủ đề", "sách", "tác phẩm", "tác giả", "mượn", "đọc", "chủ đề", "thể loại", "tìm"]):
+            # Gọi hàm DB mới
+            result = search_library_sql(
+                    keyword=entities.get("book_name"),
+                    author=entities.get("author"),
+                    category=entities.get("category"),
+                    available_only=entities.get("available")
+                )
+
+            # Kiểm tra xem result là Dict (thành công) hay String (lỗi cũ - phòng hờ)
+            if isinstance(result, dict):
+                response = {
+                    "reply": result["message"],
+                    "action": None
+                }
+                # Nếu có dữ liệu sách -> Gắn Action 'show_books'
+                if result["data"]:
+                    response["action"] = {
+                        "type": "show_books",
+                        "payload": result["data"]
+                    }
+                return response
+            else:
+                # Fallback nếu hàm trả về string
+                return {"reply": str(result), "action": None}
 
         if any(w in q_lower for w in ["máy tính", "máy chiếu", "thiết bị", "điều hòa", "wifi"]  ):
             if entities.get("device_name"):
