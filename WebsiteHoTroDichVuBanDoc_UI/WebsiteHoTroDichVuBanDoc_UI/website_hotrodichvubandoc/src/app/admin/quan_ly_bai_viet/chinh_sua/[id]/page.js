@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, use } from 'react';
 import Image from 'next/image';
 import {
     Upload, X, Image as ImageIcon, Save, Loader2, Plus, ArrowLeft,
@@ -9,20 +9,23 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-import { uploadImagesAction, createPostAction } from './actions';
+import { getPostDetailAction, updatePostAction, uploadImagesAction } from './actions';
 
-export default function CreatePostPage() {
+export default function EditPostPage({ params }) {
+    const { id } = use(params);
     const router = useRouter();
 
     // --- STATE QUẢN LÝ ---
+    const [isLoadingData, setIsLoadingData] = useState(true);
     const [title, setTitle] = useState('');
     const [uploadedImages, setUploadedImages] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [statusMessage, setStatusMessage] = useState('');
-
-    // State UI
     const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
-    const [selectedImageNode, setSelectedImageNode] = useState(null); // Node ảnh đang chọn trong editor
+
+    // State riêng cho Editor
+    const [initialContent, setInitialContent] = useState(''); // Lưu nội dung thô khi mới load
+    const [selectedImageNode, setSelectedImageNode] = useState(null); // Quản lý ảnh đang được chọn
 
     const editorRef = useRef(null);
 
@@ -32,16 +35,63 @@ export default function CreatePostPage() {
         setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
     };
 
-    // --- 1. LOGIC EDITOR & TƯƠNG TÁC ẢNH (Nâng cao) ---
+    // --- 1. LOAD DỮ LIỆU TỪ SERVER ---
+    useEffect(() => {
+        const loadData = async () => {
+            setIsLoadingData(true);
+            const post = await getPostDetailAction(id);
 
-    // Kéo thả từ cột phải sang trái
+            if (!post) {
+                showToast("Không tìm thấy bài viết hoặc bài viết đã bị xóa!", "error");
+                setTimeout(() => router.push('/admin/quan_ly_bai_viet'), 2000);
+                return;
+            }
+
+            setTitle(post.tieude);
+
+            // Lưu nội dung vào state tạm, chờ Editor render xong mới điền
+            setInitialContent(post.noidung || '');
+
+            // Tái tạo danh sách ảnh từ DB (JSONB)
+            if (post.anhdaidien) {
+                const imagesFromDB = Object.values(post.anhdaidien).map((url) => ({
+                    id: Math.random().toString(36).substr(2, 9),
+                    file: null,
+                    preview: url,
+                    url: url,
+                    caption: '',
+                    status: 'done' // Đánh dấu đã có trên server
+                }));
+                setUploadedImages(imagesFromDB);
+            }
+            setIsLoadingData(false);
+        };
+
+        loadData();
+    }, [id, router]);
+
+    // --- EFFECT: ĐIỀN DỮ LIỆU VÀO EDITOR (Fix lỗi F5 mất nội dung) ---
+    useEffect(() => {
+        // Chỉ chạy khi Loading tắt và Editor đã xuất hiện trong DOM
+        if (!isLoadingData && editorRef.current && initialContent) {
+            // Chỉ điền nếu editor đang rỗng
+            if (editorRef.current.innerHTML.trim() === "") {
+                editorRef.current.innerHTML = initialContent;
+            }
+        }
+    }, [isLoadingData, initialContent]);
+
+
+    // --- 2. LOGIC EDITOR & THAO TÁC ẢNH (Fix Ctrl+Z và Xóa ảnh) ---
+
+    // Kéo thả ảnh vào Editor
     const handleDrop = (e) => {
         e.preventDefault();
         const data = e.dataTransfer.getData("text/plain");
         if (!data) return;
 
         try {
-            // Kiểm tra format JSON để tránh lỗi cú pháp
+            // Kiểm tra format JSON trước khi parse để tránh lỗi SyntaxError
             if (data.trim().startsWith('{')) {
                 const p = JSON.parse(data);
                 if (p?.url) insertImageLogic(p.url, p.caption);
@@ -51,7 +101,7 @@ export default function CreatePostPage() {
         }
     };
 
-    // Chèn ảnh vào vị trí con trỏ (Hỗ trợ History Undo)
+    // Chèn ảnh vào vị trí con trỏ
     const insertImageLogic = (imageUrl, caption) => {
         if (!editorRef.current) return;
 
@@ -68,6 +118,7 @@ export default function CreatePostPage() {
 
         if (selection.rangeCount > 0) {
             let range = selection.getRangeAt(0);
+            // Đảm bảo range nằm trong editor
             if (!editorRef.current.contains(range.commonAncestorContainer)) {
                 range = document.createRange();
                 range.selectNodeContents(editorRef.current);
@@ -76,21 +127,24 @@ export default function CreatePostPage() {
                 selection.addRange(range);
             }
             range.deleteContents();
-            // Dùng execCommand để trình duyệt lưu vào History (Hỗ trợ Ctrl+Z)
+            // Dùng execCommand để trình duyệt lưu vào History (Hỗ trợ Undo/Ctrl+Z)
             document.execCommand('insertHTML', false, htmlToInsert);
         } else {
+             // Fallback chèn cuối
             editorRef.current.innerHTML += htmlToInsert;
         }
     };
 
-    // Click vào ảnh để chọn (Hiển thị viền xanh)
+    // Click vào ảnh để chọn (Select)
     const handleEditorClick = (e) => {
         if (e.target.tagName === 'IMG') {
+            // Bỏ chọn ảnh cũ
             if (selectedImageNode) selectedImageNode.style.outline = 'none';
-
-            e.target.style.outline = '3px solid #3b82f6'; // Viền xanh
+            // Chọn ảnh mới (Viền xanh)
+            e.target.style.outline = '3px solid #3b82f6';
             setSelectedImageNode(e.target);
         } else {
+            // Click ra ngoài thì bỏ chọn
             if (selectedImageNode) {
                 selectedImageNode.style.outline = 'none';
                 setSelectedImageNode(null);
@@ -103,33 +157,33 @@ export default function CreatePostPage() {
         if ((e.key === 'Delete' || e.key === 'Backspace') && selectedImageNode) {
             e.preventDefault();
 
+            // Tìm thẻ cha <figure> để xóa cả cụm (ảnh + chú thích)
             const targetNode = selectedImageNode.closest('figure') || selectedImageNode;
 
-            // Tạo vùng chọn bao trùm đối tượng
+            // Tạo vùng chọn bao trùm đối tượng cần xóa
             const selection = window.getSelection();
             const range = document.createRange();
             range.selectNode(targetNode);
             selection.removeAllRanges();
             selection.addRange(range);
 
-            // Dùng lệnh delete chuẩn của trình duyệt (Undo được)
+            // Dùng lệnh delete của trình duyệt để hỗ trợ Undo
             document.execCommand('delete');
 
             setSelectedImageNode(null);
         }
     };
 
-    // --- 2. QUẢN LÝ KHO ẢNH (CỘT PHẢI) ---
+    // --- 3. QUẢN LÝ KHO ẢNH BÊN PHẢI ---
     const handleFileSelect = (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
-
         const newImages = files.map(file => ({
             id: Math.random().toString(36).substr(2, 9),
             file: file,
-            preview: URL.createObjectURL(file), // Blob URL xem trước
+            preview: URL.createObjectURL(file), // Blob URL
             caption: '',
-            status: 'pending', // Mặc định là chưa upload
+            status: 'pending', // Chờ upload
             url: null
         }));
         setUploadedImages(prev => [...prev, ...newImages]);
@@ -140,7 +194,7 @@ export default function CreatePostPage() {
     };
 
     const handleDragStart = (e, img) => {
-        // Gửi JSON data qua event drag
+        // Gửi dữ liệu ảnh qua drag event (Ưu tiên URL thật nếu có, không thì Blob)
         const data = JSON.stringify({ url: img.url || img.preview, caption: img.caption });
         e.dataTransfer.setData("text/plain", data);
         e.dataTransfer.effectAllowed = "copy";
@@ -148,89 +202,71 @@ export default function CreatePostPage() {
 
     const handleDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; };
 
-    // --- 3. XỬ LÝ ĐĂNG BÀI (BATCH UPLOAD) ---
-    const handleSubmit = async () => {
-        if (!title.trim()) return showToast("Vui lòng nhập tiêu đề bài viết!", "warning");
+    // --- 4. XỬ LÝ LƯU CẬP NHẬT (SUBMIT) ---
+    const handleUpdate = async () => {
+        if (!title.trim()) return showToast("Vui lòng nhập tiêu đề!", "warning");
         let finalContentHTML = editorRef.current.innerHTML;
-        if (!finalContentHTML.trim()) return showToast("Nội dung bài viết đang trống!", "warning");
+        if (!finalContentHTML.trim()) return showToast("Nội dung trống!", "warning");
 
         setIsSubmitting(true);
-        setStatusMessage('Đang xử lý hình ảnh...');
+        setStatusMessage('Kiểm tra và upload ảnh mới...');
 
         try {
-            // Lọc các ảnh chưa upload (status != done)
-            // Với trang Tạo mới, thường là toàn bộ ảnh đều là pending
+            // Lọc các ảnh mới chưa upload (status != done)
             const imagesToUpload = uploadedImages.filter(img => img.status !== 'done');
             const urlMapping = {};
+            // Danh sách cuối cùng gồm cả ảnh cũ và ảnh mới sau khi upload
             const finalImageList = [...uploadedImages.filter(img => img.status === 'done')];
 
-            // A. Upload Batch (Gửi 1 request duy nhất chứa nhiều ảnh)
+            // A. Upload Batch (Nếu có ảnh mới)
             if (imagesToUpload.length > 0) {
                 const formData = new FormData();
-                imagesToUpload.forEach(img => {
-                    formData.append('files', img.file);
-                });
+                imagesToUpload.forEach(img => formData.append('files', img.file));
 
-                // Gọi Server Action
                 const response = await uploadImagesAction(formData);
+                if (!response.success) throw new Error(response.error);
 
-                if (!response.success) {
-                    throw new Error(response.error || "Lỗi upload ảnh.");
-                }
+                const results = response.data;
 
-                const results = response.data; // Mảng kết quả từ server
-
-                // Map kết quả: Khớp tên file gốc -> Lấy URL thật
+                // Map kết quả trả về từ server
                 imagesToUpload.forEach(img => {
                     const result = results.find(r => r.original_name === img.file.name);
-
-                    if (result && result.success) {
-                        urlMapping[img.preview] = result.url; // Lưu cặp Blob -> URL thật
-                        finalImageList.push({
-                            ...img,
-                            url: result.url,
-                            status: 'done'
-                        });
+                    if (result?.success) {
+                        urlMapping[img.preview] = result.url; // Map Blob -> Real URL
+                        finalImageList.push({ ...img, url: result.url, status: 'done' });
                     } else {
-                        console.error(`Lỗi upload ảnh ${img.file.name}:`, result?.error);
-                        showToast(`Không thể upload ảnh: ${img.file.name}`, "warning");
+                        console.error(`Lỗi upload ảnh ${img.file.name}`);
                     }
                 });
             }
 
-            // B. Tráo đổi link: Tìm Blob URL trong HTML -> Thay bằng URL thật
+            // B. Tráo đổi link (Blob -> Real URL) trong nội dung HTML
             Object.keys(urlMapping).forEach(blobUrl => {
                 const realUrl = urlMapping[blobUrl];
                 finalContentHTML = finalContentHTML.split(blobUrl).join(realUrl);
             });
 
-            setStatusMessage('Đang lưu bài viết...');
+            setStatusMessage('Đang lưu cập nhật...');
 
-            // C. Gửi dữ liệu tạo bài viết
+            // C. Gửi dữ liệu Update
             const payload = {
                 tieude: title,
                 noidung: finalContentHTML,
-                trangthai: true,
+                trangthai: true, // Hoặc lấy từ UI switch
                 danh_sach_anh: finalImageList.map(img => ({
                     url: img.url,
                     chu_thich: img.caption
                 })),
-                ghichu: ""
+                ghichu: `Cập nhật lúc ${new Date().toLocaleString()}`
             };
 
-            const resultPost = await createPostAction(payload);
+            const res = await updatePostAction(id, payload);
+            if (!res.success) throw new Error(res.error);
 
-            if (!resultPost.success) {
-                throw new Error(resultPost.error);
-            }
+            showToast("Cập nhật bài viết thành công!", "success");
 
-            showToast("Đăng bài viết thành công!", "success");
-
-            // Reset form sau khi thành công
-            setUploadedImages([]);
-            setTitle('');
-            if(editorRef.current) editorRef.current.innerHTML = '';
-            setTimeout(() => router.push('/admin/quan_ly_bai_viet'), 1500);
+            // Đồng bộ lại state ảnh
+            setUploadedImages(finalImageList);
 
         } catch (error) {
             console.error(error);
@@ -241,7 +277,19 @@ export default function CreatePostPage() {
         }
     };
 
-    // --- RENDER GIAO DIỆN ---
+    // --- RENDER LOADING ---
+    if (isLoadingData) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="flex flex-col items-center gap-3 text-blue-600">
+                    <Loader2 size={40} className="animate-spin" />
+                    <p className="font-medium">Đang tải dữ liệu bài viết...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // --- RENDER GIAO DIỆN CHÍNH ---
     return (
         <div className="min-h-screen bg-gray-50 p-6 font-sans relative">
 
@@ -268,50 +316,45 @@ export default function CreatePostPage() {
                         <ArrowLeft size={20} />
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800">Tạo bài viết mới</h1>
-                        <p className="text-sm text-gray-500">Soạn thảo và quản lý hình ảnh</p>
+                        <h1 className="text-2xl font-bold text-gray-800">Chỉnh sửa bài viết</h1>
+                        <p className="text-sm text-gray-500">Mã bài viết: #{id}</p>
                     </div>
                 </div>
-
                 <div className="flex items-center gap-3">
                     {statusMessage && <span className="text-sm text-blue-600 font-medium animate-pulse">{statusMessage}</span>}
-                    <button
-                        onClick={handleSubmit}
-                        disabled={isSubmitting}
-                        className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg disabled:opacity-70 transition-all"
-                    >
+                    <button onClick={handleUpdate} disabled={isSubmitting} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg disabled:opacity-70 transition-all">
                         {isSubmitting ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-                        {isSubmitting ? 'Đang xử lý...' : 'Đăng bài viết'}
+                        {isSubmitting ? 'Lưu thay đổi' : 'Cập nhật'}
                     </button>
                 </div>
             </div>
 
+            {/* MAIN CONTENT GRID */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                 {/* --- CỘT TRÁI: EDITOR --- */}
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Tiêu đề bài viết</label>
                         <input
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Nhập tiêu đề bài viết..."
-                            className="w-full text-xl font-bold px-4 py-3 border-b-2 border-gray-200 focus:border-blue-500 outline-none transition-colors placeholder:font-normal"
+                            className="w-full text-xl font-bold px-4 py-3 border-b-2 border-gray-200 focus:border-blue-500 outline-none transition-colors"
+                            placeholder="Tiêu đề bài viết..."
                         />
                     </div>
 
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col min-h-[600px] overflow-hidden">
                         {/* Toolbar */}
                         <div className="p-3 border-b border-gray-100 flex gap-2 items-center bg-gray-50/50 rounded-t-2xl">
-                            <button onClick={() => document.execCommand('bold')} className="p-2 hover:bg-gray-200 rounded text-gray-700 font-bold" title="In đậm">B</button>
-                            <button onClick={() => document.execCommand('italic')} className="p-2 hover:bg-gray-200 rounded text-gray-700 italic" title="In nghiêng">I</button>
-                            <button onClick={() => document.execCommand('underline')} className="p-2 hover:bg-gray-200 rounded text-gray-700 underline" title="Gạch chân">U</button>
+                            <button onClick={() => document.execCommand('bold')} className="p-2 font-bold hover:bg-gray-200 rounded text-gray-700" title="In đậm">B</button>
+                            <button onClick={() => document.execCommand('italic')} className="p-2 italic hover:bg-gray-200 rounded text-gray-700" title="In nghiêng">I</button>
+                            <button onClick={() => document.execCommand('underline')} className="p-2 underline hover:bg-gray-200 rounded text-gray-700" title="Gạch chân">U</button>
                             <div className="h-6 w-px bg-gray-300 mx-2"></div>
-                            <span className="text-xs text-gray-400 ml-auto">Click ảnh + Delete để xóa (Hỗ trợ Ctrl+Z)</span>
+                            <span className="text-xs text-gray-400 ml-auto">Click ảnh để chọn, nhấn Delete để xóa (Có thể sử dụng tổ hợp &quot;CTRL + Z&quot; để hoàn tác)</span>
                         </div>
 
-                        {/* VÙNG SOẠN THẢO */}
+                        {/* Vùng soạn thảo */}
                         <div
                             ref={editorRef}
                             contentEditable
@@ -321,7 +364,7 @@ export default function CreatePostPage() {
                             onKeyDown={handleKeyDown}
                             className="flex-1 p-8 outline-none prose prose-lg max-w-none text-gray-700 cursor-text"
                             style={{ minHeight: '400px' }}
-                            placeholder="Viết nội dung ở đây..."
+                            placeholder="Nội dung bài viết..."
                         ></div>
 
                         <style jsx>{`
@@ -339,66 +382,44 @@ export default function CreatePostPage() {
                 <div className="space-y-6">
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-6">
                         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <ImageIcon className="text-blue-600" size={20}/> Kho ảnh bài viết
+                            <ImageIcon className="text-blue-600" size={20}/> Kho ảnh
                         </h3>
 
                         <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-blue-200 rounded-xl bg-blue-50/50 cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-all group">
                             <div className="flex flex-col items-center justify-center pt-5 pb-6">
                                 <Upload className="w-8 h-8 text-blue-400 mb-2 group-hover:scale-110 transition-transform" />
-                                <p className="text-sm text-blue-600 font-medium">Click chọn ảnh</p>
+                                <p className="text-sm text-blue-600 font-medium">Click chọn ảnh mới</p>
                             </div>
                             <input type="file" className="hidden" multiple accept="image/*" onChange={handleFileSelect} />
                         </label>
 
-                        <div className="mt-6 space-y-6 max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
-                            {uploadedImages.length === 0 && (
-                                <p className="text-center text-gray-400 text-sm py-4">Chưa có ảnh nào được chọn.</p>
-                            )}
-
+                        <div className="mt-6 space-y-6 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                             {uploadedImages.map((img) => (
-                                <div
-                                    key={img.id}
-                                    draggable={true}
-                                    onDragStart={(e) => handleDragStart(e, img)}
-                                    className="bg-gray-50 p-3 rounded-xl border border-gray-200 group transition-all cursor-grab active:cursor-grabbing hover:border-blue-400 hover:shadow-md"
-                                >
+                                <div key={img.id} draggable={true} onDragStart={(e) => handleDragStart(e, img)} className="bg-gray-50 p-3 rounded-xl border border-gray-200 group hover:shadow-md cursor-grab active:cursor-grabbing transition-all">
                                     <div className="relative aspect-video rounded-lg overflow-hidden mb-3 bg-white border border-gray-100">
                                         <Image src={img.preview} alt="preview" fill className="object-cover pointer-events-none" />
                                         <div className="absolute top-2 right-2">
-                                            {img.status === 'pending' && <span className="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1"><AlertTriangle size={10}/> Chờ lưu</span>}
-                                            {img.status === 'done' && <CheckCircle size={16} className="text-green-600 bg-white rounded-full"/>}
+                                            {img.status === 'done'
+                                                ? <CheckCircle size={16} className="text-green-600 bg-white rounded-full"/>
+                                                : <AlertTriangle size={16} className="text-yellow-500 bg-white rounded-full"/>
+                                            }
                                         </div>
                                     </div>
-
-                                    <input
-                                        type="text"
-                                        value={img.caption}
-                                        onChange={(e) => handleCaptionChange(img.id, e.target.value)}
-                                        placeholder="Nhập chú thích..."
-                                        className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-blue-500 outline-none bg-white"
-                                    />
-
+                                    <input type="text" value={img.caption} onChange={(e) => handleCaptionChange(img.id, e.target.value)} placeholder="Chú thích..." className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-blue-500 outline-none bg-white" />
                                     <div className="flex gap-2 mt-2">
-                                        <button
-                                            onClick={() => insertImageLogic(img.preview, img.caption)}
-                                            className="flex-1 py-1.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-1 shadow-sm"
-                                        >
+                                        <button onClick={() => insertImageLogic(img.preview, img.caption)} className="flex-1 py-1.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-1 shadow-sm">
                                             <Plus size={14}/> Chèn
                                         </button>
-
-                                        <button
-                                            onClick={() => setUploadedImages(prev => prev.filter(i => i.id !== img.id))}
-                                            className="p-1.5 bg-white border border-gray-200 text-red-500 rounded-lg hover:bg-red-50 hover:border-red-200 transition-colors"
-                                        >
+                                        <button onClick={() => setUploadedImages(prev => prev.filter(i => i.id !== img.id))} className="p-1.5 bg-white border border-gray-200 text-red-500 rounded-lg hover:bg-red-50 hover:border-red-200 transition-colors">
                                             <X size={16}/>
                                         </button>
                                     </div>
-                                    <p className="text-[10px] text-gray-400 text-center mt-2">Kéo thả vào bài để xem trước</p>
                                 </div>
                             ))}
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
     );

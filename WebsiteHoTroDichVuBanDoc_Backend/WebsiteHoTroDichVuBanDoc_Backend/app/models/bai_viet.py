@@ -11,21 +11,6 @@ class BaiVietBase(DBModel):
     tuKhoa: Optional[List[str]] = None
     ghiChu: Optional[str] = None
 
-class BaiVietUpdate(DBModel):
-    tieuDe: Optional[str] = None
-    noiDung: Optional[str] = None
-    anhDaiDien: Optional[Dict[str, Any]] = None
-    trangThai: Optional[bool] = None
-    tuKhoa: Optional[List[str]] = None
-    ghiChu: Optional[str] = None
-
-class BaiViet(BaiVietBase):
-    maBaiViet: int
-    ngayDang: Optional[datetime] = None
-    ngayCapNhat: Optional[datetime] = None
-    soLuotXem: int = 0
-    soLuotChiaSe: int = 0
-
 class AnhChiTiet(DBModel):
     url: str
     chu_thich: Optional[str] = ""
@@ -38,3 +23,20 @@ class BaiVietCreate(DBModel):
     trangthai: bool = True
     # Danh sách ảnh để lưu vào cột jsonb anhdaidien
     danh_sach_anh: List[AnhChiTiet]
+
+class BaiVietUpdate(DBModel):
+    tieude: Optional[str] = None
+    noidung: Optional[str] = None
+    tukhoa: Optional[List[str]] = None
+    ghichu: Optional[str] = None
+    trangthai: Optional[bool] = None
+    # Nhận danh sách ảnh (URL + Caption) từ Frontend gửi lên
+    danh_sach_anh: Optional[List[AnhChiTiet]] = None
+
+class BaiViet(BaiVietBase):
+    maBaiViet: int
+    ngayDang: Optional[datetime] = None
+    ngayCapNhat: Optional[datetime] = None
+    soLuotXem: int = 0
+    soLuotChiaSe: int = 0
+

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from typing import List, Optional, Dict
 import logging, asyncio, time, re
 
-from app.models.bai_viet import BaiViet, BaiVietCreate
+from app.models.bai_viet import BaiViet, BaiVietCreate, BaiVietUpdate
 from app.connect.db import supabase_client
 from app.connect.auth import get_current_staff_profile
 from app.utils import to_json_safe
@@ -160,86 +160,54 @@ def get_bai_viet_by_id(maBaiViet: int):
 # 4. UPDATE
 @router.put(
     "/{maBaiViet}",
-    response_model=BaiViet,
+    response_model=dict, # Trả về data sau khi update
     status_code=status.HTTP_200_OK,
-    summary="Cập nhật thông tin bài viết (Có hỗ trợ upload ảnh mới)"
+    summary="Cập nhật bài viết (Nhận JSON)"
 )
 async def update_bai_viet(
     maBaiViet: int,
-    # Các trường update optional
-    tieude: Optional[str] = Form(None),
-    noidung: Optional[str] = Form(None),
-    tukhoa: Optional[str] = Form(None),
-    ghichu: Optional[str] = Form(None),
-    trangthai: Optional[bool] = Form(None),
-    # Files mới (nếu muốn thay thế hoặc thêm)
-    # Lưu ý: Logic update ảnh ở đây là: Nếu gửi ảnh mới -> Thay thế toàn bộ ảnh cũ.
-    anh_dai_dien: List[UploadFile] = File(None),
+    post_data: BaiVietUpdate,
     current_staff: dict = Depends(get_current_staff_profile)
 ):
-    """
-    Cập nhật thông tin cho một bài viết.
-    Nếu có `anh_dai_dien` được gửi lên, sẽ thay thế toàn bộ ảnh cũ bằng ảnh mới.
-    """
     try:
-        # 1. Chuẩn bị dữ liệu update
-        update_data = {}
-        if tieude is not None: update_data["tieude"] = tieude
-        if noidung is not None: update_data["noidung"] = noidung
-        if ghichu is not None: update_data["ghichu"] = ghichu
-        if trangthai is not None: update_data["trangthai"] = trangthai
-        if tukhoa is not None:
-            update_data["tukhoa"] = [k.strip() for k in tukhoa.split(",")]
+        # 1. Chuẩn bị dữ liệu để update vào DB
+        update_data = {
+            "ngaycapnhat": "now()", # Cập nhật thời gian
+        }
 
-        # 2. Xử lý ảnh mới (Nếu có)
-        if anh_dai_dien:
-            anh_dai_dien_json: Dict[str, str] = {}
-            for idx, file in enumerate(anh_dai_dien):
-                if file.filename:
-                    try:
-                        clean_name = re.sub(r'[^a-zA-Z0-9_.-]', '', file.filename.replace(" ", "_"))
-                        file_name = f"post_{maBaiViet}_{int(time.time())}_{idx}_{clean_name}"
+        if post_data.tieude is not None:
+            update_data["tieude"] = post_data.tieude
+        if post_data.noidung is not None:
+            update_data["noidung"] = post_data.noidung
+        if post_data.ghichu is not None:
+            update_data["ghichu"] = post_data.ghichu
+        if post_data.trangthai is not None:
+            update_data["trangthai"] = post_data.trangthai
+        if post_data.tukhoa is not None:
+            update_data["tukhoa"] = post_data.tukhoa
 
-                        file_content = await file.read()
+        # 2. Xử lý Ảnh (Chuyển List Object -> JSONB Dict)
+        # Frontend gửi: [{url: "...", chu_thich: "..."}]
+        # DB lưu: {"anh_1": "url", "anh_2": "url"} (Theo cấu trúc cũ của bạn)
+        if post_data.danh_sach_anh is not None:
+            anh_dai_dien_json = {}
+            for idx, img in enumerate(post_data.danh_sach_anh):
+                anh_dai_dien_json[f"anh_{idx + 1}"] = img.url
 
-                        supabase_client.storage.from_(STORAGE_BUCKET).upload(
-                            path=file_name,
-                            file=file_content,
-                            file_options={"content-type": file.content_type}
-                        )
+            update_data["anhdaidien"] = anh_dai_dien_json
 
-                        url = supabase_client.storage.from_(STORAGE_BUCKET).get_public_url(file_name)
-
-                        key_name = f"anh_{idx + 1}"
-                        anh_dai_dien_json[key_name] = url
-                    except Exception as e:
-                        logger.error(f"Lỗi upload ảnh update {file.filename}: {e}")
-                        pass
-
-            if anh_dai_dien_json:
-                update_data["anhdaidien"] = anh_dai_dien_json
-
-        if not update_data:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không có thông tin nào được gửi để cập nhật")
-
-        # 3. Update vào DB
-        # Sử dụng to_json_safe để convert các kiểu dữ liệu
-        safe_update_data = to_json_safe(update_data)
-
-        response = supabase_client.table(TABLE_NAME).update(safe_update_data).eq("mabaiviet", maBaiViet).execute()
+        # 3. Thực thi Update
+        # Sử dụng to_json_safe (nếu bạn có hàm helper này) hoặc dict thường
+        response = supabase_client.table("baiviet").update(update_data).eq("mabaiviet", maBaiViet).execute()
 
         if response.data:
             return response.data[0]
-        else:
-            # Có thể do ID không tồn tại
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy bài viết với id={maBaiViet} để cập nhật")
 
-    except HTTPException as he:
-        raise he
+        raise HTTPException(status_code=404, detail="Không tìm thấy bài viết hoặc không có quyền sửa")
+
     except Exception as e:
-        error_str = str(e)
-        logger.error("Lỗi khi cập nhật BaiViet ID %s: %s", maBaiViet, e)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        logger.error(f"Lỗi update bài viết {maBaiViet}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # 5. DELETE
 @router.delete(
