@@ -14,6 +14,12 @@ const nextConfig = {
                 hostname: '*.supabase.co',
             }
         ]
+    },
+
+    experimental: {
+        serverActions: {
+            bodySizeLimit: '50mb', // Tăng giới hạn lên 10MB (hoặc '50mb' tùy nhu cầu)
+        },
     }
 };
 
