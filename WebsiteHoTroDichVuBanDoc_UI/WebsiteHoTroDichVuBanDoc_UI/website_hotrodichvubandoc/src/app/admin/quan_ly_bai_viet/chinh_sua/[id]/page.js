@@ -3,13 +3,21 @@
 import { useState, useRef, useEffect, use } from 'react';
 import Image from 'next/image';
 import {
-    Upload, X, Image as ImageIcon, Save, Loader2, Plus, ArrowLeft,
+    Upload, X, Check, Tag, Image as ImageIcon, Save, Loader2, Plus, ArrowLeft,
     CheckCircle, AlertTriangle, Info, AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { getPostDetailAction, updatePostAction, uploadImagesAction } from './actions';
+
+const POST_CATEGORIES = [
+    { id: 'tin tức', label: '📰 Tin tức chung', color: 'text-blue-600' },
+    { id: 'sự kiện', label: '📅 Sự kiện sắp tới', color: 'text-orange-600' },
+    { id: 'hoạt động', label: '🏃 Hoạt động thư viện', color: 'text-green-600' },
+    { id: 'thông báo', label: '📢 Thông báo', color: 'text-red-600' },
+    { id: 'nổi bật', label: '⭐ Nổi bật (Slideshow)', color: 'text-yellow-500 font-bold' },
+];
 
 export default function EditPostPage({ params }) {
     const { id } = use(params);
@@ -26,6 +34,9 @@ export default function EditPostPage({ params }) {
     // State riêng cho Editor
     const [initialContent, setInitialContent] = useState(''); // Lưu nội dung thô khi mới load
     const [selectedImageNode, setSelectedImageNode] = useState(null); // Quản lý ảnh đang được chọn
+
+    // State lưu danh sách từ khóa đã chọn
+    const [selectedTags, setSelectedTags] = useState([]);
 
     const editorRef = useRef(null);
 
@@ -64,11 +75,28 @@ export default function EditPostPage({ params }) {
                 }));
                 setUploadedImages(imagesFromDB);
             }
+
+            // Xử lý từ khóa (tags)
+            let tags = [];
+            if (Array.isArray(post.tukhoa)) {
+                tags = post.tukhoa;
+            } else if (typeof post.tukhoa === 'string') {
+                tags = post.tukhoa.split(',').map(t => t.trim());
+            }
+            setSelectedTags(tags);
+
             setIsLoadingData(false);
         };
 
         loadData();
     }, [id, router]);
+
+    // --- LOGIC TOGGLE TAG ---
+    const toggleTag = (tagId) => {
+        setSelectedTags(prev =>
+            prev.includes(tagId) ? prev.filter(t => t !== tagId) : [...prev, tagId]
+        );
+    };
 
     // --- EFFECT: ĐIỀN DỮ LIỆU VÀO EDITOR (Fix lỗi F5 mất nội dung) ---
     useEffect(() => {
@@ -257,6 +285,7 @@ export default function EditPostPage({ params }) {
                     url: img.url,
                     chu_thich: img.caption
                 })),
+                tukhoa: selectedTags,
                 ghichu: `Cập nhật lúc ${new Date().toLocaleString()}`
             };
 
@@ -380,6 +409,35 @@ export default function EditPostPage({ params }) {
 
                 {/* --- CỘT PHẢI: KHO ẢNH --- */}
                 <div className="space-y-6">
+                    {/* 1. CARD PHÂN LOẠI BÀI VIẾT */}
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <Tag className="text-blue-600" size={20}/> Phân loại bài viết
+                        </h3>
+                        <div className="space-y-3">
+                            {POST_CATEGORIES.map(cat => {
+                                const isSelected = selectedTags.includes(cat.id);
+                                return (
+                                    <div
+                                        key={cat.id}
+                                        onClick={() => toggleTag(cat.id)}
+                                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border transition-all select-none
+                                            ${isSelected ? 'bg-blue-50 border-blue-500 shadow-sm' : 'bg-white border-gray-100 hover:bg-gray-50'}`}
+                                    >
+                                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors
+                                            ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
+                                            {isSelected && <Check size={14} className="text-white" />}
+                                        </div>
+                                        <span className={`text-sm font-medium ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
+                                            {cat.label}
+                                        </span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    {/* 2. CARD KHO ẢNH */}
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-6">
                         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                             <ImageIcon className="text-blue-600" size={20}/> Kho ảnh

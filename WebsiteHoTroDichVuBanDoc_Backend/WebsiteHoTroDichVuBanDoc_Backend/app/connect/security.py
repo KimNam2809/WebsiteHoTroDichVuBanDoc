@@ -52,7 +52,8 @@ def decode_access_token(token: str):
         payload = jwt.decode(
             token,
             settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM]
+            algorithms=[settings.JWT_ALGORITHM],
+            options={"verify_aud": False}
         )
         # Lấy 'sub' (subject, thường là username hoặc id)
         username: str = payload.get("sub")

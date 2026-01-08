@@ -3,13 +3,21 @@
 import { useState, useRef } from 'react';
 import Image from 'next/image';
 import {
-    Upload, X, Image as ImageIcon, Save, Loader2, Plus, ArrowLeft,
-    CheckCircle, AlertTriangle, Info, AlertCircle
+    Upload, X, Check, Image as ImageIcon, Save, Loader2, Plus, ArrowLeft,
+    CheckCircle, AlertTriangle, Info, AlertCircle, Tag
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { uploadImagesAction, createPostAction } from './actions';
+
+const POST_CATEGORIES = [
+    { id: 'tin-tuc', label: '📰 Tin tức chung', color: 'text-blue-600' },
+    { id: 'su-kien', label: '📅 Sự kiện sắp tới', color: 'text-orange-600' },
+    { id: 'hoat-dong', label: '🏃 Hoạt động thư viện', color: 'text-green-600' },
+    { id: 'thong-bao', label: '📢 Thông báo', color: 'text-red-600' },
+    { id: 'noi-bat', label: '⭐ Nổi bật (Slideshow)', color: 'text-yellow-500 font-bold' },
+];
 
 export default function CreatePostPage() {
     const router = useRouter();
@@ -24,7 +32,21 @@ export default function CreatePostPage() {
     const [toast, setToast] = useState({ show: false, message: '', type: 'info' });
     const [selectedImageNode, setSelectedImageNode] = useState(null); // Node ảnh đang chọn trong editor
 
+    // State lưu danh sách từ khóa đã chọn
+    const [selectedTags, setSelectedTags] = useState(['tin-tuc']);
+
     const editorRef = useRef(null);
+
+    // --- LOGIC CHỌN DANH MỤC ---
+    const toggleTag = (tagId) => {
+        setSelectedTags(prev => {
+            if (prev.includes(tagId)) {
+                return prev.filter(t => t !== tagId); // Bỏ chọn
+            } else {
+                return [...prev, tagId]; // Chọn thêm
+            }
+        });
+    };
 
     // --- HELPER: TOAST NOTIFICATION ---
     const showToast = (message, type = 'info') => {
@@ -215,6 +237,7 @@ export default function CreatePostPage() {
                     url: img.url,
                     chu_thich: img.caption
                 })),
+                tukhoa: selectedTags,
                 ghichu: ""
             };
 
@@ -337,6 +360,35 @@ export default function CreatePostPage() {
 
                 {/* --- CỘT PHẢI: KHO ẢNH --- */}
                 <div className="space-y-6">
+                    {/* 1. CARD PHÂN LOẠI BÀI VIẾT */}
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <Tag className="text-blue-600" size={20}/> Phân loại bài viết
+                        </h3>
+                        <div className="space-y-3">
+                            {POST_CATEGORIES.map(cat => {
+                                const isSelected = selectedTags.includes(cat.id);
+                                return (
+                                    <div
+                                        key={cat.id}
+                                        onClick={() => toggleTag(cat.id)}
+                                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border transition-all select-none
+                                            ${isSelected ? 'bg-blue-50 border-blue-500 shadow-sm' : 'bg-white border-gray-100 hover:bg-gray-50'}`}
+                                    >
+                                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors
+                                            ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
+                                            {isSelected && <Check size={14} className="text-white" />}
+                                        </div>
+                                        <span className={`text-sm font-medium ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
+                                            {cat.label}
+                                        </span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+
+                    {/* 2. CARD KHO ẢNH */}
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-6">
                         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                             <ImageIcon className="text-blue-600" size={20}/> Kho ảnh bài viết

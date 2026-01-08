@@ -42,6 +42,13 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
 
         user = response.data
 
+        # KIỂM TRA LOGIC GOOGLE
+        if user["matkhau"] == "GOOGLE_AUTH_USER":
+            raise HTTPException(
+                status_code=400,
+                detail="Tài khoản này đăng ký bằng Google. Vui lòng nhấn nút 'Tiếp tục với Google'."
+            )
+
         # Bước 2: Kiểm tra mật khẩu
         if not verify_password(form_data.password, user["matkhau"]):
             raise HTTPException(

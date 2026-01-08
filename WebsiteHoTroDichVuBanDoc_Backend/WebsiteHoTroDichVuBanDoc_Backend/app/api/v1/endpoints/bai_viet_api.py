@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
 from typing import List, Optional, Dict
 import logging, asyncio, time, re
+from math import ceil
 
 from app.models.bai_viet import BaiViet, BaiVietCreate, BaiVietUpdate
 from app.connect.db import supabase_client
@@ -12,6 +13,139 @@ logger = logging.getLogger(__name__)
 
 TABLE_NAME = "baiviet"
 STORAGE_BUCKET = "news_images" # Tên bucket chứa ảnh bài viết
+
+# --- API LẤY DANH SÁCH BÀI VIẾT CÔNG KHAI (CHO TRANG CHỦ/TRANG TIN TỨC) ---
+@router.get("/", summary="Lấy danh sách bài viết (Phân trang & Lọc)")
+async def get_list_posts(
+    page: int = Query(1, ge=1, description="Số trang hiện tại (bắt đầu từ 1)"),
+    limit: int = Query(15, ge=1, le=100, description="Số lượng bài viết mỗi trang (Mặc định 15)"),
+    category: Optional[str] = Query(None, description="Lọc theo từ khóa: tin-tuc, su-kien, hoat-dong..."),
+    search: Optional[str] = Query(None, description="Tìm kiếm theo tiêu đề bài viết")
+):
+    """
+    API lấy danh sách bài viết public cho trang chủ/trang tin tức.
+    - Hỗ trợ phân trang.
+    - Hỗ trợ lọc theo từ khóa (trong mảng tukhoa).
+    - Hỗ trợ tìm kiếm tiêu đề.
+    """
+    CATEGORY_MAPPING = {
+    "tin-tuc": "tin tức",
+    "su-kien": "sự kiện",
+    "hoat-dong": "hoạt động",
+    "thong-bao": "thông báo",
+    "noi-bat": "nổi bật",
+    # Thêm các mục khác nếu có
+}
+    try:
+        # 1. Tính toán phạm vi (Range) cho Supabase
+        # Supabase dùng zero-based index (0 là dòng đầu tiên)
+        start = (page - 1) * limit
+        end = start + limit - 1
+
+        # 2. Xây dựng Query cơ bản
+        # count="exact" để lấy tổng số dòng thỏa mãn điều kiện (dùng tính tổng số trang)
+        # Chỉ lấy các cột cần thiết để hiển thị list (bỏ noidung nếu quá nặng, hoặc lấy để cắt chuỗi)
+        query = supabase_client.table("baiviet")\
+            .select("mabaiviet, tieude, anhdaidien, ngaydang, tukhoa, soluotxem, ghichu, noidung, trangthai", count="exact")\
+            .eq("trangthai", True)\
+            .order("ngaydang", desc=True)
+
+        # 3. Áp dụng bộ lọc
+        if category and category != 'all':
+            # Logic:
+            # - Thử tìm trong từ điển Mapping trước (VD: tin-tuc -> tin tức)
+            # - Nếu không có trong từ điển, dùng chính giá trị gửi lên (đề phòng trường hợp frontend gửi đúng tiếng việt)
+            # - .lower() để đảm bảo không lỗi do viết hoa/thường
+
+            clean_category = category.strip().lower() # Xóa khoảng trắng thừa và viết thường
+
+            # Tìm trong map, nếu không thấy thì giữ nguyên giá trị gốc
+            db_category_value = CATEGORY_MAPPING.get(clean_category, clean_category)
+
+            # In ra log để debug xem nó đang tìm từ khóa gì
+            # logger.info(f"Searching category: Input={category} -> DB={db_category_value}")
+
+            # Query vào DB
+            query = query.contains("tukhoa", [db_category_value])
+
+        if search:
+            # Tìm kiếm không phân biệt hoa thường (%search%)
+            query = query.ilike("tieude", f"%{search}%")
+
+        # 4. Áp dụng phân trang
+        query = query.range(start, end)
+
+        # 5. Thực thi
+        response = query.execute()
+
+        # 6. Tính toán Metadata phân trang
+        total_items = response.count if response.count else 0
+        total_pages = ceil(total_items / limit)
+
+        return {
+            "data": response.data,
+            "meta": {
+                "current_page": page,
+                "items_per_page": limit,
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_prev": page > 1
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Lỗi lấy danh sách bài viết: {e}")
+        return {
+            "data": [],
+            "meta": {
+                "current_page": page,
+                "items_per_page": limit,
+                "total_items": 0,
+                "total_pages": 0
+            }
+        }
+
+# --- API TĂNG LƯỢT XEM ---
+@router.post("/{maBaiViet}/tang-luot-xem", status_code=status.HTTP_200_OK, summary="Tăng lượt xem bài viết lên 1")
+async def increase_view_count(maBaiViet: int):
+    try:
+        # Cách tối ưu nhất: Gọi RPC (Stored Procedure) trong Supabase để đảm bảo tính toàn vẹn (Atomic Update)
+        # Tuy nhiên, để đơn giản và không cần cấu hình SQL phức tạp, ta dùng cách python thủ công:
+
+        # B1: Lấy lượt xem hiện tại
+        res = supabase_client.table("baiviet").select("soluotxem").eq("mabaiviet", maBaiViet).execute()
+        if not res.data:
+            return {"message": "Bài viết không tồn tại"}
+
+        current_view = res.data[0].get("soluotxem", 0) or 0
+
+        # B2: Cập nhật +1
+        supabase_client.table("baiviet").update({"soluotxem": current_view + 1}).eq("mabaiviet", maBaiViet).execute()
+
+        return {"success": True, "new_view": current_view + 1}
+    except Exception as e:
+        logger.error(f"Lỗi tăng view bài {maBaiViet}: {e}")
+        # Không raise lỗi 500 để tránh ảnh hưởng trải nghiệm người dùng, chỉ log lỗi
+        return {"success": False, "error": str(e)}
+
+# --- API LẤY BÀI VIẾT LIÊN QUAN (MỚI NHẤT) ---
+@router.get("/lien-quan/{maBaiViet}", response_model=List[dict], summary="Lấy 4 bài viết mới nhất (trừ bài hiện tại)")
+async def get_related_posts(maBaiViet: int):
+    try:
+        # Logic: Lấy 4 bài viết có maBaiViet KHÁC maBaiViet hiện tại, sắp xếp mới nhất
+        response = supabase_client.table("baiviet")\
+            .select("mabaiviet, tieude, anhdaidien, ngaydang, tukhoa, soluotxem")\
+            .neq("mabaiviet", maBaiViet)\
+            .eq("trangthai", True)\
+            .order("ngaydang", desc=True)\
+            .limit(4)\
+            .execute()
+
+        return response.data
+    except Exception as e:
+        logger.error(f"Lỗi lấy bài liên quan: {e}")
+        return []
 
 # Upload ảnh lẻ để lấy URL
 # Hàm helper upload đơn lẻ (để dùng trong vòng lặp bất đồng bộ)
@@ -49,6 +183,7 @@ async def upload_single_file_to_supabase(file: UploadFile):
     except Exception as e:
         return {"original_name": file.filename, "error": str(e), "success": False}
 
+# Upload nhiều ảnh cùng lúc (Batch Upload)
 @router.post("/images", summary="Upload nhiều ảnh cùng lúc (Batch Upload)")
 async def upload_multiple_images(files: List[UploadFile] = File(...)):
     """
@@ -115,28 +250,7 @@ async def create_bai_viet(
         # Log error
         raise HTTPException(status_code=500, detail=str(e))
 
-# 2. READ ALL
-@router.get(
-    "/",
-    response_model=List[BaiViet],
-    status_code=status.HTTP_200_OK,
-    summary="Lấy danh sách tất cả bài viết"
-)
-def get_all_bai_viet():
-    """
-    Lấy danh sách tất cả bài viết,
-    sắp xếp theo ngày đăng mới nhất lên trước.
-    """
-    try:
-        response = supabase_client.table(TABLE_NAME).select("*").order("ngaydang", desc=True).execute()
-        if response.data:
-            return response.data
-        return []
-    except Exception as e:
-        logger.error("Lỗi khi lấy tất cả BaiViet: %s", e)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-# 3. READ ONE
+# 2. READ ONE
 @router.get(
     "/{maBaiViet}",
     response_model=BaiViet,
@@ -157,7 +271,7 @@ def get_bai_viet_by_id(maBaiViet: int):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy bài viết với id={maBaiViet}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-# 4. UPDATE
+# 3. UPDATE
 @router.put(
     "/{maBaiViet}",
     response_model=dict, # Trả về data sau khi update
@@ -209,7 +323,7 @@ async def update_bai_viet(
         logger.error(f"Lỗi update bài viết {maBaiViet}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# 5. DELETE
+# 4. DELETE
 @router.delete(
     "/{maBaiViet}",
     status_code=status.HTTP_204_NO_CONTENT,

@@ -2,19 +2,16 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const JWT_SECRET = new TextEncoder().encode(process.env.FASTAPI_JWT_SECRET);
-
 export async function middleware(request) {
     const tokenCookie = request.cookies.get('auth_token');
     const token = tokenCookie?.value;
     const url = request.nextUrl.clone();
     const pathname = request.nextUrl.pathname;
 
-    // 1. KIỂM TRA BIẾN MÔI TRƯỜNG (Debug)
+    // 1. KIỂM TRA BIẾN MÔI TRƯỜNG
     const secretStr = process.env.FASTAPI_JWT_SECRET;
     if (!secretStr) {
-        console.error("LỖI NGHIÊM TRỌNG: Chưa cấu hình FASTAPI_JWT_SECRET trong .env.local");
-        // Cho qua để không sập web, nhưng sẽ không đăng nhập được
+        console.error("LỖI: Chưa cấu hình FASTAPI_JWT_SECRET");
         return NextResponse.next();
     }
     const JWT_SECRET = new TextEncoder().encode(secretStr);
@@ -24,67 +21,70 @@ export async function middleware(request) {
     if (token) {
         try {
             const { payload } = await jwtVerify(token, JWT_SECRET);
-            // [DEBUG] In ra terminal để xem role thực sự là gì
-            console.log("Middleware Decoded Role:", payload.vaiTro);
 
-            userRole = payload.vaiTro || 'guest';
+            // --- 🔴 LOGIC XỬ LÝ ROLE MỚI (QUAN TRỌNG) ---
+
+            // Trường hợp 1: Token từ FastAPI (Login thường) -> Có field 'vaiTro'
+            if (payload.vaiTro) {
+                userRole = payload.vaiTro;
+            }
+            // Trường hợp 2: Token từ Supabase (Google) -> Không có 'vaiTro', chỉ có 'role'
+            else if (payload.role === 'authenticated') {
+                // Mặc định user Google là Bạn đọc
+                userRole = 'ban_doc';
+            }
+
+            // [DEBUG] Xem kết quả nhận diện
+            // console.log(`Middleware: ${pathname} | Role identified: ${userRole}`);
+
         } catch (err) {
             console.error("Middleware JWT Error:", err.message);
-            // Token lỗi -> Xóa và về đăng nhập
-            // Trường hợp A: Đang ở trang đăng nhập -> Không cần redirect, chỉ xóa cookie và cho hiện trang
-            if (pathname === '/dang_nhap') {
-                const response = NextResponse.next();
-                response.cookies.delete('auth_token');
-                return response;
-            }
-            // Trường hợp B: Đang ở trang khác -> Redirect về đăng nhập và xóa cookie
-            url.pathname = '/dang_nhap';
-            const response = NextResponse.redirect(url);
+            // Xóa cookie token lỗi
+            const response = pathname === '/dang_nhap'
+                ? NextResponse.next()
+                : NextResponse.redirect(new URL('/dang_nhap', request.url));
+
             response.cookies.delete('auth_token');
             return response;
         }
     }
 
-    // --- LOGIC BẢO VỆ ---
+    // --- LOGIC BẢO VỆ ROUTE (GIỮ NGUYÊN) ---
 
-    // 1. Nếu là Khách (guest)
+    // 1. Nếu là Khách (guest) - Chưa đăng nhập
     if (userRole === 'guest') {
         if (pathname.startsWith('/tai_khoan') || pathname.startsWith('/admin')) {
             return NextResponse.redirect(new URL('/dang_nhap', request.url));
         }
     }
 
-    // 2. Nếu là Bạn Đọc (Trong API Profile role là "nguoiDung",
-    //    nhưng trong token login cần kiểm tra xem FastAPI trả về string gì.
-    //    Ở đây gộp cả 'ban_doc' (cũ) và 'nguoiDung' (mới) để an toàn)
+    // 2. Nếu là Bạn Đọc ('ban_doc' hoặc 'nguoiDung')
     if (userRole === 'ban_doc' || userRole === 'nguoiDung') {
-        // Cố vào trang Admin -> Đá về Dashboard
+        // Cố vào trang Admin -> Đá về Dashboard người dùng
         if (pathname.startsWith('/admin')) {
-            console.log("--> Chặn Bạn đọc vào Admin");
             return NextResponse.redirect(new URL('/tai_khoan', request.url));
         }
-        // Cố vào trang Login -> Đá về Dashboard
+        // Đã login mà vào lại trang Login -> Đá về Dashboard
         if (pathname === '/dang_nhap') {
             return NextResponse.redirect(new URL('/tai_khoan', request.url));
         }
     }
 
-    // 3. Nếu là Nhân viên (nhanVien hoặc nhan_vien)
+    // 3. Nếu là Nhân viên ('nhan_vien' hoặc 'nhanVien')
     if (userRole === 'nhan_vien' || userRole === 'nhanVien') {
-        // Cấm vào trang Dashboard của người dùng thường -> Đẩy sang Admin Dashboard
+        // Nhân viên không vào trang cá nhân của bạn đọc -> Vào Admin
         if (pathname.startsWith('/tai_khoan')) {
             return NextResponse.redirect(new URL('/admin', request.url));
         }
-        // Đã login thì không vào lại trang login
         if (pathname === '/dang_nhap') {
             return NextResponse.redirect(new URL('/admin', request.url));
         }
     }
 
     return NextResponse.next();
-    }
+}
 
-    export const config = {
+export const config = {
     matcher: [
         '/dang_nhap',
         '/tai_khoan/:path*',

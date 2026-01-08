@@ -32,29 +32,50 @@ def get_current_user_from_db(token: str = Depends(oauth2_scheme)) -> dict:
     """
     payload = decode_access_token(token)
     if payload is None:
+        logger.warning("Token không hợp lệ hoặc không thể giải mã")
         raise CREDENTIALS_EXCEPTION
 
     user_id: int = payload.get("id")
-    if user_id is None:
+    email = payload.get("email")
+
+    if user_id is None and email is None:
+        logger.warning("Token thiếu thông tin định danh (id hoặc email)")
         raise CREDENTIALS_EXCEPTION
 
     try:
-        # Lấy thông tin NguoiDung MỚI NHẤT từ CSDL
-        response = supabase_client.table("nguoidung") \
-            .select("*") \
-            .eq("manguoidung", user_id) \
-            .single() \
-            .execute()
+        # 3. Query vào Database
+        query = supabase_client.table("nguoidung").select("*")
+
+        if user_id:
+            # Nếu có ID (Token thường) -> Tìm theo ID
+            query = query.eq("manguoidung", user_id)
+        else:
+            # Nếu không có ID nhưng có Email (Token Google) -> Tìm theo Email
+            query = query.eq("email", email)
+
+        response = query.single().execute()
 
         if not response.data:
+            logger.warning(f"Không tìm thấy user trong public.nguoidung. ID={user_id}, Email={email}")
             raise CREDENTIALS_EXCEPTION
 
-        # Trả về bản ghi 'nguoidung' (dạng dict)
-        return response.data
+        user_data = response.data
+
+        # (Tùy chọn) Kiểm tra trạng thái tài khoản
+        if user_data.get("trangthai") is False:
+            raise HTTPException(status_code=400, detail="Tài khoản đã bị khóa")
+
+        return user_data
 
     except Exception as e:
-        logger.warning(f"Lỗi khi get_current_user_from_db: {e}")
-        raise CREDENTIALS_EXCEPTION
+        logger.error(f"Lỗi DB trong get_current_user_from_db: {e}")
+        # Nếu lỗi là do không tìm thấy dòng nào (PGRST116)
+        if "PGRST116" in str(e):
+            raise CREDENTIALS_EXCEPTION
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Lỗi kết nối cơ sở dữ liệu xác thực"
+        )
 
 # --- TẦNG 2: PHÂN QUYỀN (Kiểm tra hồ sơ) ---
 

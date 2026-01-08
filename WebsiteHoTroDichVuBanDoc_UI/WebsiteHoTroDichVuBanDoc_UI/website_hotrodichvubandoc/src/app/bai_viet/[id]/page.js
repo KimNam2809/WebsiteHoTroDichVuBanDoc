@@ -6,14 +6,16 @@ import {
     ChevronLeft, User, BookOpen, Facebook, Link as LinkIcon
 } from 'lucide-react';
 
+import ViewIncrementer from '@/components/ViewIncrementer';
+
 // Cấu hình API URL
-const API_ROOT = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || 'http://127.0.0.1:8000';
+const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL;
 
 // === 1. HÀM GỌI API LẤY CHI TIẾT ===
 async function getPostDetail(id) {
     try {
         // Lưu ý: Đảm bảo Backend có API GET /api/v1/bai-viet/{id}
-        const res = await fetch(`${API_ROOT}/api/v1/bai-viet/${id}`, {
+        const res = await fetch(`${FASTAPI_URL}/api/v1/bai-viet/${id}`, {
             cache: 'no-store', // Luôn lấy dữ liệu mới nhất
             // Hoặc dùng next: { revalidate: 60 } nếu muốn cache 60s
         });
@@ -27,6 +29,20 @@ async function getPostDetail(id) {
     } catch (error) {
         console.error("Fetch Post Detail Error:", error);
         return null;
+    }
+}
+
+// Hàm lấy bài viết liên quan (Mới thêm)
+async function getRelatedPosts(excludeId) {
+    try {
+        const res = await fetch(`${FASTAPI_URL}/api/v1/bai-viet/lien-quan/${excludeId}`, {
+            next: { revalidate: 60 } // Cache 60s để tối ưu tốc độ
+        });
+        if (!res.ok) return [];
+        return await res.json();
+    } catch (error) {
+        console.error(error);
+        return [];
     }
 }
 
@@ -51,7 +67,12 @@ export async function generateMetadata({ params }) {
 // === 3. COMPONENT CHÍNH ===
 export default async function BaiVietDetailPage({ params }) {
     const { id } = await params;
-    const post = await getPostDetail(id);
+    // Gọi song song cả 2 API để tiết kiệm thời gian
+    const postData = getPostDetail(id);
+    const relatedData = getRelatedPosts(id);
+
+    // Chờ cả 2 xong
+    const [post, relatedPosts] = await Promise.all([postData, relatedData]);
 
     if (!post) {
         return notFound(); // Chuyển hướng sang trang 404 Next.js
@@ -68,6 +89,8 @@ export default async function BaiVietDetailPage({ params }) {
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans pb-20">
+            {/* --- KÍCH HOẠT TĂNG VIEW (COMPONENT CLIENT) --- */}
+            <ViewIncrementer id={id} />
             {/* --- HERO HEADER --- */}
             <div className="relative w-full h-[400px] md:h-[500px] bg-gray-900 overflow-hidden">
                 {/* Ảnh nền mờ */}
@@ -174,35 +197,50 @@ export default async function BaiVietDetailPage({ params }) {
                     </div>
 
                     {/* --- BÀI VIẾT LIÊN QUAN (Placeholder) --- */}
-                    {/* Phần này bạn có thể gọi thêm API lấy bài viết cùng chủ đề */}
-                    <div className="mt-12">
-                        <h3 className="text-2xl font-bold text-gray-800 mb-6 pl-4 border-l-4 border-blue-600">
-                            Tin tức khác
+                    <div className="mt-16">
+                        <h3 className="text-2xl font-bold text-gray-800 mb-6 pl-4 border-l-4 border-blue-600 flex items-center gap-2">
+                            <BookOpen className="text-blue-600" size={24}/> Tin tức mới nhất
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Card 1 Demo */}
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex gap-4 hover:shadow-md transition cursor-pointer">
-                                <div className="w-24 h-24 bg-gray-200 rounded-lg shrink-0 overflow-hidden relative">
-                                    <Image src="/images/demo-book.jpg" alt="Related" fill className="object-cover"/>
-                                </div>
-                                <div>
-                                    <span className="text-xs text-blue-600 font-bold uppercase">Sự kiện</span>
-                                    <h4 className="font-bold text-gray-800 line-clamp-2 mt-1 mb-2">Hội sách mùa thu 2024: Lan tỏa văn hóa đọc</h4>
-                                    <span className="text-xs text-gray-500">12/10/2024</span>
-                                </div>
+
+                        {relatedPosts.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {relatedPosts.map((related) => {
+                                    // Lấy ảnh thumb
+                                    const thumb = related.anhdaidien?.anh_1 || '/images/default-post-cover.jpg';
+                                    // Format ngày ngắn
+                                    const date = new Date(related.ngaydang).toLocaleDateString('vi-VN');
+
+                                    return (
+                                        <Link
+                                            key={related.mabaiviet}
+                                            href={`/bai_viet/${related.mabaiviet}`}
+                                            className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex gap-4 hover:shadow-md hover:border-blue-200 transition group"
+                                        >
+                                            <div className="w-24 h-24 bg-gray-200 rounded-lg shrink-0 overflow-hidden relative">
+                                                <Image src={thumb} alt={related.tieude} fill className="object-cover group-hover:scale-105 transition-transform duration-500"/>
+                                            </div>
+                                            <div className="flex flex-col justify-center">
+                                                {/* Hiển thị Tag đầu tiên nếu có */}
+                                                {related.tukhoa && related.tukhoa[0] && (
+                                                    <span className="text-xs text-blue-600 font-bold uppercase mb-1">
+                                                        {related.tukhoa[0]}
+                                                    </span>
+                                                )}
+                                                <h4 className="font-bold text-gray-800 line-clamp-2 mb-2 group-hover:text-blue-600 transition-colors">
+                                                    {related.tieude}
+                                                </h4>
+                                                <div className="flex items-center gap-3 text-xs text-gray-400">
+                                                    <span className="flex items-center gap-1"><Calendar size={12}/> {date}</span>
+                                                    <span className="flex items-center gap-1"><Eye size={12}/> {related.soluotxem}</span>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    );
+                                })}
                             </div>
-                             {/* Card 2 Demo */}
-                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex gap-4 hover:shadow-md transition cursor-pointer">
-                                <div className="w-24 h-24 bg-gray-200 rounded-lg shrink-0 overflow-hidden relative">
-                                    <Image src="/images/demo-library.jpg" alt="Related" fill className="object-cover"/>
-                                </div>
-                                <div>
-                                    <span className="text-xs text-orange-600 font-bold uppercase">Thông báo</span>
-                                    <h4 className="font-bold text-gray-800 line-clamp-2 mt-1 mb-2">Lịch nghỉ lễ Quốc Khánh 2/9 tại thư viện</h4>
-                                    <span className="text-xs text-gray-500">28/08/2024</span>
-                                </div>
-                            </div>
-                        </div>
+                        ) : (
+                            <p className="text-gray-500 italic text-center">Không có bài viết nào khác.</p>
+                        )}
                     </div>
 
                 </div>

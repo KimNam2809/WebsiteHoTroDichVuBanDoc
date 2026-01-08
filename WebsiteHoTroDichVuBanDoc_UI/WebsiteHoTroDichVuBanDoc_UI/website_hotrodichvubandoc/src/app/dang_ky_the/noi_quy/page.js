@@ -1,8 +1,11 @@
 // src/app/dang_ky_the/noi_quy/page.js
 import Link from 'next/link';
 import { ArrowLeft, Book, Clock, FileText, AlertTriangle, CheckCircle } from 'lucide-react';
+import { getCardTypesAction } from '../actions';
 
-export default function NoiQuyPage() {
+export default async function NoiQuyPage() {
+    const cardTypes = await getCardTypesAction();
+
     return (
         <div className="min-h-screen bg-gray-50 pb-20 font-sans">
 
@@ -38,7 +41,48 @@ export default function NoiQuyPage() {
                             Các Loại Thẻ & Biểu Phí
                         </h2>
                         <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
-                            <table className="min-w-full text-sm text-left">
+                            {cardTypes && cardTypes.length > 0 ? (
+                                <table className="min-w-full text-sm text-left">
+                                    <thead className="bg-gray-100 text-gray-700 uppercase font-bold text-xs">
+                                        <tr>
+                                            <th className="px-6 py-4">Tên thẻ</th>
+                                            <th className="px-6 py-4">Đối tượng áp dụng</th>
+                                            <th className="px-6 py-4 text-right">Lệ phí (VNĐ/1 năm)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200 text-gray-700">
+                                        {cardTypes.map((card) => (
+                                            <tr key={card.maloaithe} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 font-semibold text-gray-900">{card.tenthe}</td>
+                                                <td className="px-6 py-4">{card.mota}</td>
+                                                {card.lephi != 0 ? (
+                                                    <td className="px-6 py-4 text-right font-bold text-blue-600">{card.lephi}</td>
+                                                ) : (
+                                                    <td className="px-6 py-4 text-right font-bold text-green-600 uppercase text-xs rounded-full">Miễn phí</td>
+                                                )}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <table className="min-w-full text-sm text-left">
+                                    <thead className="bg-gray-100 text-gray-700 uppercase font-bold text-xs">
+                                        <tr>
+                                            <th className="px-6 py-4">Tên thẻ</th>
+                                            <th className="px-6 py-4">Đối tượng áp dụng</th>
+                                            <th className="px-6 py-4 text-right">Lệ phí (1 năm)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200 text-gray-700">
+                                        <tr className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 font-semibold text-gray-900">Danh sách thẻ đang cập nhật</td>
+                                            <td className="px-6 py-4">Danh sách thẻ đang cập nhật</td>
+                                            <td className="px-6 py-4 text-right font-bold text-blue-600">Danh sách thẻ đang cập nhật</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            )}
+                            {/* <table className="min-w-full text-sm text-left">
                                 <thead className="bg-gray-100 text-gray-700 uppercase font-bold text-xs">
                                     <tr>
                                         <th className="px-6 py-4">Tên thẻ</th>
@@ -78,7 +122,7 @@ export default function NoiQuyPage() {
                                         <td className="px-6 py-4 text-right font-bold text-green-600 uppercase text-xs rounded-full">Miễn phí</td>
                                     </tr>
                                 </tbody>
-                            </table>
+                            </table> */}
                         </div>
                     </section>
 
