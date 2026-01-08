@@ -79,7 +79,7 @@ export default function ChatWidget({ user }) {
         if (!text.trim()) return;
 
         // 1. UI: Thêm tin nhắn người dùng ngay lập tức
-        const userMsg = { id: Date.now(), type: 'user', text: text };
+        const userMsg = { id: Date.now() + Math.random(), type: 'user', text: text };
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setIsLoading(true);
@@ -102,17 +102,17 @@ export default function ChatWidget({ user }) {
 
             // Thêm tin nhắn của Bot
             const botMsg = {
-                id: Date.now() + 1,
+                id: Date.now() + Math.random(),
                 type: 'bot',
                 text: reply,
-                action: action // Lưu kèm action nếu có
+                action: action
             };
             setMessages(prev => [...prev, botMsg]);
 
         } else {
             // Xử lý lỗi
             setMessages(prev => [...prev, {
-                id: Date.now() + 1,
+                id: Date.now() + Math.random(),
                 type: 'bot',
                 text: result.error || "Xin lỗi, tôi gặp sự cố kết nối."
             }]);
@@ -133,7 +133,9 @@ export default function ChatWidget({ user }) {
 
     // Hàm render nội dung tin nhắn (Hỗ trợ xuống dòng cơ bản)
     const renderMessageText = (text) => {
+        if (!text) return null; // Thêm dòng này để an toàn
         return text.split('\n').map((line, i) => (
+            // Key ở đây là đúng, nhưng lỗi là do cha bị trùng key
             <span key={i}>
                 {line}
                 <br />
@@ -142,20 +144,28 @@ export default function ChatWidget({ user }) {
     };
 
     // --- COMPONENT CON: THẺ SÁCH MINI ---
-    const BookCard = ({ book }) => (
+    const BookCard = ({ book }) => {
+    // Mapping dữ liệu từ DB sang biến dùng trong UI
+    // Ưu tiên lấy tên cột DB (matacpham), nếu không có mới lấy tên cũ (id)
+    const id = book.matacpham || book.id;
+    const title = book.tentacpham || book.title;
+    const author = book.tacgia || book.author;
+    const cover = book.anhbia || book.cover;
+
+    return (
         <div
             onClick={() => {
-                setIsOpen(false); // Đóng chat nếu muốn
-                router.push(`/tai_lieu/${book.id}`);
+                setIsOpen(false);
+                router.push(`/tai_lieu/${id}`); // Sửa thành biến id đã map
             }}
             className="flex items-start gap-3 p-3 mt-2 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group max-w-[280px]"
         >
             {/* Ảnh bìa */}
             <div className="relative w-12 h-16 shrink-0 rounded-md overflow-hidden bg-gray-100 border border-gray-100">
-                {book.cover ? (
+                {cover ? (
                     <Image
-                        src={book.cover}
-                        alt={book.title}
+                        src={cover}
+                        alt={title}
                         fill
                         className="object-cover group-hover:scale-110 transition-transform duration-500"
                     />
@@ -169,15 +179,16 @@ export default function ChatWidget({ user }) {
             {/* Thông tin */}
             <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-bold text-gray-800 line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors">
-                    {book.title}
+                    {title}
                 </h4>
-                <p className="text-xs text-gray-500 mt-1 truncate">{book.author}</p>
+                <p className="text-xs text-gray-500 mt-1 truncate">{author}</p>
                 <div className="flex items-center gap-1 mt-2 text-[10px] font-bold text-blue-600 bg-blue-50 w-fit px-2 py-0.5 rounded-full">
                     Xem chi tiết <ChevronRight size={10} />
                 </div>
             </div>
         </div>
     );
+};
 
     return (
         <div className="fixed bottom-6 right-6 z-100 flex flex-col items-end gap-4 font-sans">
@@ -245,8 +256,9 @@ export default function ChatWidget({ user }) {
                                     {/* --- XỬ LÝ ACTION HIỂN THỊ SÁCH --- */}
                                     {msg.type === 'bot' && msg.action && msg.action.type === 'show_books' && (
                                         <div className="ml-10 mt-2 flex flex-col gap-2 w-full pr-4 animate-in fade-in slide-in-from-bottom-2">
-                                            {msg.action.payload.map((book) => (
-                                                <BookCard key={book.id} book={book} />
+                                            {msg.action.payload.map((book, index) => (
+                                                // SỬA TẠI ĐÂY: Dùng matacpham hoặc index làm key
+                                                <BookCard key={book.matacpham || index} book={book} />
                                             ))}
                                         </div>
                                     )}

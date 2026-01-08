@@ -16,7 +16,8 @@ from app.api.v1.tools.db_tools import (
     get_facility_status,
     search_articles_sql,
     search_equipment_sql,
-    search_seats_sql
+    search_seats_sql,
+    analyze_and_recommend
 )
 from app.api.v1.tools.action_tools import (
     check_personal_dashboard,
@@ -41,6 +42,11 @@ NAV_SHIP = ["giao sách", "ship", "vận chuyển"]
 BOOK_SEARCH = [
     "tìm sách", "có sách", "về chủ đề", "sách", "tác phẩm",
     "tác giả", "mượn", "đọc", "chủ đề", "thể loại", "tìm"
+]
+
+RECOMMEND_KEYWORDS = [
+    "gợi ý", "tương tự", "nên đọc gì", "gu của tôi", "hợp với tôi",
+    "sách hay cho tôi", "đề xuất", "recommend", "có gì mới không"
 ]
 
 DEVICE_SEARCH = ["máy tính", "máy chiếu", "thiết bị", "điều hòa", "wifi"]
@@ -111,6 +117,21 @@ class LibraryBrain:
         q_lower = user_query.lower()
 
         entities = self.extract_entities(user_query, history)
+
+        # ---- RECOMMENDATION PATH ----
+        if has_any(q_lower, RECOMMEND_KEYWORDS):
+            print(f"💡 Recommend Path: User {user_id}")
+            rec_result = analyze_and_recommend(user_id)
+
+            if isinstance(rec_result, dict):
+                return {
+                    "reply": rec_result["message"],
+                    "action": {
+                        "type": "show_books",
+                        "payload": rec_result["data"] # List sách để Frontend render Card
+                    }
+                }
+            return {"reply": str(rec_result), "action": None}
 
         # ---- FAST PATH: PERSONAL DASHBOARD ----
         if has_any(q_lower, PERSONAL_KEYWORDS):

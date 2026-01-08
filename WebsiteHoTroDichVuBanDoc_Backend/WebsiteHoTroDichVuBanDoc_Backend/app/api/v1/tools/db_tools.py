@@ -1,5 +1,136 @@
 from app.connect.db import supabase_client
 from datetime import datetime
+from collections import Counter
+
+def get_bandoc_id(user_id: int):
+    """Lấy mabandoc từ manguoidung (bảng nguoidung)"""
+    res = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).single().execute()
+    return res.data["mabandoc"] if res.data else None
+
+def analyze_and_recommend(user_id: int):
+    """
+    Phân tích lịch sử mượn trả và gợi ý sách.
+    Schema Flow:
+    1. user_id -> bandoc(mabandoc)
+    2. bandoc -> muontra(mabansao) -> bansao(matacpham) -> tacpham
+    3. tacpham -> tacpham_danhmuc -> danhmuc
+    """
+    try:
+        # 1. Lấy mã bạn đọc
+        mabandoc = get_bandoc_id(user_id)
+        if not mabandoc:
+            return "Bạn chưa đăng ký thẻ bạn đọc nên tôi chưa thể kiểm tra lịch sử."
+
+        # 2. Lấy lịch sử 10 cuốn sách mượn gần nhất
+        # Query nested: muontra -> bansao -> tacpham
+        history_res = supabase_client.table("muontra") \
+            .select("thoigianmuon, bansao(matacpham, tacpham(matacpham, tentacpham, tacgia))") \
+            .eq("mabandoc", mabandoc) \
+            .order("thoigianmuon", desc=True) \
+            .limit(10) \
+            .execute()
+
+        loans = history_res.data
+        if not loans:
+            return "Bạn chưa mượn cuốn sách nào nên tôi chưa thể gợi ý. Hãy thử mượn vài cuốn nhé!"
+
+        # 3. Phân tích sở thích
+        borrowed_ids = set()
+        authors = []
+        book_ids_for_categories = []
+
+        for loan in loans:
+            # Handle null safety
+            if not loan.get("bansao") or not loan["bansao"].get("tacpham"):
+                continue
+
+            book = loan["bansao"]["tacpham"]
+            borrowed_ids.add(book["matacpham"])
+            book_ids_for_categories.append(book["matacpham"])
+
+            if book.get("tacgia"):
+                authors.append(book["tacgia"])
+
+        # Lấy danh mục (Categories) của các sách đã mượn
+        # Query: tacpham_danhmuc -> danhmuc
+        fav_categories = []
+        if book_ids_for_categories:
+            cat_res = supabase_client.table("tacpham_danhmuc") \
+                .select("madanhmuc, danhmuc(tendanhmuc)") \
+                .in_("matacpham", book_ids_for_categories) \
+                .execute()
+
+            for item in cat_res.data:
+                if item.get("danhmuc"):
+                    fav_categories.append(item["danhmuc"]["tendanhmuc"])
+
+        # Tìm tác giả và danh mục xuất hiện nhiều nhất
+        top_author = Counter(authors).most_common(1)
+        top_category = Counter(fav_categories).most_common(1)
+
+        target_author = top_author[0][0] if top_author else None
+        target_category = top_category[0][0] if top_category else None
+
+        # 4. Tìm sách gợi ý
+        # Ưu tiên 1: Cùng tác giả, chưa mượn
+        books_found = []
+        reason = ""
+
+        if target_author:
+            res_auth = supabase_client.table("tacpham") \
+                .select("matacpham, tentacpham, tacgia, mota, anhbia") \
+                .eq("tacgia", target_author) \
+                .not_.in_("matacpham", list(borrowed_ids)) \
+                .limit(5) \
+                .execute()
+
+            if res_auth.data:
+                books_found = res_auth.data
+                reason = f"tác giả **{target_author}**"
+
+        # Ưu tiên 2: Nếu không có sách cùng tác giả, tìm cùng danh mục
+        if not books_found and target_category:
+            # Cần query ngược: Tìm id danh mục -> tìm sách thuộc danh mục đó
+            # Để đơn giản và nhanh, ta dùng Text Search trên view hoặc query nested
+            # Ở đây dùng query nested: tacpham_danhmuc -> Filter theo Danhmuc -> Lấy matacpham
+
+            # Lấy list matacpham thuộc category đó
+            cat_books_res = supabase_client.table("tacpham_danhmuc") \
+                .select("matacpham, danhmuc!inner(tendanhmuc)") \
+                .eq("danhmuc.tendanhmuc", target_category) \
+                .limit(20) \
+                .execute()
+
+            potential_ids = [item['matacpham'] for item in cat_books_res.data if item['matacpham'] not in borrowed_ids]
+
+            if potential_ids:
+                res_cat = supabase_client.table("tacpham") \
+                    .select("matacpham, tentacpham, tacgia, mota, anhbia") \
+                    .in_("matacpham", potential_ids[:5]) \
+                    .execute()
+                books_found = res_cat.data
+                reason = f"thể loại **{target_category}**"
+
+        # 5. Trả kết quả
+        if not books_found:
+            # Fallback: Lấy sách mới nhất
+            res_new = supabase_client.table("tacpham") \
+                .select("matacpham, tentacpham, tacgia, mota, anhbia") \
+                .order("ngaytao", desc=True) \
+                .limit(3) \
+                .execute()
+            books_found = res_new.data
+            reason = "các sách mới cập nhật"
+
+        msg = f"Dựa trên việc bạn hay đọc {reason}, tôi có vài gợi ý cho bạn:"
+        return {
+            "message": msg,
+            "data": books_found
+        }
+
+    except Exception as e:
+        print(f"Error recommending: {e}")
+        return "Xin lỗi, hệ thống gợi ý đang gặp chút sự cố khi phân tích dữ liệu."
 
 def search_library_sql(keyword: str = None, author: str = None, category: str = None, available_only: bool = False):
     """
