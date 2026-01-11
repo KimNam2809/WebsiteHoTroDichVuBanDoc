@@ -17,8 +17,8 @@ export default async function TaiLieuDangMuonPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">Tài liệu đang mượn</h1>
-                <p className="text-gray-600">Danh sách các tài liệu bạn đang giữ. Vui lòng chú ý hạn trả.</p>
+                <h1 className="text-3xl font-bold text-white mb-2">Tài liệu đang mượn</h1>
+                <p className="text-blue-500">Danh sách các tài liệu bạn đang giữ. Vui lòng chú ý hạn trả.</p>
             </div>
 
             <LoanListTable

@@ -8,8 +8,11 @@ class GiaHanBase(DBModel):
     ngayTraMoi: date
     lyDoGiaHan: Optional[str] = None
 
-class GiaHanCreate(GiaHanBase):
-    pass
+class GiaHanCreate(DBModel):
+    maMuonTra: int
+    maNhanVien: Optional[int] = None
+    ngayTraMoi: date
+    lyDoGiaHan: Optional[str] = None
 
 class GiaHanUpdate(DBModel):
     ngayTraMoi: Optional[date] = None

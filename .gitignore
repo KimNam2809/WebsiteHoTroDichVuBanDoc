@@ -13,3 +13,8 @@ node_modules/
 env/
 venv/
 *.dll
+
+docs/
+
+export_images.bat
+schema_database.txt

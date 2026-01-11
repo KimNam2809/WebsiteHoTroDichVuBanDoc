@@ -207,23 +207,53 @@ def create_nguoi_dung(nguoi_dung_in: NguoiDungCreate, current_staff: dict = Depe
 # 2. READ ALL
 @router.get(
     "/",
-    response_model=List[NguoiDung], # <-- Đảm bảo trả về model an toàn
+    # response_model=List[NguoiDung], # Bỏ response_model chặt để cho phép thêm trường mở rộng 'hoten'
     status_code=status.HTTP_200_OK,
-    summary="Lấy danh sách tất cả người dùng"
+    summary="Lấy danh sách tất cả người dùng kèm Họ tên"
 )
 def get_all_nguoi_dung(current_staff: dict = Depends(get_current_staff_profile)):
     """
-    Lấy danh sách tất cả người dùng.
+    Lấy danh sách tất cả người dùng kèm họ tên (nếu có).
     **Mật khẩu sẽ không được trả về.**
     """
     try:
-        response = supabase_client.table(TABLE_NAME).select("*").order("manguoidung", desc=False).execute()
+        # Join với BanDoc và NhanVien để lấy tên
+        response = supabase_client.table(TABLE_NAME)\
+            .select("*, bandoc(hoten), nhanvien(hoten)")\
+            .order("manguoidung", desc=False)\
+            .execute()
 
-        if response.data:
-            return response.data
-        return []
+        results = []
+        for user in (response.data or []):
+            hoten = "Chưa cập nhật"
+            # Ưu tiên lấy tên Nhân viên nếu là NV
+            if user.get("nhanvien") and len(user["nhanvien"]) > 0:
+                 # Supabase trả về list nếu 1-N, hoặc dict nếu 1-1. Kiểm tra kỹ profile. 
+                 # Thường FK là 1-1 ngược nhưng Supabase auto detect có thể là list.
+                 # Python client thường trả list cho relation.
+                 nv = user["nhanvien"]
+                 if isinstance(nv, list) and len(nv) > 0: hoten = nv[0].get("hoten")
+                 elif isinstance(nv, dict): hoten = nv.get("hoten")
+            
+            # Nếu không phải NV hoặc chưa có tên, check BanDoc
+            if hoten == "Chưa cập nhật" and user.get("bandoc"):
+                 bd = user["bandoc"]
+                 if isinstance(bd, list) and len(bd) > 0: hoten = bd[0].get("hoten")
+                 elif isinstance(bd, dict): hoten = bd.get("hoten")
+
+            # Clean up nested objects to match flat structure if needed, or keep them.
+            # Để đơn giản, ta gán trực tiếp hoten vào dict user
+            user["hoten"] = hoten
+            # Xóa các trường nested để gọn
+            if "bandoc" in user: del user["bandoc"]
+            if "nhanvien" in user: del user["nhanvien"]
+            
+            results.append(user)
+
+        return results
 
     except Exception as e:
+        logger.error(f"Error fetching users: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 # 3. READ ONE

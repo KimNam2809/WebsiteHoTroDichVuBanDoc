@@ -1,0 +1,17 @@
+{
+    "general": {
+        "libraryName": "Smart Lib ĐN",
+        "emailContact": "contact@thuvien.danang.gov.vn",
+        "workingHours": "7:30 - 20:00"
+    },
+    "loans": {
+        "maxBooksPerUser": 5,
+        "loanDurationDays": 14,
+        "allowRenewal": true,
+        "renewalDays": 7
+    },
+    "fines": {
+        "overdueFinePerDay": 5000,
+        "lostBookMultiplier": 2.0
+    }
+}

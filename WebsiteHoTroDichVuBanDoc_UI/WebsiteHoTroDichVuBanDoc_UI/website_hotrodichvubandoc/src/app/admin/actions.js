@@ -1,4 +1,3 @@
-// src/app/admin/actions.js
 'use server';
 
 import { cookies } from 'next/headers';
@@ -89,13 +88,26 @@ export async function approveCardAction(id, status, reason = '') {
 }
 
 // 4. Lấy danh sách đang mượn (để nhân viên tìm và trả)
-// Endpoint: GET /api/v1/muon-tra/danh-sach-chi-tiet-muon-tra?trang_thai=daMuon
+// Endpoint: GET /api/v1/muon-tra/danh-sach-chi-tiet-muon-tra?phan_loai=dangMuon
 export async function getActiveLoansAction() {
     try {
-        const res = await fetchAdmin('/api/v1/muon-tra/danh-sach-chi-tiet-muon-tra?trang_thai=daMuon');
+        const res = await fetchAdmin('/api/v1/muon-tra/danh-sach-chi-tiet-muon-tra?phan_loai=dangMuon');
         if (!res.ok) return [];
         return await res.json();
     } catch (error) {
+        return [];
+    }
+}
+
+// 4.1 Lấy danh sách chờ xác nhận mượn (để nhân viên xác nhận)
+// Endpoint: GET /api/v1/muon-tra/danh-sach-chi-tiet-muon-tra?phan_loai=choXacNhan
+export async function getPendingBorrowAction() {
+    try {
+        const res = await fetchAdmin('/api/v1/muon-tra/danh-sach-chi-tiet-muon-tra?phan_loai=choXacNhan');
+        if (!res.ok) return [];
+        return await res.json();
+    } catch (error) {
+        console.error("Lỗi lấy danh sách chờ mượn", error);
         return [];
     }
 }
@@ -139,4 +151,125 @@ export async function returnBookAction(maMuonTra) {
     } catch (error) {
         return { error: "Lỗi kết nối hệ thống." };
     }
+}
+
+// 6. Xác nhận Mượn (Chuyển từ dangChoXacNhan -> daMuon)
+// Endpoint: PUT /api/v1/muon-tra/{id}
+export async function confirmBorrowAction(maMuonTra) {
+    try {
+        // B1: Lấy thông tin nhân viên hiện tại
+        const profileRes = await fetchAdmin('/api/v1/nguoi-dung/profile');
+        if (!profileRes.ok) return { error: "Không xác định được nhân viên thực hiện." };
+
+        const profile = await profileRes.json();
+        const staffId = profile.manhanvien;
+
+        if (!staffId) return { error: "Tài khoản của bạn chưa liên kết hồ sơ nhân viên." };
+
+        // B2: Gọi API Update
+        const res = await fetchAdmin(`/api/v1/muon-tra/${maMuonTra}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                trangThaiMuon: 'daMuon', // CamelCase để khớp với Pydantic Alias
+                maNhanVien: staffId
+            })
+        });
+
+        if (res.ok) {
+            revalidatePath('/admin/quan_ly_muon_tra');
+            return { success: true };
+        }
+
+        const errText = await res.text();
+        try {
+            const jsonErr = JSON.parse(errText);
+            return { error: jsonErr.detail || "Lỗi xác nhận." };
+        } catch {
+            return { error: errText };
+        }
+
+    } catch (error) {
+        return { error: "Lỗi hệ thống: " + error.message };
+    }
+}
+
+// 7. DASHBOARD STATS (NEW)
+export async function getDashboardStatsAction() {
+    try {
+        const res = await fetchAdmin('/api/v1/thong-ke/tong-quan');
+        if (!res.ok) return null;
+        return await res.json();
+    } catch { return null; }
+}
+
+export async function getChartDataAction(range) {
+    try {
+        const res = await fetchAdmin(`/api/v1/thong-ke/bieu-do?range=${range}`);
+        if (!res.ok) return [];
+        return await res.json();
+    } catch { return []; }
+}
+
+export async function getRecentActivityAction() {
+    try {
+        const res = await fetchAdmin('/api/v1/thong-ke/hoat-dong-moi?limit=5');
+        if (!res.ok) return [];
+        return await res.json();
+    } catch { return []; }
+}
+
+
+export async function getDetailedReportAction(type = 'borrowing') {
+    try {
+        const res = await fetchAdmin(`/api/v1/thong-ke/bao-cao?type=${type}`);
+        if (!res.ok) return [];
+        return await res.json();
+    } catch { return []; }
+}
+
+// 8. QUẢN LÝ TÀI KHOẢN
+export async function getAllUsersAction() {
+    try {
+        const res = await fetchAdmin('/api/v1/nguoi-dung/');
+        if (!res.ok) return [];
+        return await res.json();
+    } catch { return []; }
+}
+
+export async function updateUserStatusAction(userId, newStatus) {
+    try {
+        const res = await fetchAdmin(`/api/v1/nguoi-dung/${userId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ trangThai: newStatus })
+        });
+
+        if (res.ok) {
+            revalidatePath('/admin/quan_ly_tai_khoan');
+            return { success: true };
+        }
+        return { error: "Không thể cập nhật trạng thái." };
+    } catch (e) { return { error: e.message }; }
+}
+
+// 9. CẤU HÌNH HỆ THỐNG
+export async function getConfigAction() {
+    try {
+        const res = await fetchAdmin('/api/v1/config/');
+        if (!res.ok) return null;
+        return await res.json();
+    } catch { return null; }
+}
+
+export async function saveConfigAction(newConfig) {
+    try {
+        const res = await fetchAdmin('/api/v1/config/', {
+            method: 'PUT',
+            body: JSON.stringify(newConfig)
+        });
+        if (res.ok) {
+            revalidatePath('/admin/cau_hinh');
+            return { success: true };
+        }
+        return { error: "Lỗi lưu cấu hình" };
+    } catch (e) { return { error: e.message }; }
 }

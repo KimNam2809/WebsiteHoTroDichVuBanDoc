@@ -196,6 +196,7 @@ export default function FormDangKyPage() {
 
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+
                 <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-2xl text-center animate-in zoom-in-95 duration-300 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-green-400 to-blue-500"></div>
                     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -240,14 +241,28 @@ export default function FormDangKyPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-12 font-sans">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-gray-50 pb-20 font-sans">
+
+            {/* 1. HERO HEADER */}
+            <div className="relative bg-linear-to-r from-blue-900 to-indigo-900 h-[300px] flex items-center justify-center overflow-hidden pb-10">
+                <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                <div className="relative z-10 text-center px-4 max-w-4xl mx-auto pt-8">
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-4 leading-tight drop-shadow-lg">
+                        From đăng ký thẻ bạn đọc
+                    </h1>
+                    <p className="text-blue-100 text-lg font-light max-w-2xl mx-auto">
+                        Nơi bạn có thể điền thông tin để đăng ký thẻ bạn đọc tại thư viện của chúng tôi.
+                    </p>
+                </div>
+            </div>
+
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mt-20 relative z-20">
 
                 {/* Header Form */}
                 <div className="mb-8 flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-extrabold text-gray-900">Điền thông tin hồ sơ</h1>
-                        <p className="text-gray-500 mt-1">Vui lòng nhập chính xác thông tin để in thẻ.</p>
+                        <h1 className="text-3xl font-extrabold text-white">Điền thông tin hồ sơ</h1>
+                        <p className="text-white mt-1">Vui lòng nhập chính xác thông tin để in thẻ.</p>
                     </div>
                     <Link href="/dang_ky_the" className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors shadow-sm">
                         <ArrowLeft size={20} />

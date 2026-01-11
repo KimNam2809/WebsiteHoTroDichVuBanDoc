@@ -142,12 +142,12 @@ export default function ServicesPage() {
                         <p className="text-blue-100 text-lg mb-8">
                             Đặt trước phòng học nhóm, máy tính hoặc đăng ký tham gia các sự kiện thú vị ngay hôm nay để được ưu tiên phục vụ.
                         </p>
-                        <button
-                            onClick={showBookingForm}
-                            className="bg-white text-purple-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all flex items-center gap-2 mx-auto"
+                        <Link
+                            href="/dich_vu/dat_lich"
+                            className="bg-white text-purple-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all flex items-center gap-2 mx-auto inline-flex"
                         >
                             <Calendar size={20} /> Đặt lịch ngay
-                        </button>
+                        </Link>
                     </div>
                 </div>
 

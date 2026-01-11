@@ -17,7 +17,8 @@ TABLE_NAME = "muontra"
     summary="Lấy lịch sử mượn trả (Nhân viên: Tất cả / Bạn đọc: Của mình)"
 )
 def get_borrowing_history(
-    trang_thai: Optional[str] = Query(None, regex="^(daMuon|daTra|quaHan)$"),
+    trang_thai: Optional[str] = Query(None, regex="^(daMuon|daTra|quaHan|dangChoXacNhan)$"),
+    phan_loai: Optional[str] = Query(None, regex="^(choXacNhan|dangMuon)$", description="Lọc theo nghiệp vụ: choXacNhan (Chưa có NV), dangMuon (Đã có NV)"),
     current_user: dict = Depends(get_current_user_from_db)
 ):
     user_role = current_user.get("vaitro")
@@ -33,6 +34,7 @@ def get_borrowing_history(
             ngaytrathucte,
             trangthaimuon,
             tienphat,
+            manhanvien,
             bansao (
                 mabansaonoibo,
                 tacpham (tentacpham, anhbia)
@@ -58,7 +60,14 @@ def get_borrowing_history(
             return []
 
         # 3. LỌC
-        if trang_thai:
+        if phan_loai == 'choXacNhan':
+            # Nghiệp vụ: Đã tạo phiếu ('daMuon') nhưng chưa có nhân viên xác nhận ('manhanvien' IS NULL)
+            # Hoặc là trạng thái 'dangChoXacNhan' (nếu có dùng)
+            db_query = db_query.eq("trangthaimuon", "daMuon").is_("manhanvien", "null")
+        elif phan_loai == 'dangMuon':
+            # Nghiệp vụ: Đang mượn ('daMuon') và đã có nhân viên xác nhận ('manhanvien' NOT NULL)
+            db_query = db_query.eq("trangthaimuon", "daMuon").not_.is_("manhanvien", "null")
+        elif trang_thai:
             db_query = db_query.eq("trangthaimuon", trang_thai)
 
         # 4. THỰC THI

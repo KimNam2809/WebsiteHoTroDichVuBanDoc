@@ -55,3 +55,37 @@ export async function getCurrentHoldingsAction() {
 
     return [...safeBorrowing, ...safeOverdue];
 }
+
+// 4. Gia hạn mượn trả
+export async function renewLoanAction(payload) {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+
+    if (!token) {
+        return { success: false, error: "Phiên đăng nhập đã hết hạn." };
+    }
+
+    try {
+        const res = await fetch(`${FASTAPI_URL}/api/v1/gia-han/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            // Trả về lỗi từ FastAPI (detail)
+            return { success: false, error: data.detail || "Gia hạn thất bại" };
+        }
+
+        return { success: true, data: data };
+
+    } catch (error) {
+        console.error("Lỗi gia hạn:", error);
+        return { success: false, error: "Lỗi kết nối đến máy chủ." };
+    }
+}

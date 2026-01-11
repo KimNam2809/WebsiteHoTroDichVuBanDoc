@@ -19,8 +19,8 @@ export default async function LichSuMuonPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">Lịch sử mượn trả</h1>
-                <p className="text-gray-600">Danh sách các tài liệu bạn đã hoàn tất thủ tục trả sách.</p>
+                <h1 className="text-3xl font-bold text-white mb-2">Lịch sử mượn trả</h1>
+                <p className="text-blue-500">Danh sách các tài liệu bạn đã hoàn tất thủ tục trả sách.</p>
             </div>
 
             {/* Sử dụng Component bảng chung */}

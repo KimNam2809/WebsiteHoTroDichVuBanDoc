@@ -1,19 +1,28 @@
-// src/app/admin/quan_ly_muon_tra/page.js
 'use client';
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Search, RefreshCw, CheckCircle, BookUp, QrCode, X, User, BookOpen, Calendar, AlertTriangle, Loader2 } from 'lucide-react';
-import { getActiveLoansAction, returnBookAction } from '../actions';
+import { Search, RefreshCw, CheckCircle, BookUp, QrCode, X, User, BookOpen, Calendar, AlertTriangle, Loader2, Clock, BadgeCheck } from 'lucide-react';
+import { getActiveLoansAction, getPendingBorrowAction, returnBookAction, confirmBorrowAction } from '../actions';
 
 export default function QuanLyMuonTraPage() {
-    const [loans, setLoans] = useState([]);
+    // Data State
+    const [loans, setLoans] = useState([]); // Active Loans
+    const [pendingLoans, setPendingLoans] = useState([]); // Pending Loans
+
+    // Filtered State
     const [filteredLoans, setFilteredLoans] = useState([]);
+    const [filteredPending, setFilteredPending] = useState([]);
+
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
 
-    // State cho Modal Xác nhận Trả
-    const [loanToReturn, setLoanToReturn] = useState(null); // Lưu object phiếu mượn đang chọn
+    // UI State
+    const [activeTab, setActiveTab] = useState('active'); // 'pending', 'active'
+
+    // Modal State
+    const [selectedLoan, setSelectedLoan] = useState(null); // Used for both Confirm & Return
+    const [modalMode, setModalMode] = useState(''); // 'confirm_borrow', 'return_book'
     const [isProcessing, setIsProcessing] = useState(false);
 
     // 1. Tải dữ liệu
@@ -21,56 +30,87 @@ export default function QuanLyMuonTraPage() {
 
     async function loadData() {
         setIsLoading(true);
-        const data = await getActiveLoansAction();
-        setLoans(data || []);
-        setFilteredLoans(data || []);
+        const [activeData, pendingData] = await Promise.all([
+            getActiveLoansAction(),
+            getPendingBorrowAction()
+        ]);
+
+        setLoans(activeData || []);
+        setPendingLoans(pendingData || []);
+
+        // Reset filters (simple version, re-apply search if needed but reset is safer for now)
+        setFilteredLoans(activeData || []);
+        setFilteredPending(pendingData || []);
+
         setIsLoading(false);
     }
 
-    // 2. Tìm kiếm
+    // 2. Tìm kiếm (Effect chạy khi searchTerm hoặc data gốc thay đổi)
     useEffect(() => {
-        if (!searchTerm.trim()) {
-            setFilteredLoans(loans);
-            return;
-        }
-        const lowerTerm = searchTerm.toLowerCase();
-        const filtered = loans.filter(loan =>
-            loan.mabansaonoibo?.toLowerCase().includes(lowerTerm) ||
-            loan.nguoimuon?.toLowerCase().includes(lowerTerm) ||
-            loan.tentacpham?.toLowerCase().includes(lowerTerm) ||
-            String(loan.mamuontra).includes(lowerTerm)
-        );
-        setFilteredLoans(filtered);
-    }, [searchTerm, loans]);
+        const lowerTerm = searchTerm.toLowerCase().trim();
 
-    // 3. Xử lý nút "Xác nhận Trả" (Chỉ mở Modal)
-    function openConfirmModal(loan) {
-        setLoanToReturn(loan);
+        const filterFn = (list) => {
+            if (!lowerTerm) return list;
+            return list.filter(loan =>
+                loan.mabansaonoibo?.toLowerCase().includes(lowerTerm) ||
+                loan.nguoimuon?.toLowerCase().includes(lowerTerm) ||
+                loan.tentacpham?.toLowerCase().includes(lowerTerm) ||
+                String(loan.mamuontra).includes(lowerTerm)
+            );
+        };
+
+        setFilteredLoans(filterFn(loans));
+        setFilteredPending(filterFn(pendingLoans));
+
+    }, [searchTerm, loans, pendingLoans]);
+
+    // 3. Modal Handlers
+    function openReturnModal(loan) {
+        setSelectedLoan(loan);
+        setModalMode('return_book');
     }
 
-    // 4. Xử lý logic Trả sách thật (Gọi API)
-    async function confirmReturn() {
-        if (!loanToReturn) return;
+    function openConfirmModal(loan) {
+        setSelectedLoan(loan);
+        setModalMode('confirm_borrow');
+    }
 
+    // 4. API Handlers
+    async function handleConfirmBorrow() {
+        if (!selectedLoan) return;
         setIsProcessing(true);
-        const res = await returnBookAction(loanToReturn.mamuontra);
-        setIsProcessing(false);
 
+        const res = await confirmBorrowAction(selectedLoan.mamuontra);
+
+        setIsProcessing(false);
         if (res.success) {
-            // Đóng modal và cập nhật list
-            setLoanToReturn(null);
-            const newLoans = loans.filter(l => l.mamuontra !== loanToReturn.mamuontra);
-            setLoans(newLoans);
-            // Nếu đang search thì filter lại luôn
-            if (searchTerm) {
-                setFilteredLoans(newLoans.filter(l => String(l.mamuontra).includes(searchTerm) || l.nguoimuon.toLowerCase().includes(searchTerm.toLowerCase())));
-            } else {
-                setFilteredLoans(newLoans);
-            }
-            alert("Đã trả sách thành công!");
+            alert("Đã xác nhận mượn thành công!");
+            closeModal();
+            loadData(); // Reload to move item from Pending -> Active
         } else {
-            alert(res.error);
+            alert(res.error || "Có lỗi xảy ra.");
         }
+    }
+
+    async function handleReturnBook() {
+        if (!selectedLoan) return;
+        setIsProcessing(true);
+
+        const res = await returnBookAction(selectedLoan.mamuontra);
+
+        setIsProcessing(false);
+        if (res.success) {
+            alert("Trả sách thành công!");
+            closeModal();
+            loadData(); // Reload to remove from Active
+        } else {
+            alert(res.error || "Có lỗi xảy ra.");
+        }
+    }
+
+    function closeModal() {
+        setSelectedLoan(null);
+        setModalMode('');
     }
 
     return (
@@ -82,11 +122,29 @@ export default function QuanLyMuonTraPage() {
                 </button>
             </div>
 
-            {/* Search Bar (Giữ nguyên) */}
+            {/* TABS */}
+            <div className="flex gap-4 mb-6 border-b border-gray-200">
+                <button
+                    onClick={() => setActiveTab('active')}
+                    className={`pb-3 px-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'active' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                    <BookUp size={18} /> Đang Mượn
+                    <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">{filteredLoans.length}</span>
+                </button>
+                <button
+                    onClick={() => setActiveTab('pending')}
+                    className={`pb-3 px-4 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'pending' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                    <Clock size={18} /> Chờ Xác Nhận
+                    {pendingLoans.length > 0 && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs animate-pulse">{pendingLoans.length}</span>}
+                </button>
+            </div>
+
+            {/* Search Bar */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
                 <div className="flex flex-col md:flex-row gap-4 items-end">
                     <div className="flex-1 w-full">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm phiếu mượn</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm phiếu</label>
                         <div className="relative">
                             <input
                                 type="text"
@@ -94,30 +152,20 @@ export default function QuanLyMuonTraPage() {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder="Nhập mã phiếu, mã sách, tên sách hoặc tên bạn đọc..."
                                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                autoFocus
                             />
                             <Search className="absolute left-3 top-3.5 text-gray-400 w-5 h-5" />
                         </div>
                     </div>
-                    <div>
-                        <button className="flex items-center gap-2 bg-gray-800 text-white px-6 py-3 rounded-lg hover:bg-gray-900 transition shadow-md" onClick={() => alert('Tính năng đang phát triển')}>
-                            <QrCode size={20} /> Quét Mã QR
-                        </button>
-                    </div>
                 </div>
             </div>
 
-            {/* Table List */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 bg-blue-50 flex justify-between items-center">
-                    <h3 className="font-bold text-blue-800 flex items-center gap-2"><BookUp size={20}/> Danh sách đang mượn</h3>
-                    <span className="text-sm text-gray-500">{filteredLoans.length} kết quả</span>
-                </div>
-
+            {/* Table Content */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[400px]">
                 {isLoading ? (
-                    <div className="p-10 text-center text-gray-500">Đang tải dữ liệu...</div>
-                ) : filteredLoans.length === 0 ? (
-                    <div className="p-10 text-center text-gray-500 italic">Không tìm thấy phiếu mượn nào.</div>
+                    <div className="p-20 flex flex-col items-center justify-center text-gray-500 gap-4">
+                        <Loader2 className="animate-spin text-blue-500" size={32} />
+                        <span>Đang tải dữ liệu...</span>
+                    </div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
@@ -126,13 +174,28 @@ export default function QuanLyMuonTraPage() {
                                     <th className="px-6 py-3 text-left">Mã Phiếu</th>
                                     <th className="px-6 py-3 text-left">Thông tin Sách</th>
                                     <th className="px-6 py-3 text-left">Bạn đọc</th>
-                                    <th className="px-6 py-3 text-left">Hạn trả</th>
+                                    <th className="px-6 py-3 text-left">Thời gian</th>
                                     <th className="px-6 py-3 text-center">Hành động</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 bg-white">
-                                {filteredLoans.map((loan) => {
-                                    const isOverdue = loan.trangthai === 'quaHan';
+                                {(activeTab === 'active' ? filteredLoans : filteredPending).map((loan) => {
+                                    // Logic: Quá hạn = Hiện tại > Hạn trả
+                                    // User Request: "quá 2 ngày so với ngaytra" -> warning logic
+                                    const dueDate = new Date(loan.ngaytradukien);
+                                    const now = new Date();
+
+                                    // Calculate diff in days
+                                    const diffTime = now - dueDate;
+                                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                                    // Logic hiển thị warning theo yêu cầu
+                                    // Nếu đã có nhân viên (Active) & daMuon & quá 2 ngày -> Cảnh báo
+                                    const isLateWarning = activeTab === 'active' && diffDays > 2;
+
+                                    // Logic status gốc từ DB (để tham khảo)
+                                    const isDbOverdue = loan.trangthai === 'quaHan';
+
                                     return (
                                         <tr key={loan.mamuontra} className="hover:bg-blue-50 transition-colors">
                                             <td className="px-6 py-4 whitespace-nowrap font-mono font-bold text-gray-700">#{loan.mamuontra}</td>
@@ -140,63 +203,96 @@ export default function QuanLyMuonTraPage() {
                                                 <div className="text-sm font-bold text-gray-900">{loan.tentacpham}</div>
                                                 <div className="text-xs text-gray-500 font-mono bg-gray-100 px-1 py-0.5 rounded w-fit mt-1">{loan.mabansaonoibo}</div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm font-medium text-gray-900">{loan.nguoimuon}</td>
+                                            <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                                                <div>{loan.nguoimuon}</div>
+                                                <div className="text-xs text-gray-400">{loan.sothe || 'N/A'}</div>
+                                            </td>
                                             <td className="px-6 py-4">
-                                                <div className={`text-xs font-bold ${isOverdue ? 'text-red-600' : 'text-green-600'}`}>
-                                                    {new Date(loan.ngaytradukien).toLocaleDateString('vi-VN')}
-                                                    {isOverdue && <span className="ml-1">(Quá hạn)</span>}
-                                                </div>
+                                                {activeTab === 'active' ? (
+                                                    <div className={`text-xs font-bold ${isLateWarning || isDbOverdue ? 'text-red-600' : 'text-green-600'}`}>
+                                                        Hạn: {dueDate.toLocaleDateString('vi-VN')}
+
+                                                        {/* Hiển thị cảnh báo nếu quá hạn > 2 ngày */}
+                                                        {isLateWarning && (
+                                                            <div className="flex items-center gap-1 mt-1 text-red-600 animate-pulse">
+                                                                <AlertTriangle size={12} />
+                                                                <span>Quá hạn {diffDays} ngày</span>
+                                                            </div>
+                                                        )}
+
+                                                        {!isLateWarning && isDbOverdue && <span className="ml-1 block text-[10px] bg-red-100 text-red-600 w-fit px-1 rounded">Quá hạn</span>}
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-xs text-orange-600 font-medium">
+                                                        Đặt lúc: {new Date(loan.ngaymuon).toLocaleDateString('vi-VN')}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <button
-                                                    onClick={() => openConfirmModal(loan)}
-                                                    className="inline-flex items-center px-4 py-2 rounded-md text-sm font-bold text-white bg-green-600 hover:bg-green-700 shadow-sm hover:shadow-md active:scale-95 transition-all"
-                                                >
-                                                    <CheckCircle size={16} className="mr-2" /> Trả sách
-                                                </button>
+                                                {activeTab === 'active' ? (
+                                                    <button
+                                                        onClick={() => openReturnModal(loan)}
+                                                        className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-bold text-green-700 bg-green-100 hover:bg-green-200 transition-colors border border-green-200"
+                                                    >
+                                                        <CheckCircle size={14} className="mr-1" /> Trả sách
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => openConfirmModal(loan)}
+                                                        className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm hover:shadow-md transition-all active:scale-95"
+                                                    >
+                                                        <BadgeCheck size={14} className="mr-1" /> Duyệt Mượn
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     );
                                 })}
+                                {(activeTab === 'active' ? filteredLoans : filteredPending).length === 0 && (
+                                    <tr>
+                                        <td colSpan={5} className="py-10 text-center text-gray-400 italic">
+                                            Không có dữ liệu nào.
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
                 )}
             </div>
 
-            {/* === MODAL ĐỐI CHIẾU THÔNG TIN (NEW) === */}
-            {loanToReturn && (
-                <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden">
+            {/* === MODAL CONFIRMATION (REUSABLE) === */}
+            {selectedLoan && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden max-h-[90vh]">
 
                         {/* Header */}
-                        <div className="flex justify-between items-center p-5 border-b bg-gray-50">
-                            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                                <CheckCircle className="text-green-600" /> Xác nhận Trả Sách
+                        <div className={`flex justify-between items-center p-5 border-b ${modalMode === 'confirm_borrow' ? 'bg-blue-50' : 'bg-green-50'}`}>
+                            <h3 className={`text-xl font-bold flex items-center gap-2 ${modalMode === 'confirm_borrow' ? 'text-blue-800' : 'text-green-800'}`}>
+                                {modalMode === 'confirm_borrow' ? <BadgeCheck className="text-blue-600" /> : <CheckCircle className="text-green-600" />}
+                                {modalMode === 'confirm_borrow' ? 'Xác nhận Cho Mượn' : 'Xác nhận Trả Sách'}
                             </h3>
-                            <button onClick={() => setLoanToReturn(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                            <button onClick={closeModal} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
                         </div>
 
-                        {/* Body: So sánh 2 cột */}
-                        <div className="flex-1 p-6 bg-gray-50/50">
+                        {/* Body */}
+                        <div className="flex-1 p-6 bg-gray-50/50 overflow-y-auto">
                             <div className="grid md:grid-cols-2 gap-8">
-
                                 {/* Cột 1: Thông tin Sách */}
                                 <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                                     <h4 className="text-sm font-bold text-gray-500 uppercase mb-4 border-b pb-2 flex items-center gap-2">
-                                        <BookOpen size={18} /> Tài liệu hoàn trả
+                                        <BookOpen size={18} /> Tài liệu
                                     </h4>
                                     <div className="flex flex-col items-center text-center">
-                                        {/* Ảnh bìa sách */}
                                         <div className="relative w-32 h-48 bg-gray-200 rounded-md shadow-md overflow-hidden mb-4">
-                                            {loanToReturn.anhbia ? (
-                                                <Image src={loanToReturn.anhbia} alt="" fill className="object-cover" unoptimized />
+                                            {selectedLoan.anhbia ? (
+                                                <Image src={selectedLoan.anhbia} alt="" fill className="object-cover" unoptimized />
                                             ) : (
                                                 <div className="flex items-center justify-center h-full text-gray-400 text-xs">No Cover</div>
                                             )}
                                         </div>
-                                        <h3 className="text-lg font-bold text-gray-900">{loanToReturn.tentacpham}</h3>
-                                        <p className="text-sm text-gray-500 mt-1">Mã bản sao: <span className="font-mono font-bold text-black bg-yellow-100 px-1 rounded">{loanToReturn.mabansaonoibo}</span></p>
+                                        <h3 className="text-lg font-bold text-gray-900">{selectedLoan.tentacpham}</h3>
+                                        <p className="text-sm text-gray-500 mt-1">Mã bản sao: <span className="font-mono font-bold text-black bg-yellow-100 px-1 rounded">{selectedLoan.mabansaonoibo}</span></p>
                                     </div>
                                 </div>
 
@@ -206,36 +302,40 @@ export default function QuanLyMuonTraPage() {
                                         <User size={18} /> Người mượn
                                     </h4>
                                     <div className="flex flex-col items-center text-center">
-                                        {/* Ảnh bạn đọc */}
                                         <div className="relative w-32 h-40 bg-gray-200 rounded-md shadow-md overflow-hidden mb-4 border-2 border-white">
-                                            {loanToReturn.anhdocgia ? (
-                                                <Image src={loanToReturn.anhdocgia} alt="" fill className="object-cover" unoptimized />
+                                            {selectedLoan.anhdocgia ? (
+                                                <Image src={selectedLoan.anhdocgia} alt="" fill className="object-cover" unoptimized />
                                             ) : (
                                                 <div className="flex items-center justify-center h-full text-gray-400 text-xs">No Avatar</div>
                                             )}
                                         </div>
-                                        <h3 className="text-lg font-bold text-blue-800">{loanToReturn.nguoimuon}</h3>
-                                        {/* <p className="text-sm text-gray-500 mt-1">Số thẻ: <span className="font-mono">{loanToReturn.soThe}</span></p> */}
+                                        <h3 className="text-lg font-bold text-blue-800">{selectedLoan.nguoimuon}</h3>
+                                        <p className="text-sm text-gray-500 mt-1">Số thẻ: {selectedLoan.sothe || '---'}</p>
 
                                         <div className="mt-4 w-full bg-gray-50 p-3 rounded border text-left text-sm">
                                             <div className="flex justify-between mb-1">
-                                                <span className="text-gray-500">Ngày mượn:</span>
-                                                <span className="font-medium">{new Date(loanToReturn.ngaymuon).toLocaleDateString('vi-VN')}</span>
+                                                <span className="text-gray-500">Ngày tạo:</span>
+                                                <span className="font-medium">{new Date(selectedLoan.ngaymuon).toLocaleDateString('vi-VN')}</span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-gray-500">Hạn trả:</span>
-                                                <span className={`font-bold ${loanToReturn.trangthai === 'quaHan' ? 'text-red-600' : 'text-green-600'}`}>
-                                                    {new Date(loanToReturn.ngaytradukien).toLocaleDateString('vi-VN')}
+                                                <span className="font-bold text-blue-600">
+                                                    {new Date(selectedLoan.ngaytradukien).toLocaleDateString('vi-VN')}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-
                             </div>
 
-                            {/* Cảnh báo nếu quá hạn */}
-                            {loanToReturn.trangThai === 'quaHan' && (
+                            {/* Alert Context */}
+                            {modalMode === 'confirm_borrow' && (
+                                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
+                                    <strong><BadgeCheck size={16} className="inline mr-1" /> Xác nhận cho mượn:</strong> Hành động này sẽ cập nhật trạng thái phiếu thành "Đã mượn" và ghi nhận Mã nhân viên của bạn vào hệ thống.
+                                </div>
+                            )}
+
+                            {modalMode === 'return_book' && selectedLoan.trangThai === 'quaHan' && (
                                 <div className="mt-6 p-3 bg-red-100 border border-red-200 rounded-lg flex items-center gap-3 text-red-800">
                                     <AlertTriangle size={24} />
                                     <div>
@@ -244,25 +344,38 @@ export default function QuanLyMuonTraPage() {
                                     </div>
                                 </div>
                             )}
+
                         </div>
 
                         {/* Footer */}
                         <div className="p-5 border-t bg-white flex justify-end gap-3">
                             <button
-                                onClick={() => setLoanToReturn(null)}
+                                onClick={closeModal}
                                 className="px-5 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium transition-colors"
                                 disabled={isProcessing}
                             >
                                 Hủy bỏ
                             </button>
-                            <button
-                                onClick={confirmReturn}
-                                disabled={isProcessing}
-                                className="px-8 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg flex items-center gap-2 transition-transform active:scale-95"
-                            >
-                                {isProcessing ? <Loader2 className="animate-spin" /> : <CheckCircle size={20} />}
-                                XÁC NHẬN TRẢ SÁCH
-                            </button>
+
+                            {modalMode === 'confirm_borrow' ? (
+                                <button
+                                    onClick={handleConfirmBorrow}
+                                    disabled={isProcessing}
+                                    className="px-8 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg flex items-center gap-2 transition-transform active:scale-95"
+                                >
+                                    {isProcessing ? <Loader2 className="animate-spin" /> : <BadgeCheck size={20} />}
+                                    XÁC NHẬN CHO MƯỢN
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleReturnBook}
+                                    disabled={isProcessing}
+                                    className="px-8 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg flex items-center gap-2 transition-transform active:scale-95"
+                                >
+                                    {isProcessing ? <Loader2 className="animate-spin" /> : <CheckCircle size={20} />}
+                                    XÁC NHẬN TRẢ SÁCH
+                                </button>
+                            )}
                         </div>
 
                     </div>

@@ -62,14 +62,14 @@ export default function DatChoPage() {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold mb-6">Đặt chỗ ngồi & Phòng</h1>
+            <h1 className="text-3xl font-bold text-white mb-6">Đặt chỗ ngồi & Phòng</h1>
             {/* Thanh chuyển tab */}
             <div className="flex border-b border-gray-300 mb-6">
                 <button
                     className={`flex items-center space-x-2 py-3 px-6 text-lg
                         ${view === 'seat'
                         ? 'border-b-2 border-blue-600 font-semibold text-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                        : 'text-white hover:text-gray-500'
                         }`}
                     onClick={() => setView('seat')}
                 >
@@ -80,7 +80,7 @@ export default function DatChoPage() {
                     className={`flex items-center space-x-2 py-3 px-6 text-lg
                         ${view === 'room'
                         ? 'border-b-2 border-blue-600 font-semibold text-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                        : 'text-white hover:text-gray-500'
                         }`}
                     onClick={() => setView('room')}
                 >
