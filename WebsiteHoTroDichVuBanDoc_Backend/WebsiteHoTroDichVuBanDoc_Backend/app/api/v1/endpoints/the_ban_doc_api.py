@@ -74,7 +74,7 @@ def get_all_the_ban_doc(current_staff: dict = Depends(get_current_staff_profile)
     status_code=status.HTTP_200_OK,
     summary="Lấy chi tiết một Thẻ Bạn Đọc"
 )
-def get_the_ban_doc_by_id(maThe: int, current_user: dict = Depends(get_card_owner_or_staff )):
+def get_the_ban_doc_by_id(maThe: int, current_user: dict = Depends(get_card_owner_or_staff)):
     """
     Lấy thông tin chi tiết của một Thẻ Bạn Đọc bằng ID.
     - Nhân viên: Được xem bất kỳ.

@@ -125,7 +125,7 @@ export default function QuanLyMuonTraPage() {
 
     const SuccessModalConfirm = () => (
         <div className="fixed inset-0 z-9999 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowSuccessModal(false)}></div>
+            <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowSuccessModalConfirm(false)}></div>
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm text-center overflow-hidden relative z-10 animate-in zoom-in-95 duration-300">
                 <div className="h-2 w-full bg-linear-to-r from-green-400 via-emerald-500 to-teal-500"></div>
                 <div className="p-8 pb-6">
@@ -135,7 +135,7 @@ export default function QuanLyMuonTraPage() {
                 </div>
                 <div className="px-8 pb-8">
                     <div className="bg-blue-50 text-blue-800 text-sm p-4 rounded-xl mb-6 text-left border border-blue-100 flex gap-3 items-start"><Info className="shrink-0 text-blue-600 mt-0.5" size={18}/><div><strong>Bước tiếp theo:</strong> Thực hiện tiếp công việc.</div></div>
-                    <button onClick={() => setShowSuccessModal(false)} className="w-full py-3.5 bg-gray-900 hover:bg-black text-white rounded-xl font-bold shadow-lg transition-transform active:scale-95">Đã hiểu, cảm ơn!</button>
+                    <button onClick={() => setShowSuccessModalConfirm(false)} className="w-full py-3.5 bg-gray-900 hover:bg-black text-white rounded-xl font-bold shadow-lg transition-transform active:scale-95">Đã hiểu, cảm ơn!</button>
                 </div>
             </div>
         </div>

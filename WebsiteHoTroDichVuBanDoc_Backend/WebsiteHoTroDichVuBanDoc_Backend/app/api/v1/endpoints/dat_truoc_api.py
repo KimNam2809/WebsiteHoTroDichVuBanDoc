@@ -1,15 +1,31 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from typing import List, Optional
 from app.models.dat_truoc import DatTruoc, DatTruocCreate, DatTruocUpdate
 from app.connect.db import supabase_client
 from app.connect.auth import get_current_user_from_db, get_owner_or_staff, get_reservation_owner_or_staff
 from app.utils import to_json_safe
 import logging, ast
+from datetime import datetime
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 TABLE_NAME = "dattruoc"
+
+def send_notification(ma_ban_doc: int, tieu_de: str, noi_dung: str):
+    try:
+        data = {
+            "mabandoc": ma_ban_doc,
+            "tieude": tieu_de,
+            "noidung": noi_dung,
+            "hinhthuc": "HeThong",
+            "trangthai": "chuaXem",
+            "thoigiangui": datetime.now().isoformat(),
+            "thamchieu": "DatTruoc"
+        }
+        supabase_client.table("thongbao").insert(to_json_safe(data)).execute()
+    except Exception as e:
+        logger.error(f"Lỗi gửi thông báo: {e}")
 
 # 1. CREATE (Nghiệp vụ Đặt Trước)
 @router.post(
@@ -18,7 +34,11 @@ TABLE_NAME = "dattruoc"
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một lượt đặt trước sách (Đã có logic nghiệp vụ)"
 )
-def create_dat_truoc(dat_truoc_in: DatTruocCreate, current_user: dict = Depends(get_owner_or_staff)):
+def create_dat_truoc(
+    dat_truoc_in: DatTruocCreate, 
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_owner_or_staff)
+):
     """
     Gọi RPC fn_dat_truoc để tạo một lượt đặt trước mới.
     Hàm này sẽ tự động:
@@ -81,9 +101,22 @@ def create_dat_truoc(dat_truoc_in: DatTruocCreate, current_user: dict = Depends(
         # 2) Xử lý thành công
         data = getattr(response, "data", None)
         if data:
-            if isinstance(data, list):
-                return data[0]
-            return data
+            result = data[0] if isinstance(data, list) else data
+            
+            # [NOTIFY] Gửi thông báo
+            try:
+                ma_ban_doc = result.get("mabandoc")
+                ma_dat_truoc = result.get("madattruoc")
+                background_tasks.add_task(
+                    send_notification,
+                    ma_ban_doc,
+                    "Đặt trước thành công",
+                    f"Bạn đã đặt trước thành công (Mã: {ma_dat_truoc}). Hệ thống sẽ thông báo khi có sách."
+                )
+            except Exception as notify_e:
+                logger.warning(f"Không thể gửi thông báo đặt trước: {notify_e}")
+
+            return result
 
         # 3) Thành công nhưng không có data
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không thể đặt trước (RPC không trả về data)")

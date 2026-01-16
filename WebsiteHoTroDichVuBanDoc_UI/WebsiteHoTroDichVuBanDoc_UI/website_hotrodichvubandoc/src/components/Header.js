@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Menu, X, BookOpen, LogIn, LogOut, User, Loader2, Bell } from 'lucide-react';
 // Import Server Actions từ đúng đường dẫn bạn đã cung cấp
 import { getSessionAction, logoutAction } from '@/app/dang_nhap/actions';
+import { getUnreadCountAction } from '@/app/actions/notification';
 
 const navItems = [
     { name: 'Trang chủ', href: '/' },
@@ -21,6 +22,7 @@ export default function Header() {
 
     // State quản lý User
     const [user, setUser] = useState(null);
+    const [unreadCount, setUnreadCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
 
     const pathname = usePathname();
@@ -41,6 +43,22 @@ export default function Header() {
         fetchSession();
     }, [pathname]);
 
+    // 1.1 Polling thông báo (30s/lần)
+    useEffect(() => {
+        let interval;
+        if (user) {
+            const fetchUnread = async () => {
+                const count = await getUnreadCountAction();
+                setUnreadCount(count);
+            };
+            fetchUnread(); // Gọi ngay lần đầu
+            interval = setInterval(fetchUnread, 30000);
+        } else {
+            setUnreadCount(0);
+        }
+        return () => clearInterval(interval);
+    }, [user, pathname]); // Re-run khi user đổi hoặc chuyển trang (để cập nhật lại nếu vừa đọc xong)
+
     // 2. Hiệu ứng cuộn: Đổi màu nền header khi cuộn xuống
     useEffect(() => {
         const handleScroll = () => {
@@ -54,6 +72,7 @@ export default function Header() {
     const handleLogout = async () => {
         await logoutAction(); // Gọi Server Action xóa cookie
         setUser(null); // Xóa state client
+        setUnreadCount(0);
         router.push('/dang_nhap'); // Chuyển hướng về đăng nhập
         router.refresh(); // Làm mới trang để cập nhật middleware
     };
@@ -132,11 +151,20 @@ export default function Header() {
                                         <Link
                                             href="/thong_bao"
                                             className={`p-2.5 rounded-full transition-all relative group/bell ${scrolled
-                                                    ? 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
-                                                    : 'text-blue-100 hover:bg-white/10 hover:text-white'
+                                                ? 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
+                                                : 'text-blue-100 hover:bg-white/10 hover:text-white'
                                                 }`}
                                         >
                                             <Bell size={20} />
+
+                                            {/* Badge thông báo */}
+                                            {unreadCount > 0 && (
+                                                <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border border-white"></span>
+                                                </span>
+                                            )}
+
                                             {/* Hiệu ứng pulse nhẹ khi hover */}
                                             <span className="absolute inset-0 rounded-full bg-current opacity-0 group-hover/bell:opacity-10 transition-opacity"></span>
                                         </Link>
@@ -145,8 +173,8 @@ export default function Header() {
                                     <button
                                         onClick={handleLogout}
                                         className={`px-5 py-2.5 rounded-full text-sm font-bold shadow-lg transition-all hover:-translate-y-0.5 flex items-center gap-2 ${scrolled
-                                                ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-100'
-                                                : 'bg-white/10 text-white hover:bg-red-500/80 border border-white/20 backdrop-blur-md'
+                                            ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-100'
+                                            : 'bg-white/10 text-white hover:bg-red-500/80 border border-white/20 backdrop-blur-md'
                                             }`}
                                     >
                                         <LogOut size={16} /> Đăng xuất

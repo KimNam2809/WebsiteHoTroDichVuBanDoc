@@ -1,13 +1,31 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
 from typing import List, Optional
 from app.models.muon_tra import MuonTra, MuonTraCreate, MuonTraUpdate, MuonTraTraSach, MuonTraItem
 from app.connect.db import supabase_client
 from app.connect.auth import get_current_staff_profile, get_current_user_from_db, get_loan_owner_or_staff
 from app.utils import to_json_safe
 import logging, ast
+from datetime import datetime
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+TABLE_NAME = "muontra"
+
+def send_notification(ma_ban_doc: int, tieu_de: str, noi_dung: str):
+    try:
+        data = {
+            "mabandoc": ma_ban_doc,
+            "tieude": tieu_de,
+            "noidung": noi_dung,
+            "hinhthuc": "HeThong",
+            "trangthai": "chuaXem",
+            "thoigiangui": datetime.now().isoformat(),
+            "thamchieu": "MuonTra"
+        }
+        supabase_client.table("thongbao").insert(to_json_safe(data)).execute()
+    except Exception as e:
+        logger.error(f"Lỗi gửi thông báo: {e}")
 
 TABLE_NAME = "muontra"
 
@@ -126,7 +144,11 @@ def get_borrowing_history(
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một lượt mượn sách mới (Nhân viên/Bạn đọc)"
 )
-def create_muon_tra(muon_tra_in: MuonTraCreate, current_user: dict = Depends(get_current_user_from_db)):
+def create_muon_tra(
+    muon_tra_in: MuonTraCreate, 
+    background_tasks: BackgroundTasks, 
+    current_user: dict = Depends(get_current_user_from_db)
+):
     """
     Tạo một lượt mượn (RPC fn_muon_tai_lieu).
     - Nhân viên: Được phép tạo cho bất kỳ ai.
@@ -197,9 +219,27 @@ def create_muon_tra(muon_tra_in: MuonTraCreate, current_user: dict = Depends(get
         # 2) Xử lý thành công
         data = getattr(response, "data", None)
         if data:
-            if isinstance(data, list):
-                return data[0]
-            return data
+            result = data[0] if isinstance(data, list) else data
+            
+            # [NOTIFY] Gửi thông báo
+            try:
+                ma_ban_doc = result.get("mabandoc")
+                ma_muon_tra = result.get("mamuontra")
+                # Nếu có manhanvien -> NV tạo -> Đã mượn. Nếu ko -> Đang chờ.
+                msg = f"Tạo yêu cầu mượn thành công (Mã: {ma_muon_tra})."
+                if result.get("manhanvien"):
+                     msg = f"Mượn sách thành công (Mã: {ma_muon_tra}). Vui lòng bảo quản tài liệu cẩn thận."
+
+                background_tasks.add_task(
+                    send_notification,
+                    ma_ban_doc,
+                    "Thông báo mượn tài liệu",
+                    msg
+                )
+            except Exception as notify_e:
+                logger.warning(f"Lỗi gửi thông báo mượn: {notify_e}")
+
+            return result
 
         # 3) Thành công nhưng không có data
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không thể tạo lượt mượn (RPC không trả về data)")
@@ -323,7 +363,12 @@ def get_muon_tra_by_id(maMuonTra: int, current_user: dict = Depends(get_loan_own
     status_code=status.HTTP_200_OK,
     summary="Cập nhật một lượt mượn (ví dụ: ghi phạt, ghi chú)"
 )
-def update_muon_tra(maMuonTra: int, muon_tra_in: MuonTraUpdate, current_staff: dict = Depends(get_current_staff_profile)):
+def update_muon_tra(
+    maMuonTra: int, 
+    muon_tra_in: MuonTraUpdate, 
+    background_tasks: BackgroundTasks,
+    current_staff: dict = Depends(get_current_staff_profile)
+):
     """
     Cập nhật thông tin cho một lượt mượn (ví dụ: thêm tiền phạt, ghi chú).
 
@@ -341,7 +386,22 @@ def update_muon_tra(maMuonTra: int, muon_tra_in: MuonTraUpdate, current_staff: d
         response = supabase_client.table(TABLE_NAME).update(data).eq("mamuontra", maMuonTra).execute()
 
         if response.data:
-            return response.data[0]
+            result = response.data[0]
+            
+            # [NOTIFY] Gửi thông báo cập nhật
+            try:
+                ma_ban_doc = result.get("mabandoc")
+                # Logic đơn giản: cứ update là báo
+                background_tasks.add_task(
+                    send_notification,
+                    ma_ban_doc,
+                    "Cập nhật trạng thái mượn trả",
+                    f"Phiếu mượn #{maMuonTra} của bạn vừa được cập nhật thông tin (ví dụ: Phê duyệt, tính phí...)."
+                )
+            except Exception as notify_e:
+                logger.warning(f"Lỗi gửi thông báo update: {notify_e}")
+
+            return result
         else:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy lượt mượn với id={maMuonTra} để cập nhật")
 
@@ -386,7 +446,12 @@ def delete_muon_tra(maMuonTra: int, current_staff: dict = Depends(get_current_st
     status_code=status.HTTP_200_OK, # Trả về 200 OK vì đây là cập nhật
     summary="Xử lý nghiệp vụ trả sách"
 )
-def tra_sach(maMuonTra: int, tra_sach_in: MuonTraTraSach, current_staff: dict = Depends(get_current_staff_profile)):
+def tra_sach(
+    maMuonTra: int, 
+    tra_sach_in: MuonTraTraSach, 
+    background_tasks: BackgroundTasks,
+    current_staff: dict = Depends(get_current_staff_profile)
+):
     """
     Gọi RPC fn_tra_sach để xử lý nghiệp vụ trả sách.
     Hàm này sẽ tự động:
@@ -417,8 +482,23 @@ def tra_sach(maMuonTra: int, tra_sach_in: MuonTraTraSach, current_staff: dict = 
         data = getattr(response, "data", None)
         if data:
             if isinstance(data, list):
-                return data[0]
-            return data
+                result = data[0]
+            else:
+                result = data
+
+            # [NOTIFY]
+            try:
+                ma_ban_doc = result.get("mabandoc")
+                background_tasks.add_task(
+                    send_notification,
+                    ma_ban_doc,
+                    "Trả sách thành công",
+                    f"Bạn đã trả sách thành công (Mã PM: {maMuonTra}). Cảm ơn đã sử dụng dịch vụ."
+                )
+            except Exception as notify_e:
+                logger.warning(f"Lỗi gửi thông báo trả sách: {notify_e}")
+
+            return result
 
         # 3) Thành công nhưng không có data
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không thể trả sách (RPC không trả về data)")

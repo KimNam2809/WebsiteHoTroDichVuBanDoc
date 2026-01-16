@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from typing import List, Optional
 from app.models.gia_han import GiaHan, GiaHanCreate, GiaHanUpdate
 from app.connect.db import supabase_client
 from app.connect.auth import get_current_staff_profile, get_current_user_from_db, get_renewal_owner_or_staff, get_loan_owner_or_staff
 from app.utils import to_json_safe
 import logging, ast, re
+from datetime import datetime
 
 
 router = APIRouter()
@@ -12,13 +13,29 @@ logger = logging.getLogger(__name__)
 
 TABLE_NAME = "giahan"
 
+
+def send_notification(ma_ban_doc: int, tieu_de: str, noi_dung: str):
+    try:
+        data = {
+            "mabandoc": ma_ban_doc,
+            "tieude": tieu_de,
+            "noidung": noi_dung,
+            "hinhthuc": "HeThong",
+            "trangthai": "chuaXem",
+            "thoigiangui": datetime.now().isoformat(),
+            "thamchieu": "GiaHan"
+        }
+        supabase_client.table("thongbao").insert(to_json_safe(data)).execute()
+    except Exception as e:
+        logger.error(f"Lỗi gửi thông báo: {e}")
+
 @router.post(
     "/",
     response_model=GiaHan,
     status_code=status.HTTP_201_CREATED,
     summary="Tạo một lượt gia hạn mượn sách mới"
 )
-def create_gia_han(gia_han_in: GiaHanCreate, current_user: dict = Depends(get_current_user_from_db)):
+def create_gia_han(gia_han_in: GiaHanCreate, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user_from_db)):
     """
     Tạo một lượt gia hạn mới (gọi RPC fn_gia_han).
     - Nhân viên: Được phép tạo (với maNhanVien của họ).
@@ -96,11 +113,44 @@ def create_gia_han(gia_han_in: GiaHanCreate, current_user: dict = Depends(get_cu
         data = getattr(response, "data", None)
         if data:
             # data có thể là list chứa record(s) hoặc scalar/obj
+            result = data
             if isinstance(data, list):
-                # trả item đầu (theo hàm SQL bạn RETURN record)
-                return data[0]
-            # nếu không phải list, trả về trực tiếp (nếu model tương thích)
-            return data
+                result = data[0]
+            
+            # [NOTIFY] Gửi thông báo
+            try:
+                # Cần lấy mabandoc. Nhưng giahan RPC có thể không trả về mabandoc trực tiếp (nó trả về record giahan).
+                # Giahan record -> mamuontra -> mabandoc.
+                # Tuy nhiên, ở trên ta đã check `own_maBanDoc` (nếu là user). Nếu nhân viên thì chưa có maBanDoc.
+                # Ta sẽ lấy từ kết quả RPC trả về nếu có (nếu view return đủ). 
+                # Nếu RPC chỉ trả `magiahan`, ta phải query lại.
+                # Nhưng logic đơn giản:
+                if result:
+                    # Async get info and notify
+                    pass
+                    # Lưu ý: result là record GiaHan. Cần query MuonTra để lấy MaBanDoc.
+                    # Cách tốt nhất là dùng một hàm helper async khác hoặc query ngay đây.
+                    # Để đơn giản và nhanh, tôi sẽ query ngay đây (vì đã có exception handler bao bọc).
+                    
+                    # Lấy mamuontra từ result
+                    ma_muon_tra = result.get("mamuontra")
+                    if ma_muon_tra:
+                        # Query maBanDoc
+                        res_mt = supabase_client.table("muontra").select("mabandoc").eq("mamuontra", ma_muon_tra).single().execute()
+                        if res_mt.data:
+                            mdoc = res_mt.data["mabandoc"]
+                            ngay_moi = result.get("ngaytramoi", "N/A")
+                            background_tasks.add_task(
+                                send_notification,
+                                mdoc,
+                                "Gia hạn tài liệu thành công",
+                                f"Bạn đã gia hạn thành công. Hạn trả mới: {ngay_moi}."
+                            )
+
+            except Exception as notify_e:
+                logger.warning(f"Lỗi gửi thông báo gia hạn: {notify_e}")
+
+            return result
 
         # 3) Nếu không có data và không có error -> coi là không tạo được
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không thể tạo lượt gia hạn")

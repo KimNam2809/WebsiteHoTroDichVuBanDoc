@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional
 from app.connect.db import supabase_client
-from app.connect.auth import get_current_user_from_db
-from app.models.thong_bao import ThongBao
-from app.utils import to_json_safe
+from app.connect.auth import get_owner_or_staff, get_notification_owner_or_staff
 
 router = APIRouter()
+
+TABLE_NAME = "thongbao"
 
 @router.get(
     "/",
@@ -13,7 +13,7 @@ router = APIRouter()
     response_model=List[dict] # Trả về list dict cho linh hoạt
 )
 def get_user_notifications(
-    current_user: dict = Depends(get_current_user_from_db),
+    current_user: dict = Depends(get_owner_or_staff),
     limit: int = 20,
     offset: int = 0
 ):
@@ -49,24 +49,42 @@ def get_user_notifications(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.put(
-    "/{ma_thong_bao}/read",
+    "/{maThongBao}/read",
     summary="Đánh dấu đã đọc"
 )
 def mark_notification_as_read(
-    ma_thong_bao: int,
-    current_user: dict = Depends(get_current_user_from_db)
+    maThongBao: int,
+    current_user: dict = Depends(get_notification_owner_or_staff)
 ):
     try:
-        user_id = current_user.get("manguoidung")
-
-        # Verify ownership (optional but recommended)
-        # Check if notification belongs to a bandoc linked to this user
-        # Simplified: Just update
-
-        supabase_client.table("thongbao").update({
+        supabase_client.table(TABLE_NAME).update({
             "trangthai": "daXem"
-        }).eq("mathongbao", ma_thong_bao).execute()
+        }).eq("mathongbao", maThongBao).execute()
 
         return {"message": "Success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get(
+    "/unread-count",
+    summary="Đếm số lượng thông báo chưa đọc"
+)
+def count_unread_notifications(
+    ma_ban_doc: int = Query(..., alias="maBanDoc"),
+    current_user: dict = Depends(get_owner_or_staff)
+):
+    try:
+        # count exact
+        response = (
+            supabase_client.table(TABLE_NAME)
+            .select("mathongbao", count="exact")
+            .eq("mabandoc", ma_ban_doc)
+            .eq("trangthai", "chuaXem")
+            .execute()
+        )
+
+        return {"count": response.count}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

@@ -11,7 +11,7 @@ def get_dashboard_summary(current_staff: dict = Depends(get_current_staff_profil
     try:
         # 1. Hồ sơ chờ duyệt
         # Table: yeucauthe, Col: trangthaiquytrinh = 'daYeuCau' (hoặc 'choDuyet' tùy logic seed, model default là 'daYeuCau')
-        # Check model: default='daYeuCau'. Let's check DB usage. 'choDuyet' was used in frontend props. 
+        # Check model: default='daYeuCau'. Let's check DB usage. 'choDuyet' was used in frontend props.
         # Safest is to check what values are actually used. Assume 'daYeuCau' for initial or 'choDuyet'.
         # Previous log said "eq.choDuyet" -> 400. This was column error likely.
         # Let's use 'daYeuCau' as per model default, OR filter logic in frontend.
@@ -26,7 +26,7 @@ def get_dashboard_summary(current_staff: dict = Depends(get_current_staff_profil
 
         # 3. Sách quá hạn
         res_overdue = supabase_client.table("muontra").select("mamuontra", count="exact", head=True).eq("trangthaimuon", "quaHan").execute()
-        
+
         # 4. Tổng bạn đọc
         res_readers = supabase_client.table("bandoc").select("mabandoc", count="exact", head=True).execute()
         count_readers = res_readers.count or 0
@@ -34,7 +34,7 @@ def get_dashboard_summary(current_staff: dict = Depends(get_current_staff_profil
         return {
             "hoSoCho": count_cards,
             "sachDangMuon": count_loans,
-            "sachQuaHan": count_overdue,
+            "sachQuaHan": res_overdue.count or 0,
             "tongBanDoc": count_readers
         }
     except Exception as e:

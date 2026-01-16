@@ -67,8 +67,11 @@ async function getMyReservedCopyIds() {
         return reservations.map(item => {
             // Kiểm tra cấu trúc trả về của API DatTruoc (mabansao, maBanSao, hay ma_ban_sao)
             const id = item.mabansao || item.maBanSao || item.ma_ban_sao;
-            return String(id);
-        }).filter(id => id !== 'undefined' && id !== 'null');
+            return {
+                id: String(id),
+                status: item.trangthaidattruoc // Lấy thêm trạng thái
+            };
+        }).filter(item => item.id !== 'undefined' && item.id !== 'null');
 
     } catch (error) {
         console.error("Lỗi lấy danh sách đặt trước:", error);
@@ -134,7 +137,7 @@ export default async function ChiTietTacPhamPage({ params }) {
 
                 <div className="relative z-10 container mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-20">
                     <Link href="/tim_kiem" className="inline-flex items-center gap-2 text-blue-200 hover:text-white mb-6 font-medium transition-colors w-fit px-3 py-1 rounded-full hover:bg-white/10">
-                        <ArrowLeft size={18}/> Quay lại danh mục
+                        <ArrowLeft size={18} /> Quay lại danh mục
                     </Link>
 
                     <div className="max-w-4xl">
@@ -149,7 +152,7 @@ export default async function ChiTietTacPhamPage({ params }) {
                             {work.tentacpham}
                         </h1>
                         <div className="flex items-center gap-4 text-blue-100 text-lg">
-                            <span className="flex items-center gap-2"><User size={20}/> {work.tacgia}</span>
+                            <span className="flex items-center gap-2"><User size={20} /> {work.tacgia}</span>
                             <span className="opacity-50">|</span>
                             <span className="flex items-center gap-2 opacity-80">{work.namxuatban}</span>
                         </div>
@@ -172,21 +175,21 @@ export default async function ChiTietTacPhamPage({ params }) {
                         </div>
                         <div className="w-full bg-white rounded-xl border border-gray-200 p-4 space-y-3 shadow-sm">
                             <div className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
-                                <span className="text-gray-500 flex items-center gap-2"><Hash size={14}/> ISBN</span>
+                                <span className="text-gray-500 flex items-center gap-2"><Hash size={14} /> ISBN</span>
                                 <span className="font-mono font-medium text-gray-800">{work.isbn}</span>
                             </div>
                             <div className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
-                                <span className="text-gray-500 flex items-center gap-2"><Calendar size={14}/> Năm XB</span>
+                                <span className="text-gray-500 flex items-center gap-2"><Calendar size={14} /> Năm XB</span>
                                 <span className="font-medium text-gray-800">{work.namxuatban}</span>
                             </div>
                             <div className="flex justify-between items-center text-sm pt-1">
-                                <span className="text-gray-500 flex items-center gap-2"><Clock size={14}/> Cập nhật</span>
+                                <span className="text-gray-500 flex items-center gap-2"><Clock size={14} /> Cập nhật</span>
                                 <span className="font-medium text-gray-800">Mới nhất</span>
                             </div>
                         </div>
                         <div className="flex gap-3 mt-6 w-full">
-                            <button className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors flex items-center justify-center gap-2 text-sm font-medium"><Heart size={16}/> Yêu thích</button>
-                            <button className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors flex items-center justify-center gap-2 text-sm font-medium"><Share2 size={16}/> Chia sẻ</button>
+                            <button className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors flex items-center justify-center gap-2 text-sm font-medium"><Heart size={16} /> Yêu thích</button>
+                            <button className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors flex items-center justify-center gap-2 text-sm font-medium"><Share2 size={16} /> Chia sẻ</button>
                         </div>
                     </div>
 
@@ -195,7 +198,7 @@ export default async function ChiTietTacPhamPage({ params }) {
                         <div className={`mb-8 p-4 rounded-xl flex items-start sm:items-center justify-between border ${availableCount > 0 ? 'bg-green-50 border-green-100' : 'bg-orange-50 border-orange-100'}`}>
                             <div className="flex gap-3">
                                 <div className={`mt-1 sm:mt-0 p-1.5 rounded-full shrink-0 ${availableCount > 0 ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
-                                    {availableCount > 0 ? <CheckCircle size={20}/> : <Clock size={20}/>}
+                                    {availableCount > 0 ? <CheckCircle size={20} /> : <Clock size={20} />}
                                 </div>
                                 <div>
                                     <h3 className={`font-bold text-lg ${availableCount > 0 ? 'text-green-800' : 'text-orange-800'}`}>{availableCount > 0 ? 'Sách đang có sẵn' : 'Tạm thời hết sách'}</h3>
@@ -205,7 +208,7 @@ export default async function ChiTietTacPhamPage({ params }) {
                         </div>
 
                         <div className="mb-10">
-                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2"><Info size={18} className="text-blue-600"/> Giới thiệu nội dung</h3>
+                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2"><Info size={18} className="text-blue-600" /> Giới thiệu nội dung</h3>
                             <div className="prose prose-slate max-w-none text-gray-600 leading-relaxed text-base">
                                 <p>{work.mota || "Nội dung đang được cập nhật..."}</p>
                             </div>

@@ -2,63 +2,108 @@
 
 import { cookies } from 'next/headers';
 
-const BACKEND_URL = process.env.FASTAPI_BACKEND_URL;
+const FASTAPI_URL = process.env.FASTAPI_BACKEND_URL;
 
-export async function getNotificationsAction() {
-    console.log("🚀 [Action] Đang lấy thông báo từ:", `${BACKEND_URL}/api/v1/thong-bao/`); // Log URL
-
+// Helper: Fetch with Auth Token automatically
+async function fetchWithAuth(endpoint, options = {}) {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
 
-    if (!token) {
-        console.warn("⚠️ [Action] Không tìm thấy token trong cookies");
-        return [];
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers
+    };
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
     }
 
     try {
-        const res = await fetch(`${BACKEND_URL}/api/v1/thong-bao/`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            cache: 'no-store'
+        const res = await fetch(`${FASTAPI_URL}${endpoint}`, {
+            ...options,
+            headers,
+            cache: 'no-store',
         });
 
+        // Handle empty response (e.g. 204 No Content for PUT/DELETE)
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
+
         if (!res.ok) {
-            const errorText = await res.text(); // Đọc lỗi chi tiết từ Backend (nếu có)
-            console.error(`❌ [Action] Lỗi fetch thông báo: ${res.status} - ${errorText}`);
+            console.error(`API Error ${endpoint}: ${res.status}`, data);
+            // Return null or throw depending on strategy. For list, return empty.
+            if (options.method === 'GET') return null;
+            return false;
+        }
+        return data;
+    } catch (error) {
+        console.error(`Fetch API Error (${endpoint}):`, error);
+        if (options.method === 'GET') return [];
+        return false;
+    }
+}
+
+// 1. Get Notifications
+export async function getNotificationsAction() {
+    console.log("🚀 [Action] Đang lấy thông báo (Google Auth Supported)...");
+
+    try {
+        // Step 1: Get User Profile to find maBanDoc
+        const profileData = await fetchWithAuth('/api/v1/nguoi-dung/profile');
+
+        if (!profileData) {
+            console.warn("⚠️ [Action] Không lấy được thông tin profile");
             return [];
         }
 
-        const data = await res.json();
-        console.log(`✅ [Action] Lấy thành công ${data.length} thông báo`);
-        return data;
+        // Robust maBanDoc extraction
+        const maBanDoc = profileData.maBanDoc || profileData.ma_ban_doc || profileData.mabandoc;
+
+        if (!maBanDoc) {
+            console.warn("⚠️ [Action] Người dùng chưa có hồ sơ bạn đọc");
+            return [];
+        }
+
+        // Step 2: Fetch notifications with maBanDoc
+        const notifications = await fetchWithAuth(`/api/v1/thong-bao/?maBanDoc=${maBanDoc}`);
+
+        // Ensure array return
+        if (Array.isArray(notifications)) {
+            console.log(`✅ [Action] Lấy thành công ${notifications.length} thông báo`);
+            return notifications;
+        } else {
+            // Backend might return { "data": [...] } or something else?
+            // Based on previous code, likely returns list directly.
+            // Or my helper returns null on error.
+            return [];
+        }
 
     } catch (error) {
-        console.error("🔥 [Action] Exception khi gọi API:", error);
+        console.error("🔥 [Action] Lỗi không xác định:", error);
         return [];
     }
 }
 
+// 2. Mark as Read
 export async function markAsReadAction(maThongBao) {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('access_token')?.value;
-
-    if (!token) return false;
-
+    console.log(`🚀 [Action] Đánh dấu đã đọc: ${maThongBao}`);
     try {
-        const res = await fetch(`${BACKEND_URL}/api/v1/thong-bao/${maThongBao}/read`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
+        const result = await fetchWithAuth(`/api/v1/thong-bao/${maThongBao}/read`, {
+            method: 'PUT'
         });
 
-        return res.ok;
+        const mathongbao = result.maThongBao || result.mathongbao || result.ma_thong_bao;
+
+        // fetchWithAuth returns false on error (for non-GET)
+        if (result === false) {
+            console.error(`❌ [Action] Đánh dấu thất bại cho ID: ${maThongBao}`);
+            return false;
+        }
+
+        console.log(`✅ [Action] Đánh dấu thành công: ${maThongBao}`);
+        return true;
     } catch (error) {
-        console.error("Error marking notification as read:", error);
+        console.error(`🔥 [Action] Exception markAsRead:`, error);
         return false;
     }
 }
