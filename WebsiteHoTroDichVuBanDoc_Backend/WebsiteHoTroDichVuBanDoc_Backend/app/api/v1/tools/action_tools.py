@@ -256,3 +256,67 @@ def check_room_availability(room_id: int, start_time: str, end_time: str):
         return len(res.data) == 0 # Trả về True nếu không có lịch trùng
     except:
         return False
+
+def check_notifications(user_id: int):
+    """Kiểm tra thông báo cá nhân (thongbao)."""
+    mbd = get_user_id_by_auth(user_id)
+    if not mbd: return "Bạn chưa có thông tin bạn đọc."
+    
+    try:
+        res = supabase_client.table("thongbao").select("tieude, noidung, thoigiangui")\
+            .eq("mabandoc", mbd).order("thoigiangui", desc=True).limit(5).execute()
+        
+        if not res.data: return "🔕 Bạn không có thông báo mới nào."
+        
+        notifs = ["🔔 **Thông báo của bạn:**"]
+        for n in res.data:
+            t = n.get('thoigiangui', '')[:10]
+            notifs.append(f"- [{t}] **{n['tieude']}**: {n['noidung']}")
+        return "\n".join(notifs)
+    except Exception as e:
+        return f"Lỗi lấy thông báo: {str(e)}"
+
+def check_shipping_status(user_id: int):
+    """Kiểm tra trạng thái đơn giao sách (yeucaugiao)."""
+    mbd = get_user_id_by_auth(user_id)
+    if not mbd: return "Bạn chưa đăng ký dịch vụ giao sách."
+    
+    try:
+        # Giả định bảng yeucaugiao có lien ket voi bandoc
+        res = supabase_client.table("yeucaugiao").select("diachi, trangthai, thoigiantao")\
+            .eq("mabandoc", mbd).order("thoigiantao", desc=True).limit(3).execute()
+        
+        if not res.data: return "Bạn chưa có yêu cầu giao sách nào."
+        
+        ships = ["🚚 **Đơn giao sách:**"]
+        for s in res.data:
+            t = s.get('thoigiantao', '')[:10]
+            ships.append(f"- [{t}] Giao tới **{s['diachi']}**: {s['trangthai']}")
+        return "\n".join(ships)
+    except Exception as e:
+        return f"Lỗi đơn hàng: {str(e)}"
+
+def check_fine_history(user_id: int):
+    """Chi tiết lịch sử phạt (muontra co tienphat > 0)."""
+    mbd = get_user_id_by_auth(user_id)
+    if not mbd: return "Không tìm thấy hồ sơ."
+    
+    try:
+        res = supabase_client.table("muontra").select("ngaytra, tienphat, bansao(tacpham(tentacpham))")\
+            .eq("mabandoc", mbd).gt("tienphat", 0).order("ngaytra", desc=True).execute()
+        
+        if not res.data: return "🎉 Hồ sơ của bạn rất trong sạch! Không có khoản phạt nào."
+        
+        fines = ["💸 **Lịch sử phạt vi phạm:**"]
+        total = 0
+        for f in res.data:
+            amt = f.get('tienphat', 0)
+            total += amt
+            book = f.get('bansao', {}).get('tacpham', {}).get('tentacpham', 'Sách ?')
+            date = f.get('ngaytra', 'N/A')
+            fines.append(f"- {date}: **{amt:,.0f}đ** (Sách: {book})")
+            
+        fines.append(f"\n=> **Tổng cộng:** {total:,.0f}đ")
+        return "\n".join(fines)
+    except Exception as e:
+        return f"Lỗi tra cứu phạt: {str(e)}"

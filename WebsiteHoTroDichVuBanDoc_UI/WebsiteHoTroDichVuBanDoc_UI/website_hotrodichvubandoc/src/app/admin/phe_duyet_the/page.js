@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Check, X, Eye, Loader2, MapPin, User, Calendar, Phone, Mail, AlertTriangle } from 'lucide-react';
+import { Check, X, Eye, Loader2, MapPin, User, Calendar, Phone, Mail, AlertTriangle, CheckCircle } from 'lucide-react';
 import { getPendingCardsAction, approveCardAction, getCardRequestDetailAction } from '../actions';
 
 export default function PheDuyetThePage() {
@@ -45,38 +45,46 @@ export default function PheDuyetThePage() {
         }
     }
 
+    // 4. State cho Modal Xác nhận (Confirmation) & Thành công
+    const [confirmAction, setConfirmAction] = useState(null); // null | 'daDuyet' | 'tuChoi'
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+    // Reset state khi đóng modal chính
     function closeModal() {
         setIsModalOpen(false);
         setRejectReason('');
+        setConfirmAction(null);
+        setShowSuccessModal(false);
     }
 
-    // 3. Xử lý hành động Duyệt hoặc Từ chối
-    async function handleReviewInModal(status) {
+    // Trigger khi nhấn nút Duyệt/Từ chối -> Mở modal xác nhận
+    function handleReviewClick(status) {
         if (status === 'tuChoi' && !rejectReason.trim()) {
             alert("Vui lòng nhập lý do từ chối để lưu vào lịch sử.");
             return;
         }
+        setConfirmAction(status);
+    }
 
-        const confirmMsg = status === 'daDuyet'
-            ? 'Bạn có chắc chắn muốn DUYỆT hồ sơ này và cấp thẻ mới?'
-            : 'Bạn có chắc chắn muốn TỪ CHỐI hồ sơ này?';
-
-        if (!confirm(confirmMsg)) return;
+    // Hàm xử lý thật sự (khi user nhấn "Đồng ý" trên modal xác nhận)
+    async function executeReview() {
+        if (!confirmAction) return;
 
         setIsProcessing(true);
         const res = await approveCardAction(
             selectedRequest.mayeucauthe,
-            status,
+            confirmAction,
             rejectReason
         );
         setIsProcessing(false);
 
         if (res.success) {
-            alert('Thao tác thành công!');
-            closeModal();
-            loadList();
+            setConfirmAction(null); // Tắt modal xác nhận
+            setShowSuccessModal(true); // Bật modal thành công
+            loadList(); // Reload list ngầm
         } else {
             alert(res.error || 'Có lỗi xảy ra trong quá trình xử lý.');
+            setConfirmAction(null);
         }
     }
 
@@ -165,8 +173,8 @@ export default function PheDuyetThePage() {
 
             {/* --- PHẦN 2: MODAL CHI TIẾT (Detail View) --- */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4 animate-fade-in">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+                <div className="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden relative">
 
                         {/* Modal Header */}
                         <div className="flex justify-between items-center p-5 border-b bg-gray-50">
@@ -183,164 +191,163 @@ export default function PheDuyetThePage() {
 
                         {/* Modal Body */}
                         <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
-                        {!selectedRequest ? (
-                            <div className="flex flex-col items-center justify-center h-64 space-y-3">
-                            <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
-                            <p className="text-gray-500">Đang tải thông tin chi tiết...</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-6">
+                            {!selectedRequest ? (
+                                <div className="flex flex-col items-center justify-center h-64 space-y-3">
+                                    <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+                                    <p className="text-gray-500">Đang tải thông tin chi tiết...</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
 
-                                {/* === KHỐI HIỂN THỊ ĐÁNH GIÁ RỦI RO TỪ AI (MỚI) === */}
-                                {selectedRequest.thongtinbosung?.ket_qua_xac_thuc && (
-                                    <div className={`p-4 rounded-lg border-l-4 shadow-sm ${
-                                        selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'HIGH'
+                                    {/* === KHỐI HIỂN THỊ ĐÁNH GIÁ RỦI RO TỪ AI (MỚI) === */}
+                                    {selectedRequest.thongtinbosung?.ket_qua_xac_thuc && (
+                                        <div className={`p-4 rounded-lg border-l-4 shadow-sm ${selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'HIGH'
                                             ? 'bg-red-50 border-red-500 text-red-900'
                                             : selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'MEDIUM'
-                                            ? 'bg-yellow-50 border-yellow-500 text-yellow-900'
-                                            : 'bg-green-50 border-green-500 text-green-900'
-                                    }`}>
-                                        <div className="flex items-start gap-3">
-                                            <div className="mt-1">
-                                                {selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'HIGH' && <AlertTriangle size={24} className="text-red-600"/>}
-                                                {selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'MEDIUM' && <AlertTriangle size={24} className="text-yellow-600"/>}
-                                                {selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'LOW' && <Check size={24} className="text-green-600"/>}
-                                            </div>
-                                            <div className="flex-1">
-                                                <h4 className="font-bold text-lg flex items-center gap-2">
-                                                    Đánh giá rủi ro AI:
-                                                    <span>
-                                                        {selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'HIGH' ? 'CAO (Nguy hiểm)' :
-                                                        selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'MEDIUM' ? 'TRUNG BÌNH (Cần xem xét)' : 'THẤP (An toàn)'}
-                                                    </span>
-                                                </h4>
-
-                                                <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
-                                                    <div>
-                                                        <span className="font-semibold">Độ khớp khuôn mặt:</span>
-                                                        <span className="ml-2 px-2 py-0.5 bg-white rounded border text-gray-700">
-                                                            {(selectedRequest.thongtinbosung.ket_qua_xac_thuc.face_match_score * 100).toFixed(1)}%
+                                                ? 'bg-yellow-50 border-yellow-500 text-yellow-900'
+                                                : 'bg-green-50 border-green-500 text-green-900'
+                                            }`}>
+                                            <div className="flex items-start gap-3">
+                                                <div className="mt-1">
+                                                    {selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'HIGH' && <AlertTriangle size={24} className="text-red-600" />}
+                                                    {selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'MEDIUM' && <AlertTriangle size={24} className="text-yellow-600" />}
+                                                    {selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'LOW' && <Check size={24} className="text-green-600" />}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h4 className="font-bold text-lg flex items-center gap-2">
+                                                        Đánh giá rủi ro AI:
+                                                        <span>
+                                                            {selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'HIGH' ? 'CAO (Nguy hiểm)' :
+                                                                selectedRequest.thongtinbosung.ket_qua_xac_thuc.risk_level === 'MEDIUM' ? 'TRUNG BÌNH (Cần xem xét)' : 'THẤP (An toàn)'}
                                                         </span>
+                                                    </h4>
+
+                                                    <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
+                                                        <div>
+                                                            <span className="font-semibold">Độ khớp khuôn mặt:</span>
+                                                            <span className="ml-2 px-2 py-0.5 bg-white rounded border text-gray-700">
+                                                                {(selectedRequest.thongtinbosung.ket_qua_xac_thuc.face_match_score * 100).toFixed(1)}%
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Danh sách các lỗi cụ thể */}
+                                                    {selectedRequest.thongtinbosung.ket_qua_xac_thuc.details && selectedRequest.thongtinbosung.ket_qua_xac_thuc.details.length > 0 ? (
+                                                        <div className="mt-3 bg-white/60 p-3 rounded border border-black/5">
+                                                            <p className="text-xs font-bold uppercase mb-1 opacity-70">Các vấn đề phát hiện:</p>
+                                                            <ul className="list-disc list-inside space-y-1">
+                                                                {selectedRequest.thongtinbosung.ket_qua_xac_thuc.details.map((detail, idx) => (
+                                                                    <li key={idx} className="text-sm font-medium text-red-700">
+                                                                        {detail}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-sm mt-2 italic opacity-80">✓ Thông tin văn bản và hình ảnh hoàn toàn trùng khớp với CSDL.</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {/* === KẾT THÚC KHỐI AI === */}
+
+                                    <div className="grid md:grid-cols-12 gap-6">
+                                        {/* Cột Trái: Ảnh thẻ */}
+                                        <div className="md:col-span-4 flex flex-col gap-4">
+                                            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                                                <p className="text-xs font-bold text-gray-400 uppercase mb-2 text-center">Ảnh thẻ đăng ký</p>
+                                                <div className="relative w-full aspect-3/4 bg-gray-200 rounded overflow-hidden border">
+                                                    {selectedRequest.thongtinbosung?.anh_the_url ? (
+                                                        <Image
+                                                            src={selectedRequest.thongtinbosung.anh_the_url}
+                                                            alt="Ảnh thẻ"
+                                                            fill
+                                                            className="object-cover"
+                                                            unoptimized
+                                                        />
+                                                    ) : (
+                                                        <div className="flex items-center justify-center h-full text-gray-400">Không có ảnh</div>
+                                                    )}
+                                                </div>
+                                                <div className="mt-4 text-center">
+                                                    <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">
+                                                        {selectedRequest.tenloaithe}
+                                                    </span>
+                                                    <p className="text-xs text-gray-500 mt-2">Phí: {selectedRequest.lephi?.toLocaleString()} VNĐ</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Cột Phải: Thông tin chi tiết */}
+                                        <div className="md:col-span-8 space-y-6">
+                                            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm space-y-4">
+                                                <h4 className="text-lg font-bold text-gray-800 flex items-center gap-2 border-b pb-2">
+                                                    <User size={20} className="text-blue-600" /> Thông tin cá nhân
+                                                </h4>
+                                                <div className="grid grid-cols-2 gap-6">
+                                                    <div>
+                                                        <p className="text-xs text-gray-500 uppercase">Họ và tên</p>
+                                                        <p className="font-medium text-lg text-gray-900">{selectedRequest.thongtinbosung?.ho_ten}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-500 uppercase">Ngày sinh</p>
+                                                        <p className="font-medium text-gray-900 flex items-center gap-2">
+                                                            <Calendar size={16} className="text-gray-400" /> {selectedRequest.thongtinbosung?.ngay_sinh}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-500 uppercase">CCCD/CMND</p>
+                                                        <p className="font-medium text-gray-900 tracking-wide font-mono">{selectedRequest.thongtinbosung?.cccd}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-500 uppercase">Giới tính</p>
+                                                        <p className="font-medium text-gray-900">{selectedRequest.thongtinbosung?.gioi_tinh}</p>
                                                     </div>
                                                 </div>
+                                            </div>
 
-                                                {/* Danh sách các lỗi cụ thể */}
-                                                {selectedRequest.thongtinbosung.ket_qua_xac_thuc.details && selectedRequest.thongtinbosung.ket_qua_xac_thuc.details.length > 0 ? (
-                                                    <div className="mt-3 bg-white/60 p-3 rounded border border-black/5">
-                                                        <p className="text-xs font-bold uppercase mb-1 opacity-70">Các vấn đề phát hiện:</p>
-                                                        <ul className="list-disc list-inside space-y-1">
-                                                            {selectedRequest.thongtinbosung.ket_qua_xac_thuc.details.map((detail, idx) => (
-                                                                <li key={idx} className="text-sm font-medium text-red-700">
-                                                                    {detail}
-                                                                </li>
-                                                            ))}
-                                                        </ul>
+                                            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm space-y-4">
+                                                <h4 className="text-lg font-bold text-gray-800 flex items-center gap-2 border-b pb-2">
+                                                    <MapPin size={20} className="text-green-600" /> Liên hệ
+                                                </h4>
+                                                <div className="grid grid-cols-2 gap-6">
+                                                    <div className="col-span-2">
+                                                        <p className="text-xs text-gray-500 uppercase">Địa chỉ đầy đủ</p>
+                                                        <p className="font-medium text-gray-900">
+                                                            {selectedRequest.thongtinbosung?.dia_chi_hien_thi || selectedRequest.thongtinbosung?.dia_chi}
+                                                        </p>
                                                     </div>
-                                                ) : (
-                                                    <p className="text-sm mt-2 italic opacity-80">✓ Thông tin văn bản và hình ảnh hoàn toàn trùng khớp với CSDL.</p>
-                                                )}
+                                                    <div>
+                                                        <p className="text-xs text-gray-500 uppercase">Số điện thoại</p>
+                                                        <p className="font-medium text-gray-900 flex items-center gap-2">
+                                                            <Phone size={16} className="text-gray-400" /> {selectedRequest.thongtinbosung?.sdt}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-500 uppercase">Email</p>
+                                                        <p className="font-medium text-gray-900 flex items-center gap-2">
+                                                            <Mail size={16} className="text-gray-400" /> {selectedRequest.thongtinbosung?.email}
+                                                        </p>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                )}
-                                {/* === KẾT THÚC KHỐI AI === */}
 
-                                <div className="grid md:grid-cols-12 gap-6">
-                                    {/* Cột Trái: Ảnh thẻ */}
-                                    <div className="md:col-span-4 flex flex-col gap-4">
-                                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                                            <p className="text-xs font-bold text-gray-400 uppercase mb-2 text-center">Ảnh thẻ đăng ký</p>
-                                            <div className="relative w-full aspect-3/4 bg-gray-200 rounded overflow-hidden border">
-                                                {selectedRequest.thongtinbosung?.anh_the_url ? (
-                                                    <Image
-                                                        src={selectedRequest.thongtinbosung.anh_the_url}
-                                                        alt="Ảnh thẻ"
-                                                        fill
-                                                        className="object-cover"
-                                                        unoptimized
-                                                    />
-                                                ) : (
-                                                    <div className="flex items-center justify-center h-full text-gray-400">Không có ảnh</div>
-                                                )}
+                                            {/* Form Từ chối */}
+                                            <div className="bg-red-50 p-4 rounded-lg border border-red-100">
+                                                <label className="block text-sm font-bold text-red-800 mb-2">Lý do từ chối (nếu có)</label>
+                                                <textarea
+                                                    className="w-full p-3 border border-red-200 rounded bg-white text-sm focus:ring-2 focus:ring-red-500 outline-none"
+                                                    rows="2"
+                                                    placeholder="Nhập lý do nếu bạn muốn từ chối hồ sơ này..."
+                                                    value={rejectReason}
+                                                    onChange={(e) => setRejectReason(e.target.value)}
+                                                />
                                             </div>
-                                            <div className="mt-4 text-center">
-                                                <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">
-                                                    {selectedRequest.tenloaithe}
-                                                </span>
-                                                <p className="text-xs text-gray-500 mt-2">Phí: {selectedRequest.lephi?.toLocaleString()} VNĐ</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Cột Phải: Thông tin chi tiết */}
-                                    <div className="md:col-span-8 space-y-6">
-                                        <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm space-y-4">
-                                            <h4 className="text-lg font-bold text-gray-800 flex items-center gap-2 border-b pb-2">
-                                                <User size={20} className="text-blue-600" /> Thông tin cá nhân
-                                            </h4>
-                                            <div className="grid grid-cols-2 gap-6">
-                                                <div>
-                                                    <p className="text-xs text-gray-500 uppercase">Họ và tên</p>
-                                                    <p className="font-medium text-lg text-gray-900">{selectedRequest.thongtinbosung?.ho_ten}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-500 uppercase">Ngày sinh</p>
-                                                    <p className="font-medium text-gray-900 flex items-center gap-2">
-                                                        <Calendar size={16} className="text-gray-400"/> {selectedRequest.thongtinbosung?.ngay_sinh}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-500 uppercase">CCCD/CMND</p>
-                                                    <p className="font-medium text-gray-900 tracking-wide font-mono">{selectedRequest.thongtinbosung?.cccd}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-500 uppercase">Giới tính</p>
-                                                    <p className="font-medium text-gray-900">{selectedRequest.thongtinbosung?.gioi_tinh}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm space-y-4">
-                                            <h4 className="text-lg font-bold text-gray-800 flex items-center gap-2 border-b pb-2">
-                                                <MapPin size={20} className="text-green-600" /> Liên hệ
-                                            </h4>
-                                            <div className="grid grid-cols-2 gap-6">
-                                                <div className="col-span-2">
-                                                    <p className="text-xs text-gray-500 uppercase">Địa chỉ đầy đủ</p>
-                                                    <p className="font-medium text-gray-900">
-                                                        {selectedRequest.thongtinbosung?.dia_chi_hien_thi || selectedRequest.thongtinbosung?.dia_chi}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-500 uppercase">Số điện thoại</p>
-                                                    <p className="font-medium text-gray-900 flex items-center gap-2">
-                                                        <Phone size={16} className="text-gray-400"/> {selectedRequest.thongtinbosung?.sdt}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs text-gray-500 uppercase">Email</p>
-                                                    <p className="font-medium text-gray-900 flex items-center gap-2">
-                                                        <Mail size={16} className="text-gray-400"/> {selectedRequest.thongtinbosung?.email}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Form Từ chối */}
-                                        <div className="bg-red-50 p-4 rounded-lg border border-red-100">
-                                            <label className="block text-sm font-bold text-red-800 mb-2">Lý do từ chối (nếu có)</label>
-                                            <textarea
-                                                className="w-full p-3 border border-red-200 rounded bg-white text-sm focus:ring-2 focus:ring-red-500 outline-none"
-                                                rows="2"
-                                                placeholder="Nhập lý do nếu bạn muốn từ chối hồ sơ này..."
-                                                value={rejectReason}
-                                                onChange={(e) => setRejectReason(e.target.value)}
-                                            />
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
                         </div>
 
                         {/* Modal Footer Actions */}
@@ -354,23 +361,82 @@ export default function PheDuyetThePage() {
                                     Đóng
                                 </button>
                                 <button
-                                    onClick={() => handleReviewInModal('tuChoi')}
+                                    onClick={() => handleReviewClick('tuChoi')}
                                     className="px-5 py-2.5 rounded-lg bg-red-600 text-white hover:bg-red-700 flex items-center gap-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     disabled={isProcessing}
                                 >
-                                    {isProcessing ? <Loader2 className="animate-spin w-4 h-4"/> : <X className="w-5 h-5"/>}
+                                    {isProcessing ? <Loader2 className="animate-spin w-4 h-4" /> : <X className="w-5 h-5" />}
                                     Từ chối hồ sơ
                                 </button>
                                 <button
-                                    onClick={() => handleReviewInModal('daDuyet')}
+                                    onClick={() => handleReviewClick('daDuyet')}
                                     className="px-6 py-2.5 rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-2 font-bold shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     disabled={isProcessing}
                                 >
-                                    {isProcessing ? <Loader2 className="animate-spin w-4 h-4"/> : <Check className="w-5 h-5"/>}
+                                    {isProcessing ? <Loader2 className="animate-spin w-4 h-4" /> : <Check className="w-5 h-5" />}
                                     PHÊ DUYỆT & CẤP THẺ
                                 </button>
                             </div>
                         )}
+
+                        {/* --- NEW: CONFIRMATION MODAL OVERLAY --- */}
+                        {confirmAction && (
+                            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                                <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center transform scale-100 animate-in zoom-in-95 duration-200">
+                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${confirmAction === 'daDuyet' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                                        }`}>
+                                        {confirmAction === 'daDuyet' ? <Check size={32} /> : <AlertTriangle size={32} />}
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                        {confirmAction === 'daDuyet' ? 'Xác nhận phê duyệt?' : 'Xác nhận từ chối?'}
+                                    </h3>
+                                    <p className="text-gray-500 mb-6">
+                                        {confirmAction === 'daDuyet'
+                                            ? 'Bạn có chắc chắn muốn phê duyệt hồ sơ và cấp thẻ mới cho người dùng này không?'
+                                            : 'Bạn có chắc chắn muốn từ chối hồ sơ này không? Hành động này không thể hoàn tác.'}
+                                    </p>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => setConfirmAction(null)}
+                                            className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
+                                            disabled={isProcessing}
+                                        >
+                                            Hủy bỏ
+                                        </button>
+                                        <button
+                                            onClick={executeReview}
+                                            disabled={isProcessing}
+                                            className={`flex-1 py-2.5 text-white font-bold rounded-xl shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2 ${confirmAction === 'daDuyet'
+                                                ? 'bg-green-600 hover:bg-green-700 shadow-green-500/30'
+                                                : 'bg-red-600 hover:bg-red-700 shadow-red-500/30'
+                                                }`}
+                                        >
+                                            {isProcessing ? <Loader2 className="animate-spin w-5 h-5" /> : 'Đồng ý'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* --- NEW: SUCCESS MODAL OVERLAY --- */}
+                        {showSuccessModal && (
+                            <div className="absolute inset-0 z-50 flex items-center justify-center bg-white p-4 animate-in fade-in duration-300">
+                                <div className="text-center max-w-md">
+                                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-in zoom-in duration-500">
+                                        <CheckCircle className="w-10 h-10 text-green-600" />
+                                    </div>
+                                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Thao tác thành công!</h2>
+                                    <p className="text-gray-500 mb-8">Hệ thống đã cập nhật trạng thái hồ sơ và gửi thông báo đến người dùng.</p>
+                                    <button
+                                        onClick={closeModal}
+                                        className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 transition-transform hover:scale-105 active:scale-95"
+                                    >
+                                        Đóng & Quay lại
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                     </div>
                 </div>
             )}

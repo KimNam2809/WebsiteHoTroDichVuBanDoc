@@ -8,7 +8,7 @@ import QRCode from 'react-qr-code';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { registerCardAction, getCardTypesAction, getProvincesAction, getWardsByProvinceAction } from '../actions';
-import { ArrowLeft, Upload, Loader2, CheckCircle, CreditCard, User, Calendar, Phone, Mail, MapPin, Truck } from 'lucide-react';
+import { ArrowLeft, Upload, Loader2, CheckCircle, CreditCard, User, Calendar, Phone, Mail, MapPin, Truck, Briefcase } from 'lucide-react';
 
 // Bảng giá định nghĩa tạm thời (vì API chưa trả về giá)
 // Key là 'maloaithe' từ API
@@ -52,6 +52,30 @@ export default function FormDangKyPage() {
     const [ship, setShip] = useState(false);
     const [totalCost, setTotalCost] = useState(0);
     const [previewUrl, setPreviewUrl] = useState(null);
+
+    // Date of Birth State
+    const [birthDay, setBirthDay] = useState('');
+    const [birthMonth, setBirthMonth] = useState('');
+    const [birthYear, setBirthYear] = useState('');
+    const [formattedDate, setFormattedDate] = useState('');
+
+    // Update formatted date for hidden input
+    useEffect(() => {
+        if (birthDay && birthMonth && birthYear) {
+            // Ensure 2 digits for day/month
+            const d = String(birthDay).padStart(2, '0');
+            const m = String(birthMonth).padStart(2, '0');
+            setFormattedDate(`${birthYear}-${m}-${d}`);
+        } else {
+            setFormattedDate('');
+        }
+    }, [birthDay, birthMonth, birthYear]);
+
+    // Helper Arrays
+    const days = Array.from({ length: 31 }, (_, i) => i + 1);
+    const months = Array.from({ length: 12 }, (_, i) => i + 1);
+    const currentYear = new Date().getFullYear();
+    const years = Array.from({ length: 100 }, (_, i) => currentYear - i); // 100 years back
 
     // State lưu lỗi validation phía Client
     const [clientError, setClientError] = useState('');
@@ -119,8 +143,8 @@ export default function FormDangKyPage() {
 
         if (file) {
             // Kiểm tra loại file (chỉ jpg, png)
-            if (!['image/jpeg', 'image/png'].includes(file.type)) {
-                setClientError('Chỉ chấp nhận ảnh định dạng .jpg hoặc .png');
+            if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                setClientError('Chỉ chấp nhận ảnh định dạng .jpg, .png hoặc .webp');
                 e.target.value = ''; // Reset input
                 setPreviewUrl(null);
                 return;
@@ -144,6 +168,19 @@ export default function FormDangKyPage() {
         const cccd = formData.get('cccd');
         const email = formData.get('email');
         const ngaySinh = formData.get('ngay_sinh');
+
+        // 0. Kiểm tra điền đầy đủ các trường bắt buộc
+        if (!formData.get('ho_ten')?.trim() ||
+            !formData.get('ngay_sinh') ||
+            !formData.get('gioi_tinh') ||
+            !formData.get('cccd')?.trim() ||
+            !formData.get('sdt')?.trim() ||
+            !formData.get('email')?.trim() ||
+            !formData.get('nghe_nghiep')?.trim() ||
+            !formData.get('dia_chi')?.trim() ||
+            !formData.get('ma_phuong_xa')) {
+            return 'Vui lòng điền đầy đủ tất cả các thông tin bắt buộc (chỉ trừ phần Giao thẻ tận nhà nếu không chọn).';
+        }
 
         // 1. Kiểm tra SĐT (10 hoặc 11 số, bắt đầu bằng 0)
         const phoneRegex = /^0\d{9,10}$/;
@@ -204,7 +241,7 @@ export default function FormDangKyPage() {
                     </div>
                     <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Đăng ký thành công!</h1>
                     <p className="text-gray-500 mb-6">Hồ sơ của bạn đã được ghi nhận. Vui lòng thanh toán để hoàn tất.</p>
-=
+
                     <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 mb-6 inline-block">
                         <QRCode value={qrContent} size={180} className="mx-auto" />
                         <p className="text-xs text-gray-400 mt-3 font-mono">MDH: {data.mayeucauthe}</p>
@@ -248,7 +285,7 @@ export default function FormDangKyPage() {
                 <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
                 <div className="relative z-10 text-center px-4 max-w-4xl mx-auto pt-8">
                     <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-4 leading-tight drop-shadow-lg">
-                        From đăng ký thẻ bạn đọc
+                        Form đăng ký thẻ bạn đọc
                     </h1>
                     <p className="text-blue-100 text-lg font-light max-w-2xl mx-auto">
                         Nơi bạn có thể điền thông tin để đăng ký thẻ bạn đọc tại thư viện của chúng tôi.
@@ -304,7 +341,7 @@ export default function FormDangKyPage() {
                                                 </option>
                                             ))}
                                         </select>
-                                        <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20}/>
+                                        <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                     </div>
                                 )}
                                 {!isLoading && loaiThe && (
@@ -327,35 +364,107 @@ export default function FormDangKyPage() {
                                     <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">Họ và tên <span className="text-red-500">*</span></label>
                                     <div className="relative">
                                         <input type="text" name="ho_ten" placeholder="Nguyễn Văn A" className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" required />
-                                        <User className="absolute left-3.5 top-3.5 text-gray-400" size={18}/>
+                                        <User className="absolute left-3.5 top-3.5 text-gray-400" size={18} />
                                     </div>
                                 </div>
                                 <div className="col-span-2 md:col-span-1">
                                     <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">Ngày sinh <span className="text-red-500">*</span></label>
-                                    <div className="relative">
-                                        <input type="date" name="ngay_sinh" className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" required />
-                                        <Calendar className="absolute left-3.5 top-3.5 text-gray-400" size={18}/>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {/* Day Select */}
+                                        <div className="relative">
+                                            <select
+                                                value={birthDay}
+                                                onChange={(e) => setBirthDay(e.target.value)}
+                                                className="w-full pl-3 pr-8 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white text-sm appearance-none"
+                                                required
+                                            >
+                                                <option value="">Ngày</option>
+                                                {days.map(d => (
+                                                    <option key={d} value={d}>{d}</option>
+                                                ))}
+                                            </select>
+                                            <div className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                            </div>
+                                        </div>
+
+                                        {/* Month Select */}
+                                        <div className="relative">
+                                            <select
+                                                value={birthMonth}
+                                                onChange={(e) => setBirthMonth(e.target.value)}
+                                                className="w-full pl-3 pr-8 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white text-sm appearance-none"
+                                                required
+                                            >
+                                                <option value="">Tháng</option>
+                                                {months.map(m => (
+                                                    <option key={m} value={m}>{m}</option>
+                                                ))}
+                                            </select>
+                                            <div className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                            </div>
+                                        </div>
+
+                                        {/* Year Select */}
+                                        <div className="relative">
+                                            <select
+                                                value={birthYear}
+                                                onChange={(e) => setBirthYear(e.target.value)}
+                                                className="w-full pl-3 pr-8 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white text-sm appearance-none"
+                                                required
+                                            >
+                                                <option value="">Năm</option>
+                                                {years.map(y => (
+                                                    <option key={y} value={y}>{y}</option>
+                                                ))}
+                                            </select>
+                                            <div className="absolute top-1/2 right-2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                            </div>
+                                        </div>
                                     </div>
+                                    {/* HIDDEN INPUT để gửi dữ liệu chuẩn format về action */}
+                                    <input type="hidden" name="ngay_sinh" value={formattedDate} />
                                 </div>
                                 <div className="col-span-2 md:col-span-1">
                                     <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">Số điện thoại <span className="text-red-500">*</span></label>
                                     <div className="relative">
                                         <input type="tel" name="sdt" maxLength={11} placeholder="0905..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" required />
-                                        <Phone className="absolute left-3.5 top-3.5 text-gray-400" size={18}/>
+                                        <Phone className="absolute left-3.5 top-3.5 text-gray-400" size={18} />
                                     </div>
                                 </div>
                                 <div className="col-span-2 md:col-span-1">
                                     <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">CCCD / CMND <span className="text-red-500">*</span></label>
                                     <div className="relative">
                                         <input type="text" name="cccd" maxLength={12} placeholder="12 chữ số" className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" required />
-                                        <CreditCard className="absolute left-3.5 top-3.5 text-gray-400" size={18}/>
+                                        <CreditCard className="absolute left-3.5 top-3.5 text-gray-400" size={18} />
+                                    </div>
+                                </div>
+                                <div className="col-span-2 md:col-span-1">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">Giới tính <span className="text-red-500">*</span></label>
+                                    <div className="relative">
+                                        <select name="gioi_tinh" className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white" required>
+                                            <option value="">Chọn giới tính</option>
+                                            <option value="Nam">Nam</option>
+                                            <option value="Nữ">Nữ</option>
+                                            <option value="Khác">Khác</option>
+                                        </select>
+                                        <User className="absolute left-3.5 top-3.5 text-gray-400" size={18} />
+                                    </div>
+                                </div>
+                                <div className="col-span-2 md:col-span-1">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">Nghề nghiệp <span className="text-red-500">*</span></label>
+                                    <div className="relative">
+                                        <input type="text" name="nghe_nghiep" placeholder="Sinh viên / Giáo viên..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" required />
+                                        <Briefcase className="absolute left-3.5 top-3.5 text-gray-400" size={18} />
                                     </div>
                                 </div>
                                 <div className="col-span-2">
                                     <label className="block text-sm font-semibold text-gray-700 mb-1 ml-1">Email <span className="text-red-500">*</span></label>
                                     <div className="relative">
                                         <input type="email" name="email" placeholder="example@email.com" className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" required />
-                                        <Mail className="absolute left-3.5 top-3.5 text-gray-400" size={18}/>
+                                        <Mail className="absolute left-3.5 top-3.5 text-gray-400" size={18} />
                                     </div>
                                 </div>
                             </div>
@@ -381,7 +490,7 @@ export default function FormDangKyPage() {
                                     </div>
                                     <div className="relative">
                                         <input type="text" name="dia_chi" placeholder="Số nhà, tên đường..." className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" required />
-                                        <MapPin className="absolute left-3.5 top-3.5 text-gray-400" size={18}/>
+                                        <MapPin className="absolute left-3.5 top-3.5 text-gray-400" size={18} />
                                     </div>
                                 </div>
 
@@ -408,11 +517,11 @@ export default function FormDangKyPage() {
                             <label className="flex items-center justify-between cursor-pointer p-2 hover:bg-white rounded-lg transition-colors">
                                 <div className="flex items-center gap-3">
                                     <div className={`w-5 h-5 rounded border flex items-center justify-center ${ship ? 'bg-blue-600 border-blue-600' : 'border-gray-400'}`}>
-                                        {ship && <CheckCircle size={14} className="text-white"/>}
+                                        {ship && <CheckCircle size={14} className="text-white" />}
                                     </div>
                                     <input type="checkbox" name="giao_hang" checked={ship} onChange={(e) => setShip(e.target.checked)} className="hidden" />
                                     <div className="flex items-center gap-2 text-gray-700 font-medium">
-                                        <Truck size={18} className="text-blue-500"/> Giao thẻ tận nhà (+30k)
+                                        <Truck size={18} className="text-blue-500" /> Giao thẻ tận nhà (+30k)
                                     </div>
                                 </div>
                             </label>

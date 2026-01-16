@@ -1,251 +1,186 @@
-import re
-import time
-import json
-from typing import Dict, Any
-
+import re, time, json
+from langchain_ollama import ChatOllama
 from langchain_groq import ChatGroq
-# from langchain_ollama import ChatOllama
-
 from app.api.v1.services.rag_service import query_rag_context
-from app.api.v1.services.history_service import (
-    get_recent_history_as_text,
-    save_chat_history
-)
+from app.api.v1.services.history_service import get_recent_history_as_text, save_chat_history
 from app.api.v1.tools.db_tools import (
-    search_library_sql,
-    get_facility_status,
-    search_articles_sql,
-    search_equipment_sql,
-    search_seats_sql,
-    analyze_and_recommend
+    search_library_sql, get_facility_status, search_articles_sql,
+    search_equipment_sql, search_seats_sql, analyze_and_recommend,
+    search_staff_sql, get_library_policies_sql
 )
 from app.api.v1.tools.action_tools import (
-    check_personal_dashboard,
-    handle_book_action
+    check_personal_dashboard, handle_book_action,
+    check_notifications, check_shipping_status, check_fine_history
 )
 from app.connect.config import settings
 
-
-# -------------------- KEYWORDS CONFIG --------------------
-
-PERSONAL_KEYWORDS = [
-    "tôi đang mượn", "thẻ của tôi", "lịch sử mượn", "kiểm tra phạt", "hồ sơ của tôi",
-    "tôi đang đặt", "chỗ ngồi của tôi", "lịch đặt", "ghế đã đặt",
-    "bao giờ hết hạn", "khi nào hết hạn", "sách chưa trả",
-    "đang giữ", "nợ bao nhiêu", "thông tin thẻ bạn đọc"
-]
-
-NAV_CARD = ["làm thẻ", "đăng ký thẻ", "cấp thẻ", "muốn làm thẻ", "cấp thẻ mới", "form thẻ", "link làm thẻ"]
-NAV_ROOM = ["đặt phòng", "mượn phòng", "phòng họp nhóm", "thuê phòng"]
-NAV_SHIP = ["giao sách", "ship", "vận chuyển"]
-
-BOOK_SEARCH = [
-    "tìm sách", "có sách", "về chủ đề", "sách", "tác phẩm",
-    "tác giả", "mượn", "đọc", "chủ đề", "thể loại", "tìm"
-]
-
-RECOMMEND_KEYWORDS = [
-    "gợi ý", "tương tự", "nên đọc gì", "gu của tôi", "hợp với tôi",
-    "sách hay cho tôi", "đề xuất", "recommend", "có gì mới không"
-]
-
-DEVICE_SEARCH = ["máy tính", "máy chiếu", "thiết bị", "điều hòa", "wifi"]
-ARTICLE_SEARCH = ["bài viết", "tin tức", "thông báo", "hướng dẫn về", "blog"]
-SEAT_SEARCH = ["chỗ ngồi", "đặt chỗ", "ghế trống"]
-
-
-def has_any(text: str, keywords: list[str]) -> bool:
-    return any(k in text for k in keywords)
-
-
-# -------------------- CORE BRAIN --------------------
-
 class LibraryBrain:
     def __init__(self):
-        self.llm = ChatGroq(
-            temperature=0,
-            model_name="llama-3.3-70b-versatile",
-            api_key=settings.GROQ_API_KEY
-        )
         # self.llm = ChatOllama(model="llama3", base_url="http://localhost:11434", temperature=0.0)
+        self.llm = ChatGroq(temperature=0, model_name="llama-3.3-70b-versatile", api_key=settings.GROQ_API_KEY)
 
         self.nav_map = {
             "card": {"url": "/dang_ky_the", "label": "Đăng ký thẻ"},
-            "room": {"url": "/booking/room", "label": "Đặt phòng họp"},
+            "rules": {"url": "/dang_ky_the/noi_quy", "label": "Nội quy làm thẻ"},
+            "room": {"url": "/dich_vu/dat_lich", "label": "Đặt phòng họp"},
             "ship": {"url": "/services/delivery", "label": "Yêu cầu giao sách"}
         }
 
-    # -------------------- ENTITY EXTRACTION --------------------
+    def call_llm_with_retry(self, prompt: str, max_retries: int = 3) -> str:
+        """Gọi LLM với cơ chế tự động thử lại khi gặp lỗi 429 (Rate Limit)."""
+        for attempt in range(max_retries):
+            try:
+                return self.llm.invoke(prompt).content
+            except Exception as e:
+                error_str = str(e)
+                if "429" in error_str or "Too Many Requests" in error_str:
+                    wait_time = (attempt + 1) * 2
+                    print(f"⚠️ Groq Rate Limit (429). Retry in {wait_time}s... ({attempt+1}/{max_retries})")
+                    time.sleep(wait_time)
+                else:
+                    raise e
+        return "Xin lỗi, hệ thống đang quá tải. Vui lòng thử lại sau giây lát."
 
-    def extract_entities(self, query: str, history: str) -> Dict[str, Any]:
+    def extract_entities(self, query: str, history: str):
         """Trích xuất đa tham số dưới dạng JSON sạch."""
         prompt = f"""
-        Nhiệm vụ: Trích xuất thông tin từ câu hỏi dựa vào lịch sử chat. Trả về JSON.
-        BẮT BUỘC:
-        1. Chỉ trả về JSON, không giải thích, không dùng tiếng Anh.
-        2. Nếu dùng 'nó', 'quyển đó', lấy tên từ LỊCH SỬ.
-        3. Nếu không có thông tin, để giá trị là null.
+        Nhiệm vụ: Trích xuất thông tin từ câu hỏi.
+        BẮT BUỘC: Chỉ trả về JSON, không giải thích.
 
-        Cấu trúc JSON:
+        [Cấu trúc JSON]:
         {{
             "book_name": "tên sách",
             "author": "tên tác giả",
-            "room_name": "tên phòng",
-            "category": "Thể loại hoặc từ khoá (Ví dụ: 'trinh thám', 'lập trình', 'văn học')",
-            "available": "true/false (Nếu người dùng hỏi 'có thể mượn ngay', 'còn sách không', 'mượn bây giờ')",
+            "category": "thể loại/chủ đề",
             "device_name": "tên thiết bị",
-            "article_topic": "chủ đề bài viết"
+            "article_topic": "chủ đề bài viết",
+            "room_name": "tên phòng",
+            "staff_name": "tên nhân viên",
+            "department": "phòng ban (hành chính, phục vụ...)",
+            "policy_topic": "chủ đề chính sách (thẻ, phí, nội quy...)",
+            "available": true/false
         }}
 
         [LỊCH SỬ]: {history}
         [CÂU HỎI]: {query}
-        JSON:
-        """
+        JSON:"""
 
         try:
-            res = self.llm.invoke(prompt).content.strip()
-            match = re.search(r"\{.*\}", res, re.DOTALL)
-            return json.loads(match.group()) if match else {}
-        except Exception:
+            res = self.call_llm_with_retry(prompt).strip()
+            json_match = re.search(r'\{.*\}', res, re.DOTALL)
+            if json_match:
+                return json.loads(json_match.group())
             return {}
-
-    # -------------------- MAIN PROCESS --------------------
+        except:
+            return {}
 
     def process_chat(self, user_query: str, user_id: int, session_id: str):
         start_time = time.time()
         history = get_recent_history_as_text(user_id, session_id)
         q_lower = user_query.lower()
 
+        # 1. Trích xuất Entity
         entities = self.extract_entities(user_query, history)
 
-        # ---- RECOMMENDATION PATH ----
-        if has_any(q_lower, RECOMMEND_KEYWORDS):
-            print(f"💡 Recommend Path: User {user_id}")
-            rec_result = analyze_and_recommend(user_id)
+        # [LOGIC] Điều hướng thông minh
 
-            if isinstance(rec_result, dict):
-                return {
-                    "reply": rec_result["message"],
-                    "action": {
-                        "type": "show_books",
-                        "payload": rec_result["data"] # List sách để Frontend render Card
-                    }
-                }
-            return {"reply": str(rec_result), "action": None}
+        # A. TRA CỨU NHÂN VIÊN (Staff)
+        if any(w in q_lower for w in ["nhân viên", "ai quản lý", "trưởng phòng", "liên hệ ai"]):
+            return {"reply": search_staff_sql(entities.get("staff_name"), entities.get("department")), "action": None}
 
-        # ---- FAST PATH: PERSONAL DASHBOARD ----
-        if has_any(q_lower, PERSONAL_KEYWORDS):
-            print(f"⚡ Fast Path: Dashboard ({time.time() - start_time:.2f}s)")
+        # B. TRA CỨU CHÍNH SÁCH / THẺ (Policies)
+        if any(w in q_lower for w in ["phí làm thẻ", "quy định thẻ", "hạn mức mượn", "thẻ sinh viên", "loại thẻ"]):
+            return {"reply": get_library_policies_sql(user_query), "action": None}
+
+        # C. TRA CỨU ĐƠN GIAO SÁCH (Shipping)
+        if any(w in q_lower for w in ["giao sách", "đơn ship", "vận chuyển"]):
+            return {"reply": check_shipping_status(user_id), "action": None}
+
+        # D. TRA CỨU CÁ NHÂN (Dashboard / Fines / Notifs)
+        if "thông báo" in q_lower:
+            return {"reply": check_notifications(user_id), "action": None}
+
+        if any(w in q_lower for w in ["phạt", "nợ", "tiền"]):
+            return {"reply": check_fine_history(user_id), "action": None}
+
+        # Các thông tin cá nhân chung khác
+        personal_keywords = ["tôi đang mượn", "sách đã mượn", "hạn trả", "lịch sử mượn", "thẻ của tôi", "quá hạn chưa"]
+        if any(w in q_lower for w in personal_keywords):
+            print(f"⚡ Fast Path: Dashboard")
             return {"reply": check_personal_dashboard(user_id), "action": None}
 
-        # ---- NAVIGATION ----
-        if has_any(q_lower, NAV_CARD):
-            return {
-                "reply": "Để đăng ký thẻ thư viện, bạn vui lòng điền thông tin tại trang đăng ký sau:",
-                "action": {"type": "navigate", "payload": self.nav_map["card"]}
-            }
-
-        if has_any(q_lower, NAV_ROOM):
-            return {
-                "reply": "Để đặt phòng họp/nhóm, mời bạn truy cập hệ thống đặt phòng trực tuyến:",
-                "action": {"type": "navigate", "payload": self.nav_map["room"]}
-            }
-
-        if has_any(q_lower, NAV_SHIP):
-            return {
-                "reply": "Bạn có thể yêu cầu giao tài liệu tận nơi tại đây:",
-                "action": {"type": "navigate", "payload": self.nav_map["ship"]}
-            }
-
-        # ---- BOOK ACTION ----
+        # E. GIA HẠN / ĐẶT TRƯỚC
         if "gia hạn" in q_lower or "đặt trước" in q_lower:
             action = "renew" if "gia hạn" in q_lower else "reserve"
             target = entities.get("book_name")
             if target:
                 return {"reply": handle_book_action(user_id, target, action), "action": None}
 
-        # ---- BOOK SEARCH ----
-        if has_any(q_lower, BOOK_SEARCH):
+        # F. ĐIỀU HƯỚNG LINK (Khi xin Link)
+        if "link" in q_lower or "trang web" in q_lower:
+            for key, val in self.nav_map.items():
+                if val['label'].lower() in q_lower or key in q_lower:
+                    return {"reply": f"Mời bạn truy cập {val['label']}:", "action": {"type": "navigate", "payload": val}}
+
+        # G. TÌM SÁCH (Search Books)
+        if entities.get("book_name") or entities.get("author") or "tìm sách" in q_lower or "có sách" in q_lower:
             result = search_library_sql(
                 keyword=entities.get("book_name"),
                 author=entities.get("author"),
                 category=entities.get("category"),
                 available_only=entities.get("available")
             )
-
             if isinstance(result, dict):
-                response = {"reply": result["message"], "action": None}
-                if result.get("data"):
-                    response["action"] = {
-                        "type": "show_books",
-                        "payload": result["data"]
-                    }
-                return response
-
+                return {"reply": result["message"], "action": {"type": "show_books", "payload": result["data"]} if result["data"] else None}
             return {"reply": str(result), "action": None}
 
-        # ---- DEVICE / FACILITY ----
-        if has_any(q_lower, DEVICE_SEARCH):
-            if entities.get("device_name"):
-                return {
-                    "reply": search_equipment_sql(
-                        device_name=entities.get("device_name"),
-                        room_name=entities.get("room_name")
-                    ),
-                    "action": None
-                }
-            return {"reply": get_facility_status(entities.get("room_name")), "action": None}
+        # H. GỢI Ý SÁCH
+        recommend_keywords = ["gợi ý", "recommend", "sách gì hay", "tư vấn sách"]
+        if any(w in q_lower for w in recommend_keywords):
+            topic = entities.get("category") or entities.get("book_name")
+            rec_result = analyze_and_recommend(user_id, topic)
+            if isinstance(rec_result, dict):
+                return {"reply": rec_result["message"], "action": {"type": "show_books", "payload": rec_result["data"]}}
+            return {"reply": str(rec_result), "action": None}
 
-        # ---- ARTICLES ----
-        if has_any(q_lower, ARTICLE_SEARCH):
-            return {
-                "reply": search_articles_sql(
-                    article_topic=entities.get("article_topic") or ""
-                ),
-                "action": None
-            }
+        # I. CƠ SỞ VẬT CHẤT & BÀI VIẾT
+        if any(w in q_lower for w in ["máy tính", "máy chiếu", "thiết bị", "điều hòa", "wifi", "internet"]):
+            return {"reply": search_equipment_sql(device_name=entities.get("device_name"), room_name=entities.get("room_name")), "action": None}
 
-        # ---- SEATS ----
-        if has_any(q_lower, SEAT_SEARCH):
-            return {
-                "reply": search_seats_sql(room_name=entities.get("room_name")),
-                "action": None
-            }
+        if any(w in q_lower for w in ["bài viết", "tin tức", "sự kiện", "hoạt động"]):
+            topic = entities.get("article_topic") or ""
+            return {"reply": search_articles_sql(article_topic=topic), "action": None}
 
-        # ---- RAG FALLBACK ----
+        if any(w in q_lower for w in ["chỗ ngồi", "đặt chỗ", "ghế trống", "phòng"]):
+            return {"reply": get_facility_status(room_name=entities.get("room_name")), "action": None}
+
+        # J. RAG FALLBACK
         context = query_rag_context(user_query)
-
         prompt = f"""
         <SYSTEM>
-        Bạn là Trợ lý AI Thư viện Đà Nẵng năm 2025.
-        Dữ liệu tham khảo: {context}
-        Lịch sử trò chuyện: {history}
+        Nhiệm vụ: Hỗ trợ bạn đọc Thư viện Đà Nẵng.
 
-        Nhiệm vụ:
-        - Trả lời câu hỏi người dùng một cách chuyên nghiệp, chính xác. lịch sự.
-        - Nếu người dùng hỏi về bài viết cụ thể, hãy nhắc họ nhấn vào link đính kèm.
-        - Không bịa đặt thông tin nếu không có trong dữ liệu.
-        - Luôn trả lời bằng tiếng Việt và chỉ trả lời bằng tiếng Anh nếu người dùng yêu cầu.
+        [Dữ liệu]: {context}
+        [Lịch sử]: {history}
+
+        [Yêu cầu]:
+        - Trả lời dựa trên dữ liệu.
+        - Nếu hỏi về giờ làm việc, địa chỉ -> Dùng RAG.
+        - Thân thiện, ngắn gọn, đầy đủ.
         </SYSTEM>
         User: {user_query}
-        Assistant:
-        """
+        Assistant:"""
 
-        final_response = self.llm.invoke(prompt).content
+        try:
+            final_response = self.call_llm_with_retry(prompt)
+        except Exception as e:
+            print(f"❌ LLM Error: {e}")
+            final_response = "Xin lỗi, hiện tại hệ thống đang bận. Vui lòng thử lại sau."
 
         save_chat_history(user_id, session_id, "user", user_query)
         save_chat_history(user_id, session_id, "assistant", final_response)
 
         return {"reply": final_response, "action": None}
 
-    # -------------------- LEGACY SUPPORT --------------------
-
-    def extract_target(self, query: str, history: str) -> str:
-        prompt = (
-            f"Lịch sử chat (mới nhất ở dưới):\n{history}\n"
-            f"Câu hiện tại: {query}\n"
-            "Trích xuất tên riêng/danh từ/tên sách/tên chủ đề được nhắc đến GẦN NHẤT. "
-            "Chỉ trả về tên, không giải thích. Nếu không có, trả về 'NONE'."
-        )
-        res = self.llm.invoke(prompt).content.strip()
-        return "" if "NONE" in res else res
+    def extract_target(self, query: str, history: str):
+        pass # Legacy placeholder

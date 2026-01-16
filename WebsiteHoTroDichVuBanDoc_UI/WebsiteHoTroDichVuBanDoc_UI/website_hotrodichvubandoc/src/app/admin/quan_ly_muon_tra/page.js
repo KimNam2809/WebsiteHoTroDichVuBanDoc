@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
-import { Search, RefreshCw, CheckCircle, BookUp, QrCode, X, User, BookOpen, Calendar, AlertTriangle, Loader2, Clock, BadgeCheck } from 'lucide-react';
+import { Search, RefreshCw, CheckCircle, BookUp, QrCode, X, User, BookOpen, Calendar, AlertTriangle, Loader2, Clock, BadgeCheck, Check, Info } from 'lucide-react';
 import { getActiveLoansAction, getPendingBorrowAction, returnBookAction, confirmBorrowAction } from '../actions';
 
 export default function QuanLyMuonTraPage() {
@@ -16,6 +17,7 @@ export default function QuanLyMuonTraPage() {
 
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
+    const [mounted, setMounted] = useState(false);
 
     // UI State
     const [activeTab, setActiveTab] = useState('active'); // 'pending', 'active'
@@ -25,8 +27,16 @@ export default function QuanLyMuonTraPage() {
     const [modalMode, setModalMode] = useState(''); // 'confirm_borrow', 'return_book'
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // Modal Success Notification State
+    const [showSuccessModalConfirm, setShowSuccessModalConfirm] = useState(false);
+    const [showSuccessModalReturn, setShowSuccessModalReturn] = useState(false);
+
     // 1. Tải dữ liệu
     useEffect(() => { loadData(); }, []);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     async function loadData() {
         setIsLoading(true);
@@ -84,7 +94,7 @@ export default function QuanLyMuonTraPage() {
 
         setIsProcessing(false);
         if (res.success) {
-            alert("Đã xác nhận mượn thành công!");
+            setShowSuccessModalConfirm(true);
             closeModal();
             loadData(); // Reload to move item from Pending -> Active
         } else {
@@ -100,7 +110,7 @@ export default function QuanLyMuonTraPage() {
 
         setIsProcessing(false);
         if (res.success) {
-            alert("Trả sách thành công!");
+            setShowSuccessModalReturn(true);
             closeModal();
             loadData(); // Reload to remove from Active
         } else {
@@ -112,6 +122,42 @@ export default function QuanLyMuonTraPage() {
         setSelectedLoan(null);
         setModalMode('');
     }
+
+    const SuccessModalConfirm = () => (
+        <div className="fixed inset-0 z-9999 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowSuccessModal(false)}></div>
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm text-center overflow-hidden relative z-10 animate-in zoom-in-95 duration-300">
+                <div className="h-2 w-full bg-linear-to-r from-green-400 via-emerald-500 to-teal-500"></div>
+                <div className="p-8 pb-6">
+                    <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-green-100"><Check className="w-10 h-10 text-green-600" strokeWidth={3} /></div>
+                    <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Phê duyệt thành công!</h2>
+                    <p className="text-gray-600 leading-relaxed">Bạn đã phê duyệt đăng ký mượn thành công <br/></p>
+                </div>
+                <div className="px-8 pb-8">
+                    <div className="bg-blue-50 text-blue-800 text-sm p-4 rounded-xl mb-6 text-left border border-blue-100 flex gap-3 items-start"><Info className="shrink-0 text-blue-600 mt-0.5" size={18}/><div><strong>Bước tiếp theo:</strong> Thực hiện tiếp công việc.</div></div>
+                    <button onClick={() => setShowSuccessModal(false)} className="w-full py-3.5 bg-gray-900 hover:bg-black text-white rounded-xl font-bold shadow-lg transition-transform active:scale-95">Đã hiểu, cảm ơn!</button>
+                </div>
+            </div>
+        </div>
+    );
+
+    const SuccessModalReturn = () => (
+        <div className="fixed inset-0 z-9999 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowSuccessModalReturn(false)}></div>
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm text-center overflow-hidden relative z-10 animate-in zoom-in-95 duration-300">
+                <div className="h-2 w-full bg-linear-to-r from-green-400 via-emerald-500 to-teal-500"></div>
+                <div className="p-8 pb-6">
+                    <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-green-100"><Check className="w-10 h-10 text-green-600" strokeWidth={3} /></div>
+                    <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Đã trả sách thành công!</h2>
+                    <p className="text-gray-600 leading-relaxed">Bạn đã thực hiện xong công việc trả sách <br/></p>
+                </div>
+                <div className="px-8 pb-8">
+                    <div className="bg-blue-50 text-blue-800 text-sm p-4 rounded-xl mb-6 text-left border border-blue-100 flex gap-3 items-start"><Info className="shrink-0 text-blue-600 mt-0.5" size={18}/><div><strong>Bước tiếp theo:</strong> Thực hiện tiếp công việc.</div></div>
+                    <button onClick={() => setShowSuccessModalReturn(false)} className="w-full py-3.5 bg-gray-900 hover:bg-black text-white rounded-xl font-bold shadow-lg transition-transform active:scale-95">Đã hiểu, cảm ơn!</button>
+                </div>
+            </div>
+        </div>
+    );
 
     return (
         <div className="min-h-screen bg-gray-50 p-6">
@@ -331,7 +377,7 @@ export default function QuanLyMuonTraPage() {
                             {/* Alert Context */}
                             {modalMode === 'confirm_borrow' && (
                                 <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-sm">
-                                    <strong><BadgeCheck size={16} className="inline mr-1" /> Xác nhận cho mượn:</strong> Hành động này sẽ cập nhật trạng thái phiếu thành "Đã mượn" và ghi nhận Mã nhân viên của bạn vào hệ thống.
+                                    <strong><BadgeCheck size={16} className="inline mr-1" /> Xác nhận cho mượn:</strong> Hành động này sẽ cập nhật trạng thái phiếu thành &quot;Đã mượn&quot; và ghi nhận Mã nhân viên của bạn vào hệ thống.
                                 </div>
                             )}
 
@@ -381,6 +427,9 @@ export default function QuanLyMuonTraPage() {
                     </div>
                 </div>
             )}
+
+        {mounted && showSuccessModalConfirm && createPortal(<SuccessModalConfirm />, document.body)}
+        {mounted && showSuccessModalReturn && createPortal(<SuccessModalReturn />, document.body)}
         </div>
     );
 }

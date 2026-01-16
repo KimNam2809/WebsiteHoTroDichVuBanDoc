@@ -45,6 +45,69 @@ MOCK_CITIZENS = [
         "ngay_sinh": "2003-09-28",
         "sdt": "0367814254",
         "blacklisted": False
+    },
+    {
+        "cccd": "048203030001",
+        "ho_ten": "Lê Thành Phong",
+        "ngay_sinh": "2003-04-12",
+        "sdt": "0341234567",
+        "blacklisted": False
+    },
+    {
+        "cccd": "048299250002",
+        "ho_ten": "Lý Hoạ Anh",
+        "ngay_sinh": "1999-11-25",
+        "sdt": "0359876543",
+        "blacklisted": False
+    },
+    {
+        "cccd": "048205070003",
+        "ho_ten": "Trần Bảo Ngọc",
+        "ngay_sinh": "2005-07-01",
+        "sdt": "0375552345",
+        "blacklisted": False
+    },
+    {
+        "cccd": "001085020004",
+        "ho_ten": "Phạm Quốc Bảo",
+        "ngay_sinh": "1985-02-10",
+        "sdt": "0388765432",
+        "blacklisted": False
+    },
+    {
+        "cccd": "079303090005",
+        "ho_ten": "Nguyễn Mai Phương",
+        "ngay_sinh": "2003-09-30",
+        "sdt": "0392345678",
+        "blacklisted": False
+    },
+    {
+        "cccd": "055574010007",
+        "ho_ten": "Nguyễn Thị Bình",
+        "ngay_sinh": "1974-01-01",
+        "sdt": "0767890123",
+        "blacklisted": False
+    },
+    {
+        "cccd": "012303010008",
+        "ho_ten": "Lê Hà Bình",
+        "ngay_sinh": "2003-01-01",
+        "sdt": "0774567890",
+        "blacklisted": False
+    },
+    {
+        "cccd": "048203001235",
+        "ho_ten": "Trần Minh Tuấn",
+        "ngay_sinh": "1995-03-15",
+        "sdt": "0912345678",
+        "blacklisted": False
+    },
+    {
+        "cccd": "048203001236",
+        "ho_ten": "Phạm Thị Hồng",
+        "ngay_sinh": "1988-12-05",
+        "sdt": "0923456789",
+        "blacklisted": False
     }
 ]
 

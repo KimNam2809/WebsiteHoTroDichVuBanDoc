@@ -1,11 +1,30 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List, Optional
+from typing import List, Optional, Dict
+from datetime import datetime
 # Import DatChoNgoiUpdate
 from app.models.dat_cho_ngoi import DatChoNgoi, DatChoNgoiCreate, DatChoNgoiUpdate, DatChoNgoiCheckIn
 from app.connect.db import supabase_client
 from app.connect.auth import get_booking_seat_owner_or_staff, get_current_staff_profile, get_current_user_from_db
 from app.utils import to_json_safe
 import logging, ast
+
+def send_notification(ma_ban_doc: Optional[int], tieu_de: str, noi_dung: str, extra_data: Dict = None):
+    try:
+        # Schema allows maBanDoc to be Null
+
+        data = {
+            "mabandoc": ma_ban_doc,
+            "tieude": tieu_de,
+            "noidung": noi_dung,
+            "hinhthuc": "HeThong",
+            "trangthai": "chuaXem",
+            "thoigiangui": datetime.now().isoformat(),
+            "thamchieu": "Đặt chỗ ngồi",
+            "dulieugoc": None
+        }
+        supabase_client.table("thongbao").insert(to_json_safe(data)).execute()
+    except Exception as e:
+        logger.error(f"Lỗi gửi thông báo: {e}")
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -95,6 +114,13 @@ def create_dat_cho_ngoi(dat_cho_in: DatChoNgoiCreate, current_user: dict = Depen
             if isinstance(data, list):
                 return data[0]
             return data
+
+        send_notification(
+                mabandoc_from_body,
+                "Đăng ký thẻ thành công",
+                f"Chúc mừng! Chỗ ngồi của bạn đã được đặt thành công (Mã chỗ ngồi: {dat_cho_in.maChoNgoi}) đã được đặt thành công. Vui lòng đến thư viện để nhận chỗ ngồi.",
+
+            )
 
         # 3) Thành công nhưng không có data
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không thể đặt chỗ (RPC không trả về data)")

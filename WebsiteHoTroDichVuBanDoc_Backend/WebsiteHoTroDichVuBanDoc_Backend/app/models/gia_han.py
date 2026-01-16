@@ -4,7 +4,7 @@ from app.models.db_base import DBModel
 
 class GiaHanBase(DBModel):
     maMuonTra: int
-    maNhanVien: int
+    maNhanVien: Optional[int] = None
     ngayTraMoi: date
     lyDoGiaHan: Optional[str] = None
 

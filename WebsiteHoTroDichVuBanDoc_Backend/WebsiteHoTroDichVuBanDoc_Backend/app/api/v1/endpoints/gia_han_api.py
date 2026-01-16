@@ -4,7 +4,7 @@ from app.models.gia_han import GiaHan, GiaHanCreate, GiaHanUpdate
 from app.connect.db import supabase_client
 from app.connect.auth import get_current_staff_profile, get_current_user_from_db, get_renewal_owner_or_staff, get_loan_owner_or_staff
 from app.utils import to_json_safe
-import logging, ast
+import logging, ast, re
 
 
 router = APIRouter()
@@ -110,35 +110,19 @@ def create_gia_han(gia_han_in: GiaHanCreate, current_user: dict = Depends(get_cu
         raise
     except Exception as e:
         error_str = str(e)
+        logger.error(f"Lỗi gia hạn: {error_str}")
 
-        # 🧩 Trường hợp lỗi nghiệp vụ từ Supabase (Postgres function)
-        if "'message':" in error_str:
-            try:
-                error_dict = ast.literal_eval(error_str)
+        # Tìm chuỗi nằm giữa 'message': ' VÀ ' kế tiếp
+        match = re.search(r"'message':\s*'([^']*)'", error_str)
 
-                # Lấy phần message nếu có
-                message = error_dict.get("message", "Lỗi nghiệp vụ không xác định")
+        if match:
+            clean_message = match.group(1) # Lấy nội dung trong ngoặc đơn
+            raise HTTPException(status_code=400, detail=clean_message)
 
-                # Nếu là lỗi nghiệp vụ (vd: vượt giới hạn, sai trạng thái)
-                if "Không thể gia hạn" in message or "Không tìm thấy" in message:
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
-            except Exception:
-                pass  # Nếu parse lỗi, vẫn rơi xuống xử lý chung bên dưới
-
-        # 🧩 Các lỗi nghiệp vụ được đánh dấu bằng 'BUSINESS_ERROR'
-        if "BUSINESS_ERROR" in error_str:
-            cleaned = (
-                error_str.split("BUSINESS_ERROR")[0]
-                .replace("ERROR: ", "")
-                .replace("DETAIL:", "")
-                .strip()
-            )
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=cleaned)
-
-        # 🧩 Nếu không khớp trường hợp nào => lỗi hệ thống
+        # Fallback: Nếu không lọc được thì mới trả về lỗi gốc
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Lỗi hệ thống. Vui lòng thử lại sau."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Gia hạn thất bại: {error_str}"
         )
 
 # 2. READ (Lấy lịch sử gia hạn của 1 lượt mượn)

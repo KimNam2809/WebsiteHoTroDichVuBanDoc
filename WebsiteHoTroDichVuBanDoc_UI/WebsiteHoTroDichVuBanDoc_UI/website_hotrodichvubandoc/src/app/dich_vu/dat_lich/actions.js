@@ -69,18 +69,22 @@ export async function getAllSeatsAction() {
 export async function createSeatBookingAction(bookingData) {
     try {
         // Step 1: Get Current User Profile for maBanDoc
-        // IMPORTANT: Must use fetchWithAuth to ensure Token is passed and Cache is skipped
         const profileData = await fetchWithAuth('/api/v1/nguoi-dung/profile');
 
-        if (!profileData || !profileData.maBanDoc) {
-            return { success: false, error: "Bạn chưa có hồ sơ bạn đọc hoặc chưa đăng nhập." };
+        console.log("🔍 Profile Data Debug:", profileData); // Log để kiểm tra thực tế backend trả gì
+
+        // 👇 LOGIC TÌM MÃ BẠN ĐỌC AN TOÀN (Support đa định dạng)
+        const maBanDoc = profileData.maBanDoc || profileData.ma_ban_doc || profileData.mabandoc;
+
+        if (!maBanDoc) {
+            console.error("❌ Không tìm thấy mã bạn đọc trong profile:", profileData);
+            return { success: false, error: "Bạn chưa có hồ sơ bạn đọc hợp lệ. Vui lòng liên hệ thủ thư." };
         }
 
         // Step 2: Inject maBanDoc
-        // Ensure "maBanDoc" overwrites any placeholder in bookingData
         const payload = {
             ...bookingData,
-            maBanDoc: profileData.maBanDoc
+            maBanDoc: maBanDoc // Sử dụng mã vừa tìm được
         };
 
         const data = await fetchWithAuth('/api/v1/dat-cho-ngoi/', {
@@ -94,16 +98,19 @@ export async function createSeatBookingAction(bookingData) {
     }
 }
 
-// 4. Tạo Đặt phòng
+// 4. Tạo Đặt phòng (ĐÃ SỬA TƯƠNG TỰ)
 export async function createRoomBookingAction(bookingData) {
     try {
         // Step 1: Get Profile
         const profileData = await fetchWithAuth('/api/v1/nguoi-dung/profile');
 
+        // Lấy tên người đặt (Ưu tiên hoten -> tendangnhap -> email)
+        const organizerName = profileData.hoten || profileData.ho_ten || profileData.ten_dang_nhap || "Người dùng Web";
+
         // Step 2: Inject Identity
         const payload = {
             ...bookingData,
-            nguoiToChuc: bookingData.nguoiToChuc || profileData.hoten || "Người dùng Web",
+            nguoiToChuc: bookingData.nguoiToChuc || organizerName,
         };
 
         const data = await fetchWithAuth('/api/v1/dat-phong/', {

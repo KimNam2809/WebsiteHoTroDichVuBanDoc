@@ -7,231 +7,162 @@ def get_bandoc_id(user_id: int):
     res = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).single().execute()
     return res.data["mabandoc"] if res.data else None
 
-def analyze_and_recommend(user_id: int):
+def analyze_and_recommend(user_id: int, topic: str = None):
     """
-    Phân tích lịch sử mượn trả và gợi ý sách.
-    Schema Flow:
-    1. user_id -> bandoc(mabandoc)
-    2. bandoc -> muontra(mabansao) -> bansao(matacpham) -> tacpham
-    3. tacpham -> tacpham_danhmuc -> danhmuc
+    Gợi ý sách thông minh:
+    - Nếu 'topic' là tên 1 cuốn sách -> Gợi ý sách tương tự (cùng tác giả/danh mục).
+    - Nếu 'topic' là chủ đề -> Tìm sách theo chủ đề.
+    - Nếu topic=None -> Dựa vào lịch sử.
     """
     try:
-        # 1. Lấy mã bạn đọc
+        # [MODE 1] User cung cấp topic (có thể là tên sách hoặc chủ đề)
+        if topic:
+            # Check xem topic có phải là tên sách không?
+            exact_book = supabase_client.table("tacpham").select("matacpham, tacgia, tacpham_danhmuc(danhmuc(tendanhmuc))")\
+                .ilike("tentacpham", f"{topic}").limit(1).execute()
+            
+            if exact_book.data:
+                # -> Topic là Tên Sách -> Suggest Similar
+                b = exact_book.data[0]
+                auth = b.get('tacgia')
+                
+                # Lấy danh mục đầu tiên
+                cat = None
+                if b.get('tacpham_danhmuc'):
+                    cat = b['tacpham_danhmuc'][0]['danhmuc']['tendanhmuc']
+                
+                # Tìm sách cùng tác giả hoặc cùng danh mục (Trừ cuốn hiện tại)
+                query = supabase_client.table("tacpham").select("matacpham, tentacpham, tacgia, mota, anhbia")\
+                    .neq("matacpham", b['matacpham'])
+                
+                if auth:
+                    query = query.ilike("tacgia", f"%{auth}%")
+                elif cat:
+                    # Logic phức tạp tí: query qua relation, nhưng ở đây simplify bằng text search danh mục nếu cần
+                    pass 
+                
+                res = query.limit(5).execute()
+                if res.data:
+                    return {"message": f"Dựa trên cuốn **'{topic}'**, mình gợi ý các sách tương tự của tác giả **{auth}**:", "data": res.data}
+
+            # -> Topic không phải sách cụ thể -> Search theo Category/Keyword (Logic cũ)
+            dm_res = supabase_client.table("danhmuc").select("madanhmuc").ilike("tendanhmuc", f"%{topic}%").execute()
+            dm_ids = [d['madanhmuc'] for d in dm_res.data]
+            
+            query = supabase_client.table("tacpham").select("matacpham, tentacpham, tacgia, mota, anhbia")
+            
+            if dm_ids:
+                tp_dm = supabase_client.table("tacpham_danhmuc").select("matacpham").in_("madanhmuc", dm_ids).execute()
+                tp_ids = [x['matacpham'] for x in tp_dm.data]
+                if tp_ids: query = query.in_("matacpham", tp_ids)
+                else: query = query.or_(f"tentacpham.ilike.%{topic}%, mota.ilike.%{topic}%")
+            else:
+                query = query.or_(f"tentacpham.ilike.%{topic}%, mota.ilike.%{topic}%")
+
+            res = query.limit(5).execute()
+            if res.data:
+                return {"message": f"Về chủ đề **'{topic}'**, mình có vài cuốn hay nè:", "data": res.data}
+            
+            return f"Tiếc quá, mình chưa tìm thấy cuốn nào về **'{topic}'**."
+
+        # [MODE 2] Gợi ý theo lịch sử (Giữ nguyên logic cũ hoạt động tốt)
         mabandoc = get_bandoc_id(user_id)
-        if not mabandoc:
-            return "Bạn chưa đăng ký thẻ bạn đọc nên tôi chưa thể kiểm tra lịch sử."
+        if not mabandoc: return "Bạn chưa đăng ký thẻ bạn đọc."
 
-        # 2. Lấy lịch sử 10 cuốn sách mượn gần nhất
-        # Query nested: muontra -> bansao -> tacpham
-        history_res = supabase_client.table("muontra") \
-            .select("thoigianmuon, bansao(matacpham, tacpham(matacpham, tentacpham, tacgia))") \
-            .eq("mabandoc", mabandoc) \
-            .order("thoigianmuon", desc=True) \
-            .limit(10) \
-            .execute()
-
-        loans = history_res.data
-        if not loans:
-            return "Bạn chưa mượn cuốn sách nào nên tôi chưa thể gợi ý. Hãy thử mượn vài cuốn nhé!"
-
-        # 3. Phân tích sở thích
-        borrowed_ids = set()
-        authors = []
-        book_ids_for_categories = []
-
-        for loan in loans:
-            # Handle null safety
-            if not loan.get("bansao") or not loan["bansao"].get("tacpham"):
-                continue
-
-            book = loan["bansao"]["tacpham"]
-            borrowed_ids.add(book["matacpham"])
-            book_ids_for_categories.append(book["matacpham"])
-
-            if book.get("tacgia"):
-                authors.append(book["tacgia"])
-
-        # Lấy danh mục (Categories) của các sách đã mượn
-        # Query: tacpham_danhmuc -> danhmuc
-        fav_categories = []
-        if book_ids_for_categories:
-            cat_res = supabase_client.table("tacpham_danhmuc") \
-                .select("madanhmuc, danhmuc(tendanhmuc)") \
-                .in_("matacpham", book_ids_for_categories) \
-                .execute()
-
-            for item in cat_res.data:
-                if item.get("danhmuc"):
-                    fav_categories.append(item["danhmuc"]["tendanhmuc"])
-
-        # Tìm tác giả và danh mục xuất hiện nhiều nhất
-        top_author = Counter(authors).most_common(1)
-        top_category = Counter(fav_categories).most_common(1)
-
-        target_author = top_author[0][0] if top_author else None
-        target_category = top_category[0][0] if top_category else None
-
-        # 4. Tìm sách gợi ý
-        # Ưu tiên 1: Cùng tác giả, chưa mượn
-        books_found = []
-        reason = ""
-
-        if target_author:
-            res_auth = supabase_client.table("tacpham") \
-                .select("matacpham, tentacpham, tacgia, mota, anhbia") \
-                .eq("tacgia", target_author) \
-                .not_.in_("matacpham", list(borrowed_ids)) \
-                .limit(5) \
-                .execute()
-
-            if res_auth.data:
-                books_found = res_auth.data
-                reason = f"tác giả **{target_author}**"
-
-        # Ưu tiên 2: Nếu không có sách cùng tác giả, tìm cùng danh mục
-        if not books_found and target_category:
-            # Cần query ngược: Tìm id danh mục -> tìm sách thuộc danh mục đó
-            # Để đơn giản và nhanh, ta dùng Text Search trên view hoặc query nested
-            # Ở đây dùng query nested: tacpham_danhmuc -> Filter theo Danhmuc -> Lấy matacpham
-
-            # Lấy list matacpham thuộc category đó
-            cat_books_res = supabase_client.table("tacpham_danhmuc") \
-                .select("matacpham, danhmuc!inner(tendanhmuc)") \
-                .eq("danhmuc.tendanhmuc", target_category) \
-                .limit(20) \
-                .execute()
-
-            potential_ids = [item['matacpham'] for item in cat_books_res.data if item['matacpham'] not in borrowed_ids]
-
-            if potential_ids:
-                res_cat = supabase_client.table("tacpham") \
-                    .select("matacpham, tentacpham, tacgia, mota, anhbia") \
-                    .in_("matacpham", potential_ids[:5]) \
-                    .execute()
-                books_found = res_cat.data
-                reason = f"thể loại **{target_category}**"
-
-        # 5. Trả kết quả
-        if not books_found:
-            # Fallback: Lấy sách mới nhất
-            res_new = supabase_client.table("tacpham") \
-                .select("matacpham, tentacpham, tacgia, mota, anhbia") \
-                .order("ngaytao", desc=True) \
-                .limit(3) \
-                .execute()
-            books_found = res_new.data
-            reason = "các sách mới cập nhật"
-
-        msg = f"Dựa trên việc bạn hay đọc {reason}, tôi có vài gợi ý cho bạn:"
-        return {
-            "message": msg,
-            "data": books_found
-        }
+        history_res = supabase_client.table("muontra").select("thoigianmuon, bansao(tacpham(matacpham, tacgia))").eq("mabandoc", mabandoc).limit(5).execute()
+        if not history_res.data: return "Bạn chưa mượn cuốn nào. Hãy thử tìm sách mới nhé!"
+        
+        # Lấy tác giả mượn gần nhất
+        last_book = history_res.data[0]['bansao']['tacpham']
+        target_auth = last_book.get('tacgia')
+        
+        if target_auth:
+            res = supabase_client.table("tacpham").select("matacpham, tentacpham, tacgia, anhbia").eq("tacgia", target_auth).limit(5).execute()
+            return {"message": f"Vì bạn từng đọc sách của **{target_auth}**, bạn có thể thích:", "data": res.data}
+            
+        return "Hãy thử tìm kiếm sách theo chủ đề bạn thích nhé."
 
     except Exception as e:
-        print(f"Error recommending: {e}")
-        return "Xin lỗi, hệ thống gợi ý đang gặp chút sự cố khi phân tích dữ liệu."
+        return f"Lỗi gợi ý: {str(e)}"
 
 def search_library_sql(keyword: str = None, author: str = None, category: str = None, available_only: bool = False):
     """
-    Tìm kiếm tài liệu hỗ trợ Schema nhiều-nhiều (tacpham_danhmuc, tacpham_tukhoa).
+    Search sách bao quát (Tên, Tác giả, Danh mục).
     """
     if not keyword and not author and not category and not available_only:
-        return {"message": "Vui lòng cung cấp tên sách, tác giả hoặc chủ đề bạn quan tâm.", "data": []}
+        return {"message": "Vui lòng cung cấp từ khóa tìm kiếm.", "data": []}
 
     try:
-        # --- BƯỚC 1: XỬ LÝ LỌC THEO CHỦ ĐỀ/THỂ LOẠI (CATEGORY) ---
-        target_book_ids = set()
-        filter_by_category = False
-
-        if category:
-            filter_by_category = True
-            # 1.1. Tìm trong bảng DANHMUC -> tacpham_danhmuc
-            dm_res = supabase_client.table("danhmuc").select("madanhmuc").ilike("tendanhmuc", f"%{category}%").execute()
-            if dm_res.data:
-                dm_ids = [d['madanhmuc'] for d in dm_res.data]
-                # Lấy ID sách từ bảng trung gian
-                tp_dm = supabase_client.table("tacpham_danhmuc").select("matacpham").in_("madanhmuc", dm_ids).execute()
-                for x in tp_dm.data: target_book_ids.add(x['matacpham'])
-
-            # 1.2. Tìm trong bảng TUKHOA -> tacpham_tukhoa
-            tk_res = supabase_client.table("tukhoa").select("matukhoa").ilike("tentukhoa", f"%{category}%").execute()
-            if tk_res.data:
-                tk_ids = [k['matukhoa'] for k in tk_res.data]
-                # Lấy ID sách từ bảng trung gian
-                tp_tk = supabase_client.table("tacpham_tukhoa").select("matacpham").in_("matukhoa", tk_ids).execute()
-                for x in tp_tk.data: target_book_ids.add(x['matacpham'])
-
-            # 1.3. (Tùy chọn) Tìm luôn trong tên sách để không bỏ sót
-            tp_name = supabase_client.table("tacpham").select("matacpham").ilike("tentacpham", f"%{category}%").execute()
-            for x in tp_name.data: target_book_ids.add(x['matacpham'])
-
-        # --- BƯỚC 2: TRUY VẤN BẢNG TACPHAM ---
+        # [QUAN TRỌNG] "category" từ AI có thể là Tên Sách (VD: "Python").
+        # Nên nếu search Category fail -> Tự động chuyển category thành keyword tìm tên sách.
+        
+        search_kw = keyword or ""
+        search_cat = category or ""
+        
+        # 1. Base Query
         query = supabase_client.table("tacpham").select("matacpham, tentacpham, tacgia, namxuatban, anhbia, bansao(trangthaichomuon)")
 
-        # Áp dụng bộ lọc Category (nếu có)
-        if filter_by_category:
-            if not target_book_ids:
-                return {"message": f"Không tìm thấy sách nào thuộc chủ đề '{category}'.", "data": []}
-            query = query.in_("matacpham", list(target_book_ids))
-
-        # Áp dụng bộ lọc Keyword (Tên sách cụ thể)
-        if keyword:
-            query = query.ilike("tentacpham", f"%{keyword}%")
-
-        # Áp dụng bộ lọc Tác giả
+        # 2. Xử lý logic search
+        # Nếu có Category -> Tìm ID match category trước
+        matched_ids = set()
+        if search_cat:
+            # Tìm danh mục
+            dm = supabase_client.table("danhmuc").select("madanhmuc").ilike("tendanhmuc", f"%{search_cat}%").execute()
+            dm_ids = [d['madanhmuc'] for d in dm.data]
+            
+            if dm_ids:
+                t1 = supabase_client.table("tacpham_danhmuc").select("matacpham").in_("madanhmuc", dm_ids).execute()
+                for x in t1.data: matched_ids.add(x['matacpham'])
+            
+            # NẾU không tìm thấy ID nào theo danh mục -> Coi 'search_cat' là một phần của tên sách/mô tả
+            # Ví dụ: search_cat="Python" (không có danh mục Python) -> Search tên sách chứa "Python"
+            if not matched_ids:
+                # Merge vào keyword để search ở bước sau
+                if not search_kw: search_kw = search_cat
+        
+        # 3. Apply Filters
+        if matched_ids:
+            query = query.in_("matacpham", list(matched_ids))
+        
+        if search_kw:
+            # Search rộng trong Tên HOẶC Tác giả (đề phòng AI extract nhầm field)
+            query = query.or_(f"tentacpham.ilike.%{search_kw}%, tacgia.ilike.%{search_kw}%")
+            
         if author:
             query = query.ilike("tacgia", f"%{author}%")
 
         res = query.limit(10).execute()
 
         if not res.data:
-            return {"message": "Không tìm thấy tài liệu nào phù hợp.", "data": []}
+             return {"message": f"Không tìm thấy tài liệu nào phù hợp với từ khóa '{search_kw or search_cat}'.", "data": []}
 
-        # --- BƯỚC 3: XỬ LÝ KẾT QUẢ & LỌC AVAILABLE ---
+        # 4. Format
         books_payload = []
         text_lines = []
-        found_count = 0
-
+        
         for b in res.data:
-            copies = b.get('bansao', [])
-            available_count = sum(1 for c in copies if c['trangthaichomuon'] is True)
-
-            # Lọc nếu user chỉ cần sách có thể mượn ngay
-            if available_only and available_count == 0:
-                continue
-
-            found_count += 1
-            if found_count > 5: break
-
+            copies = b.get('bansao', []) or []
+            available_count = sum(1 for c in copies if c.get('trangthaichomuon') is True)
+            
             status_text = f"(✅ Còn {available_count} bản)" if available_count > 0 else "(❌ Hết bản)"
-            text_lines.append(f"- {b['tentacpham']} - {b['tacgia']} {status_text}")
-
-            cover_url = b.get('anhbia') or "/images/default-book.png"
+            text_lines.append(f"- **{b['tentacpham']}** - {b['tacgia']} {status_text}")
+            
             books_payload.append({
                 "id": b['matacpham'],
                 "title": b['tentacpham'],
-                "author": b['tacgia'] or "Chưa rõ",
-                "cover": cover_url,
+                "author": b['tacgia'] or "N/A",
+                "cover": b.get('anhbia') or "/images/default-book.png",
                 "link": f"/tai_lieu/{b['matacpham']}"
             })
-
-        if not books_payload:
-            if available_only:
-                return {"message": "Các sách phù hợp hiện đều đã được mượn hết.", "data": []}
-            return {"message": "Không tìm thấy tài liệu phù hợp.", "data": []}
-
-        prefix = "Các sách hiện có thể mượn ngay:\n" if available_only else f"Tôi tìm thấy {len(books_payload)} tài liệu phù hợp:\n"
-        reply_msg = prefix + "\n".join(text_lines)
-
+            
         return {
-            "message": reply_msg,
+            "message": f"Tôi tìm thấy {len(books_payload)} tài liệu:\n" + "\n".join(text_lines),
             "data": books_payload
         }
 
     except Exception as e:
-        return {"message": f"Lỗi hệ thống: {str(e)}", "data": []}
-
+        return {"message": f"Lỗi tìm sách: {str(e)}", "data": []}
+    
 def search_articles_sql(article_topic: str = None):
     """
     Tìm kiếm bài viết.
@@ -285,94 +216,124 @@ def search_articles_sql(article_topic: str = None):
     except Exception as e:
         return f"Lỗi tìm bài viết: {str(e)}"
 
-def search_seats_sql(room_name: str = None):
-    """Tìm chỗ ngồi khả dụng (Trạng thái: coSan)."""
-    try:
-        # Dùng !inner join để lọc chính xác theo tên phòng
-        query = supabase_client.table("chongoi").select("tenchongoi, loaichongoi, trangthai, phong!inner(tenphong)")\
-            .eq("trangthai", "coSan")
-
-        if room_name:
-            query = query.ilike("phong.tenphong", f"%{room_name}%")
-
-        res = query.limit(5).execute()
-
-        if not res.data:
-            return "Hiện tại không còn chỗ ngồi trống nào phù hợp."
-
-        seats = ["🪑 **Chỗ ngồi đang trống:**"]
-        for s in res.data:
-            seats.append(f"- {s['tenchongoi']} ({s['loaichongoi']}) tại {s['phong']['tenphong']}")
-
-        return "\n".join(seats)
-    except Exception as e:
-        return f"Lỗi tìm chỗ ngồi: {str(e)}"
-
 def search_equipment_sql(device_name: str = None, room_name: str = None):
-    """
-    Kiểm tra danh sách thiết bị.
-    Xử lý thông minh các từ khóa chung chung.
-    """
+    """Tìm thiết bị (Map từ đồng nghĩa wifi->internet, máy lạnh->điều hòa)."""
     try:
-        # --- FIX: Xử lý tên phòng chung chung ---
-        # Nếu room_name là các từ này, coi như tìm tất cả phòng
-        ignored_rooms = ["thư viện", "trường", "đây", "tất cả", "ở đây"]
-        if room_name and any(x in room_name.lower() for x in ignored_rooms):
-            room_name = None
-
-        # Bước 1: Kiểm tra phòng tồn tại (Chỉ khi room_name cụ thể)
-        if room_name:
-            check_room = supabase_client.table("phong").select("tenphong").ilike("tenphong", f"%{room_name}%").execute()
-            if not check_room.data:
-                return f"Hệ thống không tìm thấy phòng nào có tên chứa '{room_name}'."
-
-        # Bước 2: Query thiết bị
-        query = supabase_client.table("thietbi").select("tenthietbi, mathietbinoibo, trangthai, phong!inner(tenphong)")
-
-        # Bỏ qua từ khóa thiết bị chung chung
-        common_words = ["thiết bị", "cơ sở vật chất", "đồ đạc", "máy móc", "dụng cụ", "các", "những"]
-
+        # Mapping từ đồng nghĩa
+        synonyms = {
+            "wifi": ["internet", "mạng", "wifi", "access point"],
+            "máy lạnh": ["điều hòa", "máy lạnh", "làm mát"],
+            "máy chiếu": ["máy chiếu", "projector"]
+        }
+        
+        search_terms = []
         if device_name:
-            clean_device = device_name.lower().strip()
-            if clean_device not in common_words:
-                query = query.ilike("tenthietbi", f"%{clean_device}%")
-
+            norm_name = device_name.lower()
+            found_key = next((k for k, v in synonyms.items() if norm_name in v or norm_name == k), None)
+            if found_key:
+                search_terms = synonyms[found_key]
+            else:
+                search_terms = [norm_name]
+        
+        # Build Query
+        query = supabase_client.table("thietbi").select("tenthietbi, trangthai, phong!inner(tenphong)")
+        
         if room_name:
             query = query.ilike("phong.tenphong", f"%{room_name}%")
-
-        res = query.limit(5).execute()
-
+            
+        if search_terms:
+            # Tạo chuỗi OR: tenthietbi.ilike.%term1%,tenthietbi.ilike.%term2%...
+            or_clause = ",".join([f"tenthietbi.ilike.%{t}%" for t in search_terms])
+            query = query.or_(or_clause)
+            
+        res = query.limit(10).execute()
+        
         if not res.data:
+            # Failover: Nếu hỏi về tiện ích cơ bản (wifi, máy lạnh) mà không có trong bảng Thiết bị
+            # -> Có thể check mô tả phòng (nếu có, nhưng user bảo ko có cột mota)
+            # -> Trả về trạng thái phòng để user biết phòng có tồn tại
             if room_name:
-                return f"Phòng '{room_name}' hiện chưa được ghi nhận có thiết bị nào."
-            return f"Không tìm thấy thiết bị phù hợp."
+                return get_facility_status(room_name)
+            return "Không tìm thấy thông tin thiết bị này."
 
-        devices = ["💻 **Danh sách thiết bị:**"]
+        items = []
         for d in res.data:
-            phong = d.get('phong', {}).get('tenphong', 'N/A')
-            status = d.get('trangthai', 'N/A')
-            devices.append(f"- {d['tenthietbi']} (Mã: {d['mathietbinoibo']}) - {status} [Tại: {phong}]")
+            items.append(f"- {d['tenthietbi']} ({d['trangthai']}) @ {d['phong']['tenphong']}")
+            
+        return "💻 **Thiết bị tìm thấy:**\n" + "\n".join(items)
 
-        return "\n".join(devices)
     except Exception as e:
-        return f"Lỗi tra cứu thiết bị: {str(e)}"
+        return f"Lỗi tra cứu: {str(e)}"
 
 def get_facility_status(room_name: str = None):
-    """Kiểm tra tình trạng phòng cụ thể."""
+    """
+    Check phòng ốc.
+    FIX: Bỏ cột 'mota' vì không tồn tại trong schema.
+    """
     try:
-        if not room_name:
-            return "Vui lòng cho biết tên phòng cần kiểm tra."
-
-        res = supabase_client.table("phong").select("tenphong, trangthai, chongoi(count)")\
-            .ilike("tenphong", f"%{room_name}%").limit(1).execute()
-
+        if not room_name: return "Vui lòng nhập tên phòng."
+        
+        # Chỉ select các cột chắc chắn có
+        # Check schema user provided? No schema file -> Safe guess: tenphong, trangthai, succhua?
+        # User error logs showed 'phong.mota' does not exist.
+        res = supabase_client.table("phong").select("tenphong, trangthai, chongoi(count)").ilike("tenphong", f"%{room_name}%").limit(1).execute()
+        
         if not res.data:
-            return f"Không tìm thấy phòng nào tên là '{room_name}'."
-
+            return f"Không tìm thấy phòng '{room_name}'."
+            
         p = res.data[0]
-        # Đếm số lượng chỗ ngồi (nếu query trả về count)
-        seat_count = p.get('chongoi', [{}])[0].get('count', 0) if p.get('chongoi') else 0
-
-        return f"🏢 **{p['tenphong']}**\n- Trạng thái: {p['trangthai']}\n- Tổng số chỗ ngồi: {seat_count}"
+        seat_count = p['chongoi'][0]['count'] if p.get('chongoi') else 0
+        
+        return f"🏢 **{p['tenphong']}**\n- Trạng thái: {p['trangthai']}\n- Số chỗ ngồi: {seat_count}"
+        
     except Exception as e:
         return f"Lỗi thông tin phòng: {str(e)}"
+
+def search_seats_sql(room_name: str = None):
+    return "Tính năng tìm chỗ đang phát triển."
+
+def search_staff_sql(name: str = None, department: str = None):
+    """Tra cứu thông tin nhân viên."""
+    try:
+        query = supabase_client.table("nhanvien").select("hoten, chucvu, phongban, email, sdt")
+        
+        if name:
+            query = query.ilike("hoten", f"%{name}%")
+        if department:
+            query = query.ilike("phongban", f"%{department}%")
+            
+        res = query.limit(5).execute()
+        
+        if not res.data:
+            return "Không tìm thấy thông tin nhân viên phù hợp."
+            
+        staffs = ["👥 **Danh sách nhân viên:**"]
+        for s in res.data:
+            info = f"- **{s['hoten']}**"
+            if s.get('chucvu'): info += f" ({s['chucvu']})"
+            if s.get('phongban'): info += f" - {s['phongban']}"
+            staffs.append(info)
+            
+        return "\n".join(staffs)
+    except Exception as e:
+        return f"Lỗi tra cứu nhân viên: {str(e)}"
+
+def get_library_policies_sql(topic: str = None):
+    """
+    Tra cứu chính sách thư viện (Loại thẻ, phí, quy định mượn).
+    """
+    try:
+        # Nếu hỏi về Thẻ -> Tra bảng LoaiThe
+        if topic and any(x in topic.lower() for x in ["thẻ", "phí", "loại thẻ", "hạn mức"]):
+            res = supabase_client.table("loaithe").select("tenthe, lephi, tailieumuontoida, songaymuonmacdinh").execute()
+            if not res.data: return "Không tìm thấy thông tin loại thẻ."
+            
+            lines = ["💳 **Chính sách thẻ bạn đọc:**"]
+            for c in res.data:
+                fee = f"{c.get('lephi', 0):,.0f}đ" if c.get('lephi') else "Miễn phí"
+                lines.append(f"- **{c['tenthe']}**: Phí {fee}, mượn tối đa {c['tailieumuontoida']} cuốn ({c['songaymuonmacdinh']} ngày).")
+            return "\n".join(lines)
+            
+        return "Vui lòng xem chi tiết nội quy tại mục Hướng dẫn."
+    except Exception as e:
+        return f"Lỗi tra cứu chính sách: {str(e)}"

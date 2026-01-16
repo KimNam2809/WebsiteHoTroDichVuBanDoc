@@ -13,6 +13,7 @@ export default function BookCopiesList({ copies, initialOwnedIds = [], initialRe
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showSuccessModalReserve, setShowSuccessModalReserve] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [isReserveModalOpen, setIsReserveModalOpen] = useState(false);
 
@@ -67,8 +68,7 @@ export default function BookCopiesList({ copies, initialOwnedIds = [], initialRe
             setIsReserveModalOpen(false);
             // Cập nhật UI ngay lập tức: Thêm ID vào danh sách đã đặt
             setMyReservedCopyIds(prev => new Set(prev).add(String(selectedCopy.mabansao)));
-            // Hiển thị thông báo (có thể thay bằng Modal đẹp nếu muốn)
-            alert("Đặt trước thành công! Hệ thống sẽ thông báo khi có sách.");
+            setShowSuccessModalReserve(true);
         } else {
             alert(result.error || "Có lỗi xảy ra.");
         }
@@ -160,6 +160,24 @@ export default function BookCopiesList({ copies, initialOwnedIds = [], initialRe
                 <div className="px-8 pb-8">
                     <div className="bg-blue-50 text-blue-800 text-sm p-4 rounded-xl mb-6 text-left border border-blue-100 flex gap-3 items-start"><Info className="shrink-0 text-blue-600 mt-0.5" size={18}/><div><strong>Bước tiếp theo:</strong> Vui lòng đến quầy thủ thư để nhận sách. Mang theo thẻ thành viên hoặc mã QR trên ứng dụng.</div></div>
                     <button onClick={() => setShowSuccessModal(false)} className="w-full py-3.5 bg-gray-900 hover:bg-black text-white rounded-xl font-bold shadow-lg transition-transform active:scale-95">Đã hiểu, cảm ơn!</button>
+                </div>
+            </div>
+        </div>
+    );
+
+    const SuccessModalReserve = () => (
+        <div className="fixed inset-0 z-9999 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowSuccessModalReserve(false)}></div>
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm text-center overflow-hidden relative z-10 animate-in zoom-in-95 duration-300">
+                <div className="h-2 w-full bg-linear-to-r from-green-400 via-emerald-500 to-teal-500"></div>
+                <div className="p-8 pb-6">
+                    <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-green-100"><Check className="w-10 h-10 text-green-600" strokeWidth={3} /></div>
+                    <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Đặt trước thành công!</h2>
+                    <p className="text-gray-600 leading-relaxed">Bạn đã đặt trước cuốn sách <br/><span className="inline-block mt-1 font-mono font-bold text-gray-900 bg-gray-100 px-3 py-1 rounded-lg border border-gray-200">{selectedCopy?.mabansaonoibo}</span></p>
+                </div>
+                <div className="px-8 pb-8">
+                    <div className="bg-blue-50 text-blue-800 text-sm p-4 rounded-xl mb-6 text-left border border-blue-100 flex gap-3 items-start"><Info className="shrink-0 text-blue-600 mt-0.5" size={18}/><div><strong>Bước tiếp theo:</strong> Vui lòng đến quầy thủ thư để nhận sách. Mang theo thẻ thành viên hoặc mã QR trên ứng dụng.</div></div>
+                    <button onClick={() => setShowSuccessModalReserve(false)} className="w-full py-3.5 bg-gray-900 hover:bg-black text-white rounded-xl font-bold shadow-lg transition-transform active:scale-95">Đã hiểu, cảm ơn!</button>
                 </div>
             </div>
         </div>
@@ -264,6 +282,7 @@ export default function BookCopiesList({ copies, initialOwnedIds = [], initialRe
             {mounted && isModalOpen && createPortal(<BorrowModal />, document.body)}
             {mounted && isReserveModalOpen && createPortal(<ReserveModal />, document.body)}
             {mounted && showSuccessModal && createPortal(<SuccessModal />, document.body)}
+            {mounted && showSuccessModalReserve && createPortal(<SuccessModalReserve />, document.body)}
         </div>
     );
 }

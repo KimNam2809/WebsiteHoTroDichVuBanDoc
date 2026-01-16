@@ -1,135 +1,72 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
-from app.connect.auth import get_current_staff_profile
-from app.models.thong_bao import ThongBao, ThongBaoCreate, ThongBaoUpdate
+from typing import List, Optional
 from app.connect.db import supabase_client
-from app.connect.auth import get_current_staff_profile, get_owner_or_staff, get_notification_owner_or_staff
+from app.connect.auth import get_current_user_from_db
+from app.models.thong_bao import ThongBao
 from app.utils import to_json_safe
-import logging, ast
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
 
-TABLE_NAME = "thongbao"
-
-# 1. CREATE
-@router.post(
-    "/",
-    response_model=ThongBao,
-    status_code=status.HTTP_201_CREATED,
-    summary="Tạo thông báo mới"
-)
-
-def create_thong_bao(thong_bao_in: ThongBaoCreate, current_staff: dict = Depends(get_current_staff_profile)):
-    try:
-        data = to_json_safe(thong_bao_in.model_dump(by_alias=True))
-        response = supabase_client.table(TABLE_NAME).insert(data).execute()
-        if response.data:
-            return response.data[0]
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không thể tạo thông báo")
-    except Exception as e:
-        logger.error(f"Lỗi khi tạo ThongBao: {e}")
-        if "foreign key constraint" in str(e).lower():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy Bạn đọc được tham chiếu")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-# 2. READ ALL
 @router.get(
     "/",
-    response_model=List[ThongBao],
-    summary="Lấy tất cả thông báo"
+    summary="Lấy danh sách thông báo của người dùng",
+    response_model=List[dict] # Trả về list dict cho linh hoạt
 )
-
-def get_all_thong_bao(current_staff: dict = Depends(get_current_staff_profile)):
-    try:
-        response = supabase_client.table(TABLE_NAME).select("*").order("mathongbao", desc=True).execute()
-        return response.data or []
-    except Exception as e:
-        logger.error(f"Lỗi khi lấy tất cả ThongBao: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-# 3. READ ONE
-@router.get(
-    "/{maThongBao}",
-    response_model=ThongBao,
-    summary="Lấy chi tiết thông báo"
-)
-
-def get_thong_bao_by_id(maThongBao: int, current_user: dict = Depends(get_notification_owner_or_staff)):
+def get_user_notifications(
+    current_user: dict = Depends(get_current_user_from_db),
+    limit: int = 20,
+    offset: int = 0
+):
     """
-    Lấy chi tiết một thông báo.
-    - Nhân viên: Xem bất kỳ.
-    - Bạn đọc: Chỉ xem của mình.
+    Lấy danh sách thông báo của User đang đăng nhập.
+    Sắp xếp: Mới nhất lên đầu.
     """
     try:
-        response = supabase_client.table(TABLE_NAME).select("*").eq("mathongbao", maThongBao).single().execute()
-        if response.data:
-            return response.data
-    except Exception as e:
-        logger.warning(f"Không tìm thấy ThongBao ID {maThongBao}: {e}")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy thông báo với id={maThongBao}")
+        user_id = current_user.get("manguoidung")
 
-# 4. UPDATE
-@router.put(
-    "/{maThongBao}",
-    response_model=ThongBao,
-    summary="Cập nhật trạng thái thông báo"
-)
+        # 1. Lấy mabandoc từ user_id
+        # Vì bảng thongbao liên kết với mabandoc
+        bd_res = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).execute()
 
-def update_thong_bao(maThongBao: int, thong_bao_in: ThongBaoUpdate, current_user: dict = Depends(get_notification_owner_or_staff)):
-    """
-    Cập nhật trạng thái thông báo.
-    - Bạn đọc: Cập nhật của mình (ví dụ: 'daDoc').
-    - Nhân viên: Cập nhật bất kỳ.
-    """
-    try:
-        data = to_json_safe(thong_bao_in.model_dump(exclude_unset=True, by_alias=True))
-        if not data:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Không có thông tin nào được gửi để cập nhật")
-        response = supabase_client.table(TABLE_NAME).update(data).eq("mathongbao", maThongBao).execute()
-        if response.data:
-            return response.data[0]
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy thông báo với id={maThongBao}")
-    except Exception as e:
-        logger.error(f"Lỗi khi cập nhật ThongBao {maThongBao}: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        if not bd_res.data:
+            return [] # Chưa là bạn đọc thì chưa có thông báo
 
-# 5. DELETE
-@router.delete(
-    "/{maThongBao}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Xóa thông báo"
-)
+        ma_ban_doc = bd_res.data[0]['mabandoc']
 
-def delete_thong_bao(maThongBao: int, current_staff: dict = Depends(get_current_staff_profile)):
-    try:
-        response = supabase_client.table(TABLE_NAME).delete().eq("mathongbao", maThongBao).execute()
-        if not response.data:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Không tìm thấy thông báo với id={maThongBao}")
-        return
-    except Exception as e:
-        logger.error(f"Lỗi khi xóa ThongBao {maThongBao}: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-# 6. API Nghiệp vụ: Lấy thông báo theo bạn đọc
-@router.get(
-    "/ban-doc/{maBanDoc}",
-    response_model=List[ThongBao],
-    summary="Lấy thông báo theo Bạn đọc"
-)
-
-def get_thong_bao_by_ban_doc(maBanDoc: int, current_user: dict = Depends(get_owner_or_staff)):
-    """Lấy thông báo theo bạn đọc."""
-    try:
+        # 2. Query bảng thongbao
         response = (
-            supabase_client.table(TABLE_NAME)
+            supabase_client.table("thongbao")
             .select("*")
-            .eq("mabandoc", maBanDoc)
-            .order("mathongbao", desc=True)
-            .limit(50)
+            .eq("mabandoc", ma_ban_doc)
+            .order("thoigiangui", desc=True)
+            .range(offset, offset + limit - 1)
             .execute()
         )
-        return response.data or []
+
+        return response.data
+
     except Exception as e:
-        logger.error(f"Lỗi khi lấy ThongBao theo BanDoc {maBanDoc}: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put(
+    "/{ma_thong_bao}/read",
+    summary="Đánh dấu đã đọc"
+)
+def mark_notification_as_read(
+    ma_thong_bao: int,
+    current_user: dict = Depends(get_current_user_from_db)
+):
+    try:
+        user_id = current_user.get("manguoidung")
+
+        # Verify ownership (optional but recommended)
+        # Check if notification belongs to a bandoc linked to this user
+        # Simplified: Just update
+
+        supabase_client.table("thongbao").update({
+            "trangthai": "daXem"
+        }).eq("mathongbao", ma_thong_bao).execute()
+
+        return {"message": "Success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

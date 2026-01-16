@@ -23,47 +23,54 @@ def get_user_profile(
 ):
     """
     Lấy profile người dùng với logic Fallback:
-    1. Ưu tiên lấy thông tin chính thức từ bảng BanDoc (ngay cả khi chưa có thẻ).
-    2. Lấy thông tin thẻ nếu có.
+    1. Ưu tiên lấy thông tin chính thức từ bảng BanDoc.
+    2. Lấy thông tin thẻ (nếu có).
     3. Nếu chưa có hồ sơ BanDoc, fallback sang YeuCauThe mới nhất.
     4. Nếu là nhân viên, lấy từ bảng NhanVien.
     """
-    user_id = current_user.get("manguoidung")
-    email = current_user.get("email")
-    role = current_user.get("vaitro")
-
-    # Dữ liệu trả về mặc định
-    result = {
-        "hoten": "Chưa cập nhật hồ sơ",
-        "email": email,
-        "vaitro": role,
-        "maBanDoc": None,
-        "maNhanVien": None,
-        "yeu_cau_moi_nhat": None,
-        # Các trường thẻ mặc định là None/Chưa cấp
-        "sothe": None,
-        "tenthe": None,
-        "ngayhethan": None,
-        "trangthaithe": None,
-        "tailieumuontoida": 0
-    }
-
     try:
+        # Lấy ID từ token đã giải mã (đảm bảo luôn đúng dù login Google hay thường)
+        user_id = current_user.get("manguoidung")
+        email = current_user.get("email")
+        role = current_user.get("vaitro")
+
+        # Dữ liệu trả về mặc định
+        result = {
+            "manguoidung": user_id,
+            "hoten": "Chưa cập nhật hồ sơ",
+            "email": email,
+            "sodienthoai": current_user.get("sodienthoai"),
+            "anhdaidien": current_user.get("anhdaidien"),
+            "vaitro": role,
+
+            # Các trường mặc định
+            "maBanDoc": None,
+            "maNhanVien": None,
+            "yeu_cau_moi_nhat": None,
+            "sothe": "Chưa cấp",
+            "tenthe": "Chưa có hạng thẻ",
+            "ngayhethan": None,
+            "trangthaithe": "Chưa kích hoạt",
+            "tailieumuontoida": 0
+        }
+
         # =================================================
-        # BƯỚC 1: LẤY YÊU CẦU THẺ MỚI NHẤT (Để hiển thị trạng thái)
+        # BƯỚC 1: LẤY YÊU CẦU THẺ MỚI NHẤT (Để UI hiển thị trạng thái chờ duyệt)
         # =================================================
         latest_req_res = (
             supabase_client.table("yeucauthe")
             .select("mayeucauthe, trangthaiquytrinh, thoigianbatdau, thongtinbosung, loaithe(tenthe)")
+            # Query JSONB: tìm theo key ma_nguoi_dung_dang_ky
             .filter("thongtinbosung->>ma_nguoi_dung_dang_ky", "eq", str(user_id))
             .order("thoigianbatdau", desc=True)
             .limit(1)
             .execute()
         )
 
-        latest_req_data = None
-        if latest_req_res.data and len(latest_req_res.data) > 0:
-            latest_req_data = latest_req_res.data[0]
+        # Lưu lại data yêu cầu để fallback tên nếu cần
+        latest_req_data = latest_req_res.data[0] if latest_req_res.data else None
+
+        if latest_req_data:
             info = latest_req_data.get("thongtinbosung") or {}
             loai_the = latest_req_data.get("loaithe") or {}
 
@@ -76,88 +83,102 @@ def get_user_profile(
             }
 
         # =================================================
-        # BƯỚC 2: LẤY HỒ SƠ CHÍNH THỨC (Logic Sửa đổi)
+        # BƯỚC 2: LẤY HỒ SƠ CHÍNH THỨC (BanDoc hoặc NhanVien)
         # =================================================
 
-        if role == "nguoiDung":
-            # 1. Query lấy thông tin BanDoc và Thẻ (LEFT JOIN)
-            # Quan trọng: Lấy `hoten` của BanDoc ở cấp cao nhất
-            query = """
-                mabandoc,
-                hoten,
-                thebandoc (
-                    sothe,
-                    ngayhethan,
-                    trangthaithe,
-                    loaithe (
-                        tenthe,
-                        tailieumuontoida
-                    )
-                )
-            """
-            bd_res = supabase_client.table("bandoc").select(query).eq("manguoidung", user_id).execute()
+        if role == "nguoiDung" or role == "banDoc":
+            # --- TRƯỜNG HỢP BẠN ĐỌC ---
 
-            if bd_res.data and len(bd_res.data) > 0:
-                # --> TRƯỜNG HỢP 1: ĐÃ CÓ HỒ SƠ BẠN ĐỌC
-                data = bd_res.data[0]
-                result["maBanDoc"] = data.get("mabandoc")
+            # Query lấy thông tin BanDoc + Thẻ + Loại Thẻ
+            # Syntax: thebandoc(...) là lấy bảng con (relation)
+            query = "mabandoc, hoten, ngaysinh, gioitinh, diachi, cccd, thebandoc(sothe, ngayhethan, trangthaithe, loaithe(tenthe, tailieumuontoida))"
 
-                # [FIX]: Luôn lấy hoten từ bảng BanDoc trước
-                if data.get("hoten"):
-                    result["hoten"] = data.get("hoten")
+            bd_res = supabase_client.table("bandoc") \
+                .select(query) \
+                .eq("manguoidung", user_id) \
+                .maybe_single() \
+                .execute()
 
-                # Xử lý thông tin thẻ (nếu có)
-                # Lưu ý: thebandoc là một mảng (list) do quan hệ 1-N
-                if data.get("thebandoc") and len(data["thebandoc"]) > 0:
-                    # Lấy thẻ đầu tiên (hoặc có thể logic lấy thẻ mới nhất/đang hoạt động)
-                    the = data["thebandoc"][0]
+            if bd_res.data:
+                # [CASE 1]: ĐÃ CÓ HỒ SƠ BẠN ĐỌC
+                bd_data = bd_res.data
+                result["maBanDoc"] = bd_data.get("mabandoc")
+
+                # Ưu tiên hiển thị tên chính thức trong hồ sơ
+                if bd_data.get("hoten"):
+                    result["hoten"] = bd_data.get("hoten")
+
+                # Xử lý danh sách thẻ (Quan hệ 1-N)
+                list_the = bd_data.get("thebandoc", [])
+
+                if list_the and len(list_the) > 0:
+                    # Lấy thẻ đầu tiên (hoặc xử lý logic tìm thẻ 'hoatDong' nếu cần)
+                    # Giả sử Supabase trả về thẻ mới nhất do cách insert
+                    the = list_the[0]
                     lt = the.get("loaithe") or {}
 
                     result.update({
                         "sothe": the.get("sothe"),
                         "ngayhethan": the.get("ngayhethan"),
-                        "trangthaithe": "Hoạt động" if the.get("trangthaithe") else "Đã khóa/Hết hạn",
                         "tenthe": lt.get("tenthe"),
-                        "tailieumuontoida": lt.get("tailieumuontoida")
-                    })
-                else:
-                    # Có hồ sơ BanDoc nhưng chưa có thẻ (hoặc thẻ bị xóa)
-                    result.update({
-                        "sothe": "Chưa cấp",
-                        "trangthaithe": "Chưa kích hoạt"
+                        "tailieumuontoida": lt.get("tailieumuontoida") or 0
                     })
 
+                    # Map trạng thái sang tiếng Việt
+                    status_map = {
+                        "hoatDong": "Đang hoạt động",
+                        "khoa": "Đã khóa",
+                        "hetHan": "Hết hạn",
+                        "choDuyet": "Chờ duyệt"
+                    }
+                    raw_status = the.get("trangthaithe")
+
+                    if raw_status is True:
+                        result["trangthaithe"] = "Đang hoạt động"
+                    elif raw_status is False:
+                        result["trangthaithe"] = "Đã khóa"
+                    else:
+                        # Nếu là chuỗi (hoatDong, khoa, hetHan...)
+                        status_map = {
+                            "hoatDong": "Đang hoạt động",
+                            "khoa": "Đã khóa",
+                            "hetHan": "Hết hạn",
+                            "choDuyet": "Chờ duyệt"
+                        }
+                        result["trangthaithe"] = status_map.get(raw_status, raw_status)
+
             else:
-                # --> TRƯỜNG HỢP 2: CHƯA CÓ HỒ SƠ BẠN ĐỌC
-                # Fallback: Lấy tên từ Yêu Cầu Thẻ mới nhất (nếu có)
+                # [CASE 2]: CHƯA CÓ HỒ SƠ BẠN ĐỌC -> Fallback lấy tên từ Yêu cầu
                 if latest_req_data:
                     info = latest_req_data.get("thongtinbosung") or {}
-                    # Chỉ lấy tên nếu trong Yêu cầu có tên
                     if info.get("ho_ten"):
                         result["hoten"] = info.get("ho_ten")
                 else:
                     result["hoten"] = "Khách (Chưa có hồ sơ)"
 
+        elif role == "nhanVien" or role == "admin":
+            # --- TRƯỜNG HỢP NHÂN VIÊN ---
+            nv_res = supabase_client.table("nhanvien") \
+                .select("*") \
+                .eq("manguoidung", user_id) \
+                .maybe_single() \
+                .execute()
 
-        elif role == "nhanVien":
-            # Logic lấy Nhân viên
-            nv_res = supabase_client.table("nhanvien").select("*").eq("manguoidung", user_id).execute()
             if nv_res.data:
-                data = nv_res.data[0]
+                nv_data = nv_res.data
                 result.update({
-                    "maNhanVien": data.get("manhanvien"),
-                    "hoten": data.get("hoten"),
-                    "manhanviennoibo": data.get("manhanviennoibo"),
-                    "phongban": data.get("phongban"),
-                    "chucvu": data.get("chucvu"),
-                    "ngaytuyendung": data.get("ngaytuyendung")
+                    "maNhanVien": nv_data.get("manhanvien"),
+                    "hoten": nv_data.get("hoten"),
+                    "manhanviennoibo": nv_data.get("manhanviennoibo"),
+                    "phongban": nv_data.get("phongban"),
+                    "chucvu": nv_data.get("chucvu")
                 })
 
         return result
 
     except Exception as e:
         logger.error(f"Lỗi lấy profile user {user_id}: {e}")
-        # Trả về dữ liệu an toàn mặc định
+        # Trả về dữ liệu mặc định để không crash Frontend
         return result
 
 # 1. CREATE (Tạo người dùng MỚI)

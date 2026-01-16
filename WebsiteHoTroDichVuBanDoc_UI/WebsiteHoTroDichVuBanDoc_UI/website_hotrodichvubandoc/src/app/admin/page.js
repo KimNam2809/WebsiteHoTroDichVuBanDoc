@@ -204,7 +204,7 @@ export default function AdminDashboardPage() {
 
                                             {/* Bar */}
                                             <div
-                                                className="w-full max-w-[40px] bg-blue-500 rounded-t-lg transition-all duration-500 hover:bg-blue-600 relative overflow-hidden"
+                                                className="w-full max-w-40px bg-blue-500 rounded-t-lg transition-all duration-500 hover:bg-blue-600 relative overflow-hidden"
                                                 style={{ height: `${Math.max(heightPercent, 2)}%` }} // Min height 2% visibility
                                             >
                                                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform"></div>
