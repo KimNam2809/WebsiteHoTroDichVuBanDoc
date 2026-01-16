@@ -108,6 +108,27 @@ MOCK_CITIZENS = [
         "ngay_sinh": "1988-12-05",
         "sdt": "0923456789",
         "blacklisted": False
+    },
+    {
+        "cccd": "048203001376",
+        "ho_ten": "Lê Hà Tèo",
+        "ngay_sinh": "2003-12-12",
+        "sdt": "0331234567",
+        "blacklisted": False
+    },
+    {
+        "cccd": "048203001377",
+        "ho_ten": "Nguyễn Thị Mai",
+        "ngay_sinh": "2000-06-18",
+        "sdt": "0347654321",
+        "blacklisted": False
+    },
+    {
+        "cccd": "048203001378",
+        "ho_ten": "Nguyễn Trương Minh Mẫn",
+        "ngay_sinh": "2002-08-22",
+        "sdt": "0359876123",
+        "blacklisted": False
     }
 ]
 

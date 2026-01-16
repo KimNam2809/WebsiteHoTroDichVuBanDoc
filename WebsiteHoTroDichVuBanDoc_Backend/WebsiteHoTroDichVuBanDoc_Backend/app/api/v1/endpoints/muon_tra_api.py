@@ -32,87 +32,77 @@ TABLE_NAME = "muontra"
 @router.get(
     "/danh-sach-chi-tiet-muon-tra",
     response_model=List[MuonTraItem],
-    summary="Lấy lịch sử mượn trả (Nhân viên: Tất cả / Bạn đọc: Của mình)"
+    summary="Lấy lịch sử mượn trả"
 )
 def get_borrowing_history(
     trang_thai: Optional[str] = Query(None, regex="^(daMuon|daTra|quaHan|dangChoXacNhan)$"),
-    phan_loai: Optional[str] = Query(None, regex="^(choXacNhan|dangMuon)$", description="Lọc theo nghiệp vụ: choXacNhan (Chưa có NV), dangMuon (Đã có NV)"),
+    phan_loai: Optional[str] = Query(None, regex="^(choXacNhan|dangMuon)$"),
     current_user: dict = Depends(get_current_user_from_db)
 ):
     user_role = current_user.get("vaitro")
     user_id = current_user.get("manguoidung")
 
     try:
-        # 1. Xây dựng Query
-        query = """
-            mamuontra,
-            mabansao,
-            thoigianmuon,
-            ngaytra,
-            ngaytrathucte,
-            trangthaimuon,
-            tienphat,
-            manhanvien,
-            bansao (
-                mabansaonoibo,
-                tacpham (tentacpham, anhbia)
-            ),
-            bandoc (
-                hoten,
-                thongtinbosung,
-                thebandoc (sothe, trangthaithe)
-            )
+        # 1. Xây dựng Query cơ bản
+        # Lưu ý: Select sâu vào các bảng con để lấy data hiển thị
+        query_str = """
+            mamuontra, mabansao, thoigianmuon, ngaytra, ngaytrathucte, trangthaimuon, tienphat, manhanvien,
+            bansao (mabansaonoibo, tacpham (tentacpham, anhbia)),
+            bandoc (hoten, thongtinbosung, thebandoc (sothe, trangthaithe))
         """
-        db_query = supabase_client.table("muontra").select(query)
+        db_query = supabase_client.table("muontra").select(query_str)
 
-        # 2. PHÂN QUYỀN
-        if user_role == "nhanVien":
-            pass
-        elif user_role == "nguoiDung":
-            reader_res = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).single().execute()
-            if not reader_res.data:
-                return []
-            ma_ban_doc = reader_res.data["mabandoc"]
-            db_query = db_query.eq("mabandoc", ma_ban_doc)
+        # 2. PHÂN QUYỀN & LỌC NGƯỜI DÙNG
+        if user_role == "nhanVien" or user_role == "admin":
+            pass # Nhân viên xem hết
         else:
-            return []
+            # --- LOGIC BẠN ĐỌC ---
+            # Dùng maybe_single để tránh lỗi 406/500 nếu chưa có hồ sơ
+            reader_res = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).maybe_single().execute()
+            
+            # Kiểm tra response từ Supabase có hợp lệ không
+            if not reader_res or not reader_res.data:
+                # Nếu chưa là bạn đọc -> Trả về danh sách rỗng (Chưa mượn gì)
+                return []
+            
+            ma_ban_doc = reader_res.data.get("mabandoc")
+            db_query = db_query.eq("mabandoc", ma_ban_doc)
 
-        # 3. LỌC
+        # 3. LỌC THEO TRẠNG THÁI / PHÂN LOẠI
         if phan_loai == 'choXacNhan':
-            # Nghiệp vụ: Đã tạo phiếu ('daMuon') nhưng chưa có nhân viên xác nhận ('manhanvien' IS NULL)
-            # Hoặc là trạng thái 'dangChoXacNhan' (nếu có dùng)
             db_query = db_query.eq("trangthaimuon", "daMuon").is_("manhanvien", "null")
         elif phan_loai == 'dangMuon':
-            # Nghiệp vụ: Đang mượn ('daMuon') và đã có nhân viên xác nhận ('manhanvien' NOT NULL)
             db_query = db_query.eq("trangthaimuon", "daMuon").not_.is_("manhanvien", "null")
         elif trang_thai:
             db_query = db_query.eq("trangthaimuon", trang_thai)
 
-        # 4. THỰC THI
+        # 4. THỰC THI QUERY
         response = db_query.order("thoigianmuon", desc=True).execute()
+        
+        # [QUAN TRỌNG] Kiểm tra response có None không trước khi lấy data
+        if not response:
+            logger.warning("Supabase trả về None (có thể do lỗi mạng)")
+            return []
+            
         data = response.data or []
 
-        # 5. FORMAT DỮ LIỆU
+        # 5. FORMAT DỮ LIỆU TRẢ VỀ
         result = []
         for item in data:
             bs = item.get("bansao") or {}
             tp = bs.get("tacpham") or {}
             bd = item.get("bandoc") or {}
-
-            # Lấy thông tin bổ sung (ảnh)
             info_bd = bd.get("thongtinbosung") or {}
 
-            # Xử lý lấy số thẻ (Lấy cái thẻ đang hoạt động đầu tiên)
-            ds_the = bd.get("thebandoc", [])
+            # Xử lý số thẻ an toàn
+            ds_the = bd.get("thebandoc")
             so_the = "---"
-            if ds_the:
-                # Ưu tiên lấy thẻ đang hoạt động (trangthaithe=True)
+            if ds_the and isinstance(ds_the, list) and len(ds_the) > 0:
                 active_card = next((t for t in ds_the if t.get("trangthaithe") is True), None)
-                # Nếu không có thẻ active, lấy thẻ mới nhất (phần tử đầu tiên)
-                card_to_show = active_card or ds_the[0]
-                so_the = card_to_show.get("sothe", "---")
+                card_show = active_card or ds_the[0]
+                so_the = card_show.get("sothe", "---")
 
-            history_item = {
+            result.append({
                 "maMuonTra": item["mamuontra"],
                 "maBanSao": item["mabansao"],
                 "ngayMuon": item["thoigianmuon"],
@@ -120,22 +110,20 @@ def get_borrowing_history(
                 "ngayTraThucTe": item["ngaytrathucte"],
                 "trangThai": item["trangthaimuon"],
                 "tienPhat": item["tienphat"],
-
                 "maBanSaoNoiBo": bs.get("mabansaonoibo", "N/A"),
                 "tenTacPham": tp.get("tentacpham", "Không xác định"),
-                "anhBia": tp.get("anhbia"), # Có thể null
-
+                "anhBia": tp.get("anhbia"),
                 "nguoiMuon": bd.get("hoten", "N/A"),
-                "anhDocGia": info_bd.get("anh_the_url"), # Lấy URL ảnh thẻ từ JSON
+                "anhDocGia": info_bd.get("anh_the_url"),
                 "soThe": so_the
-            }
-            result.append(history_item)
+            })
 
         return result
 
     except Exception as e:
         logger.error(f"Lỗi lấy lịch sử mượn: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        # Trả về rỗng thay vì lỗi 500
+        return []
 
 # 1. CREATE (ĐÃ SỬA LỖI EXCEPT)
 @router.post(

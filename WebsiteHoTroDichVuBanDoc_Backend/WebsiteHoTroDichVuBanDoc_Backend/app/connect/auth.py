@@ -337,6 +337,7 @@ def get_owner_or_staff(
     # 1. Họ là Nhân viên (nhưng không có hồ sơ)
     # 2. Họ là Bạn đọc (nhưng đang cố xem hồ sơ của người khác)
     # 3. Họ là một vai trò lạ (vd: 'nguoiDung' chưa có hồ sơ)
+    
     logger.warning(f"Từ chối: User {user_id} cố xem hồ sơ {maBanDoc} mà không có quyền.")
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,

@@ -8,7 +8,7 @@ import QRCode from 'react-qr-code';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { registerCardAction, getCardTypesAction, getProvincesAction, getWardsByProvinceAction } from '../actions';
-import { ArrowLeft, Upload, Loader2, CheckCircle, CreditCard, User, Calendar, Phone, Mail, MapPin, Truck, Briefcase } from 'lucide-react';
+import { ArrowLeft, Upload, Loader2, CheckCircle, CreditCard, User, Phone, Mail, MapPin, Briefcase } from 'lucide-react';
 
 // Bảng giá định nghĩa tạm thời (vì API chưa trả về giá)
 // Key là 'maloaithe' từ API
@@ -20,9 +20,6 @@ const PRICE_MAP = {
     '5': 0, // Thẻ Đọc
     '6': 100000, // Thẻ mượn
 };
-
-// Giá ship mẫu vì chưa triển khai kết nối API
-const SHIPPING_FEE = 30000;
 
 function SubmitButton() {
     const { pending } = useFormStatus();
@@ -49,7 +46,6 @@ export default function FormDangKyPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [loaiThe, setLoaiThe] = useState('');
     const [selectedProvince, setSelectedProvince] = useState(''); // ID Tỉnh đã chọn
-    const [ship, setShip] = useState(false);
     const [totalCost, setTotalCost] = useState(0);
     const [previewUrl, setPreviewUrl] = useState(null);
 
@@ -105,24 +101,12 @@ export default function FormDangKyPage() {
         initData();
     }, []);
 
-    useEffect(() => {
-        async function loadCards() {
-            const data = await getCardTypesAction();
-            if (data && data.length > 0) {
-                setCardTypesList(data);
-                setLoaiThe(String(data[0].maloaithe));
-            }
-            setIsLoading(false);
-        }
-        loadCards();
-    }, []);
-
+    // Cập nhật tổng tiền khi loại thẻ thay đổi (bỏ qua phí ship)
     useEffect(() => {
         if (!loaiThe) return;
         const baseFee = PRICE_MAP[loaiThe] || 0;
-        const shipping = ship ? SHIPPING_FEE : 0;
-        setTotalCost(baseFee + shipping);
-    }, [loaiThe, ship]);
+        setTotalCost(baseFee);
+    }, [loaiThe]);
 
     // Hàm xử lý khi chọn Tỉnh -> Load Phường
     const handleProvinceChange = async (e) => {
@@ -179,7 +163,7 @@ export default function FormDangKyPage() {
             !formData.get('nghe_nghiep')?.trim() ||
             !formData.get('dia_chi')?.trim() ||
             !formData.get('ma_phuong_xa')) {
-            return 'Vui lòng điền đầy đủ tất cả các thông tin bắt buộc (chỉ trừ phần Giao thẻ tận nhà nếu không chọn).';
+            return 'Vui lòng điền đầy đủ tất cả các thông tin bắt buộc.';
         }
 
         // 1. Kiểm tra SĐT (10 hoặc 11 số, bắt đầu bằng 0)
@@ -189,7 +173,6 @@ export default function FormDangKyPage() {
         }
 
         // 2. Kiểm tra CCCD (12 số hoặc 9 số CMND cũ)
-        // Regex này bắt buộc đúng 12 chữ số
         const cccdRegex = /^\d{9,12}$/;
         if (!cccdRegex.test(cccd)) {
             return 'Số CCCD không hợp lệ. Phải bao gồm đúng 9 hoặc 12 chữ số.';
@@ -201,7 +184,7 @@ export default function FormDangKyPage() {
             return 'Địa chỉ Email không hợp lệ.';
         }
 
-        // 4. Kiểm tra ngày sinh (YYYY-MM-DD là định dạng chuẩn của input date, ta check logic tuổi)
+        // 4. Kiểm tra ngày sinh
         const birthDate = new Date(ngaySinh);
         const today = new Date();
         if (birthDate >= today) {
@@ -229,6 +212,7 @@ export default function FormDangKyPage() {
 
     if (state?.success) {
         const data = state.data;
+        // QR Content chỉ còn Mã yêu cầu và Tổng tiền (không có ship)
         const qrContent = `PAYMENT|${data.mayeucauthe}|${totalCost}`;
 
         return (
@@ -250,14 +234,9 @@ export default function FormDangKyPage() {
                     <div className="space-y-2 mb-8">
                         <div className="flex justify-between text-sm">
                             <span className="text-gray-500">Phí làm thẻ</span>
-                            <span className="font-medium text-gray-900">{(totalCost - (ship ? SHIPPING_FEE : 0)).toLocaleString()} đ</span>
+                            <span className="font-medium text-gray-900">{totalCost.toLocaleString()} đ</span>
                         </div>
-                        {ship && (
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-500">Phí giao hàng</span>
-                                <span className="font-medium text-gray-900">{SHIPPING_FEE.toLocaleString()} đ</span>
-                            </div>
-                        )}
+
                         <div className="flex justify-between text-lg font-bold border-t pt-2 text-blue-600">
                             <span>Tổng cộng</span>
                             <span>{totalCost.toLocaleString()} đ</span>
@@ -514,19 +493,8 @@ export default function FormDangKyPage() {
 
                         {/* Thanh toán */}
                         <div className="bg-linear-to-br from-gray-50 to-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                            <label className="flex items-center justify-between cursor-pointer p-2 hover:bg-white rounded-lg transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-5 h-5 rounded border flex items-center justify-center ${ship ? 'bg-blue-600 border-blue-600' : 'border-gray-400'}`}>
-                                        {ship && <CheckCircle size={14} className="text-white" />}
-                                    </div>
-                                    <input type="checkbox" name="giao_hang" checked={ship} onChange={(e) => setShip(e.target.checked)} className="hidden" />
-                                    <div className="flex items-center gap-2 text-gray-700 font-medium">
-                                        <Truck size={18} className="text-blue-500" /> Giao thẻ tận nhà (+30k)
-                                    </div>
-                                </div>
-                            </label>
-                            <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
-                                <span className="text-gray-500 font-medium">Tổng thanh toán</span>
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-700 font-medium">Tổng thanh toán</span>
                                 <span className="text-2xl font-extrabold text-blue-700">{totalCost.toLocaleString('vi-VN')} đ</span>
                             </div>
                         </div>

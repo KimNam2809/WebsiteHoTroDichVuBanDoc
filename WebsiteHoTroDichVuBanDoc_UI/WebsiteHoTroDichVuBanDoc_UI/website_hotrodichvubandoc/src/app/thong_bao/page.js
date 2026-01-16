@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link'; // Optional if needed
+import QRCode from 'react-qr-code';
 import { getNotificationsAction, markAsReadAction } from './actions';
 import { Loader2, Mail, MailOpen, Trash2, Clock, AlertCircle, CheckCircle2, X } from 'lucide-react';
 
@@ -217,6 +219,40 @@ export default function ThongBaoPage() {
                                                                     <span className="block text-gray-400 text-xs">Địa chỉ</span>
                                                                     <span className="font-medium text-gray-700">{data.dia_chi || '---'}</span>
                                                                 </div>
+
+                                                                {/* Hiển thị Thời gian dự kiến (Cho Trạng thái "daDuyet") */}
+                                                                {data.thoi_gian_du_kien && (
+                                                                    <div className="col-span-1 md:col-span-2 mt-2 p-3 bg-blue-50 text-blue-800 text-sm rounded-lg border border-blue-100 flex items-center gap-2">
+                                                                        <Clock size={16} />
+                                                                        <span>
+                                                                            <strong>Thời gian dự kiến nhận thẻ: </strong>
+                                                                            {new Date(data.thoi_gian_du_kien).toLocaleDateString('vi-VN')}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Hiển thị QR Code (Cho Trạng thái "choDuyet" - Success) */}
+                                                                {data.qr_payment_content && (
+                                                                    <div className="col-span-1 md:col-span-2 mt-4 p-6 bg-white rounded-xl border-2 border-dashed border-blue-200 flex flex-col items-center justify-center">
+                                                                        <h4 className="font-bold text-blue-800 mb-3 text-center uppercase text-sm tracking-wider">
+                                                                            Mã hồ sơ & Thanh toán
+                                                                        </h4>
+                                                                        <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-100">
+                                                                            <QRCode value={data.qr_payment_content} size={160} />
+                                                                        </div>
+                                                                        <p className="mt-3 text-xs text-center text-gray-500 max-w-xs">
+                                                                            Vui lòng xuất trình mã này tại quầy để hoàn tất thủ tục.
+                                                                        </p>
+                                                                        {data.tong_tien && (
+                                                                            <div className="mt-2 flex flex-col items-center">
+                                                                                <span className="text-xs text-gray-400">Tổng phí cần thanh toán</span>
+                                                                                <span className="font-mono font-bold text-lg text-blue-600">
+                                                                                    {parseInt(data.tong_tien).toLocaleString('vi-VN')} đ
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
 
                                                                 {/* Hiển thị lý do từ chối nếu có trong dulieugoc */}
                                                                 {data.ly_do_tu_choi && (
