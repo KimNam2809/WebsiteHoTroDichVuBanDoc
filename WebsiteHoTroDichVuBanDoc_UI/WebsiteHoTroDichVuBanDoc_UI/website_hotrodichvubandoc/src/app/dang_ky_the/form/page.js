@@ -216,7 +216,7 @@ export default function FormDangKyPage() {
         const qrContent = `PAYMENT|${data.mayeucauthe}|${totalCost}`;
 
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+            <div className="min-h-screen bg-gray-50 fixed inset-0 z-9999 flex items-center justify-center p-4 sm:p-6">
 
                 <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-2xl text-center animate-in zoom-in-95 duration-300 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-green-400 to-blue-500"></div>

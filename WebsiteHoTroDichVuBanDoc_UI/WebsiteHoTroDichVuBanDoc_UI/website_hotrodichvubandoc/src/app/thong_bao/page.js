@@ -53,7 +53,8 @@ export default function ThongBaoPage() {
     }
 
     return (
-        <div className="min-h-screen pt-20 pb-10 px-4 bg-gray-100 flex items-center justify-center">
+        // fixed inset-0 z-9999 flex items-center justify-center p-4 sm:p-6
+        <div className="min-h-screen pt-20 pb-10 px-4 bg-gray-100 fixed inset-0 z-9999 flex items-center justify-center">
             {/* [NEW] Main Container with Relative positioning for Close Button */}
             <div className="relative w-full max-w-6xl h-[80vh] bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row border border-gray-200">
 

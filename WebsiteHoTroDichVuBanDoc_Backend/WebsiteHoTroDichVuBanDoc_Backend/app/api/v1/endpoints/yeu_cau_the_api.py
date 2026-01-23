@@ -15,12 +15,7 @@ logger = logging.getLogger(__name__)
 TABLE_NAME = "yeucauthe"
 STORAGE_BUCKET = "card_requests"
 
-# ==========================================
-# 1. HELPER FUNCTIONS (Tách biệt logic)
-# ==========================================
-
 def generate_smart_card_number(ma_loai_the: int) -> str:
-    """Sinh số thẻ thông minh."""
     try:
         res = supabase_client.table("loaithe").select("tenthe").eq("maloaithe", ma_loai_the).single().execute()
         ten_the = res.data.get("tenthe", "").strip() if res.data else ""
@@ -42,8 +37,9 @@ def generate_smart_card_number(ma_loai_the: int) -> str:
         return f"TV{int(time.time())}"
 
 def send_notification(ma_ban_doc: Optional[int], tieu_de: str, noi_dung: str, extra_data: Dict = None):
-    """Gửi thông báo vào bảng thongbao."""
-    if not ma_ban_doc: return # Không có mã bạn đọc thì không gửi được (tránh lỗi DB)
+    if not ma_ban_doc:
+        return
+
     try:
         data = {
             "mabandoc": ma_ban_doc,
@@ -60,15 +56,9 @@ def send_notification(ma_ban_doc: Optional[int], tieu_de: str, noi_dung: str, ex
         logger.error(f"Lỗi gửi thông báo: {e}")
 
 def ensure_reader_exists(user_id: int, info: dict) -> int:
-    """
-    Quan trọng: Đảm bảo user đã có hồ sơ trong bảng bandoc.
-    - Nếu chưa (User Google mới) -> Tạo mới -> Trả về ID mới.
-    - Nếu có -> Update thông tin mới nhất -> Trả về ID cũ.
-    """
     check_bd = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).execute()
 
     if check_bd.data:
-        # --- Update Bạn Đọc Cũ ---
         ma_ban_doc = check_bd.data[0]['mabandoc']
         current_bd = supabase_client.table("bandoc").select("thongtinbosung").eq("mabandoc", ma_ban_doc).single().execute()
         bd_info_api = current_bd.data.get("thongtinbosung") or {}
@@ -86,7 +76,6 @@ def ensure_reader_exists(user_id: int, info: dict) -> int:
         }
         supabase_client.table("bandoc").update(to_json_safe(update_bd_data)).eq("mabandoc", ma_ban_doc).execute()
 
-        # Update User Contact (Email/SĐT)
         user_update = {}
         if info.get("sdt"): user_update["sodienthoai"] = info.get("sdt")
         if info.get("email"): user_update["email"] = info.get("email")
@@ -94,7 +83,6 @@ def ensure_reader_exists(user_id: int, info: dict) -> int:
 
         return ma_ban_doc
     else:
-        # --- Tạo Bạn Đọc Mới ---
         new_bandoc_data = {
             "manguoidung": user_id,
             "hoten": info.get("ho_ten"),
@@ -110,10 +98,6 @@ def ensure_reader_exists(user_id: int, info: dict) -> int:
         return bd_res.data[0]['mabandoc']
 
 def create_new_reader_and_card(request_data: dict, approver_id: Optional[int] = None):
-    """
-    Hàm này CHỈ ĐƯỢC GỌI khi Admin bấm DUYỆT.
-    Tạo/Update Bạn đọc -> Tạo Thẻ -> Update Yêu cầu thành daDuyet.
-    """
     info = request_data.get("thongtinbosung") or {}
     user_id = info.get("ma_nguoi_dung_dang_ky")
     ma_yeu_cau = request_data["mayeucauthe"]
@@ -121,16 +105,13 @@ def create_new_reader_and_card(request_data: dict, approver_id: Optional[int] = 
     if not user_id:
         raise ValueError("Dữ liệu lỗi: Không tìm thấy User ID.")
 
-    # 1. Tính toán ngày trả thẻ (Hẹn 7 ngày sau)
     ngay_du_kien = (datetime.now() + timedelta(days=7)).isoformat()
     info["thoi_gian_du_kien"] = ngay_du_kien
 
-    # 2. Xử lý Bạn Đọc
     check_bd = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).execute()
     ma_ban_doc_moi = None
 
     if check_bd.data:
-        # Update Bạn Đọc Cũ
         ma_ban_doc_moi = check_bd.data[0]['mabandoc']
         current_bd = supabase_client.table("bandoc").select("thongtinbosung").eq("mabandoc", ma_ban_doc_moi).single().execute()
         bd_info_api = current_bd.data.get("thongtinbosung") or {}
@@ -148,14 +129,12 @@ def create_new_reader_and_card(request_data: dict, approver_id: Optional[int] = 
         }
         supabase_client.table("bandoc").update(to_json_safe(update_bd_data)).eq("mabandoc", ma_ban_doc_moi).execute()
 
-        # Update User Contact
         user_update = {}
         if info.get("sdt"): user_update["sodienthoai"] = info.get("sdt")
         if info.get("email"): user_update["email"] = info.get("email")
         if user_update: supabase_client.table("nguoidung").update(user_update).eq("manguoidung", user_id).execute()
 
     else:
-        # Tạo Bạn Đọc Mới
         new_bandoc_data = {
             "manguoidung": user_id,
             "hoten": info.get("ho_ten"),
@@ -170,7 +149,6 @@ def create_new_reader_and_card(request_data: dict, approver_id: Optional[int] = 
         bd_res = supabase_client.table("bandoc").insert(to_json_safe(new_bandoc_data)).execute()
         ma_ban_doc_moi = bd_res.data[0]['mabandoc']
 
-    # 3. Tạo Thẻ Mới
     so_the_moi = generate_smart_card_number(request_data["maloaithe"])
     ngay_het_han = (datetime.now() + timedelta(days=365)).date()
 
@@ -185,7 +163,6 @@ def create_new_reader_and_card(request_data: dict, approver_id: Optional[int] = 
     }
     supabase_client.table("thebandoc").insert(to_json_safe(new_card_data)).execute()
 
-    # 4. Update Yêu Cầu thành daDuyet
     info["ngay_xu_ly"] = datetime.now().isoformat()
 
     supabase_client.table(TABLE_NAME).update({
@@ -198,8 +175,6 @@ def create_new_reader_and_card(request_data: dict, approver_id: Optional[int] = 
         "thongtinbosung": to_json_safe(info)
     }).eq("mayeucauthe", ma_yeu_cau).execute()
 
-    # 5. Gửi thông báo Hoàn tất (Notification B)
-    # "Hồ sơ #... đã được nhân viên duyệt..."
     send_notification(
         ma_ban_doc_moi,
         "Đăng ký thẻ thành công (Đã duyệt)",
@@ -209,24 +184,11 @@ def create_new_reader_and_card(request_data: dict, approver_id: Optional[int] = 
 
     return ma_ban_doc_moi
 
-
-# ==========================================
-# 2. BACKGROUND TASK (Xử lý ngầm)
-# ==========================================
-
 def process_card_application(ma_yeu_cau: int, form_data: dict, filename: str):
-    """
-    Hàm chạy ngầm:
-    - Gọi Mock API xác thực.
-    - LOW -> Tạo Hồ sơ Bạn đọc (chưa tạo thẻ) -> Update 'choDuyet' -> Gửi thông báo kèm QR.
-    - MEDIUM -> Update 'choDuyet' (Chưa gửi thông báo nếu chưa có hồ sơ bạn đọc).
-    - HIGH -> Update 'tuChoi'.
-    """
     logger.info(f"🚀 Bắt đầu xử lý ngầm hồ sơ {ma_yeu_cau}...")
-    time.sleep(2) # Giả lập delay
+    time.sleep(2)
 
     try:
-        # 1. Gọi Mock API
         verify_result = perform_verification(
             cccd=form_data["cccd"],
             ho_ten=form_data["ho_ten"],
@@ -237,7 +199,6 @@ def process_card_application(ma_yeu_cau: int, form_data: dict, filename: str):
         risk = verify_result["risk_level"]
         logger.info(f"🔍 Kết quả xác thực {ma_yeu_cau}: {risk}")
 
-        # Lấy dữ liệu mới nhất từ DB
         current_req = supabase_client.table(TABLE_NAME).select("*").eq("mayeucauthe", ma_yeu_cau).single().execute()
         request_data = current_req.data
         info = request_data["thongtinbosung"]
@@ -246,25 +207,20 @@ def process_card_application(ma_yeu_cau: int, form_data: dict, filename: str):
         user_id = info.get("ma_nguoi_dung_dang_ky")
         le_phi = request_data.get("lephi", 0)
 
-        # 2. Phân luồng xử lý
         if risk == "LOW":
             # --- LUỒNG XANH (PRE-APPROVE) ---
-            # A. Tạo/Đảm bảo hồ sơ Bạn Đọc tồn tại NGAY BÂY GIỜ
-            # Để người dùng có mã bạn đọc -> nhận được thông báo
             if user_id:
                 ma_ban_doc = ensure_reader_exists(user_id, info)
 
-                # B. Update Yêu cầu
                 info["qr_payment_content"] = f"PAYMENT|{ma_yeu_cau}|{le_phi}"
                 info["tong_tien"] = le_phi
 
                 supabase_client.table(TABLE_NAME).update({
-                    "trangthaiquytrinh": "choDuyet", # Vẫn chờ nhân viên duyệt lần cuối
-                    "mabandoc": ma_ban_doc, # Link luôn vào hồ sơ vừa tạo
+                    "trangthaiquytrinh": "choDuyet",
+                    "mabandoc": ma_ban_doc,
                     "thongtinbosung": to_json_safe(info)
                 }).eq("mayeucauthe", ma_yeu_cau).execute()
 
-                # C. Gửi thông báo (Lúc này chắc chắn thành công)
                 send_notification(
                     ma_ban_doc,
                     "Hồ sơ được hệ thống duyệt tự động",
@@ -279,7 +235,6 @@ def process_card_application(ma_yeu_cau: int, form_data: dict, filename: str):
                 "thongtinbosung": to_json_safe(info)
             }).eq("mayeucauthe", ma_yeu_cau).execute()
 
-            # Có thể gửi thông báo nếu user cũ, user mới thì chịu (chờ nhân viên duyệt mới tạo hồ sơ)
             if user_id:
                 try:
                     bd = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).execute()
@@ -296,7 +251,6 @@ def process_card_application(ma_yeu_cau: int, form_data: dict, filename: str):
                 "thongtinbosung": to_json_safe(info)
             }).eq("mayeucauthe", ma_yeu_cau).execute()
 
-            # Gửi thông báo nếu có thể
             if user_id:
                 try:
                     bd = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).execute()
@@ -306,11 +260,6 @@ def process_card_application(ma_yeu_cau: int, form_data: dict, filename: str):
 
     except Exception as e:
         logger.error(f"Lỗi xử lý nền hồ sơ {ma_yeu_cau}: {e}")
-
-
-# ==========================================
-# 3. API ENDPOINTS
-# ==========================================
 
 # --- API ĐĂNG KÝ THẺ ---
 @router.post("/dang-ky", status_code=status.HTTP_201_CREATED, summary="Gửi yêu cầu làm thẻ (Ảnh + Form)")
@@ -333,7 +282,6 @@ async def dang_ky_the_ban_doc(
     user_id = current_user.get("manguoidung")
     anh_the_url = None
 
-    # 1. Upload Ảnh
     if anh_the:
         try:
             original_filename = anh_the.filename.replace(" ", "_")
@@ -350,7 +298,6 @@ async def dang_ky_the_ban_doc(
             logger.error(f"Upload error: {e}")
             raise HTTPException(status_code=500, detail="Lỗi tải ảnh.")
 
-    # 2. Dữ liệu bổ sung
     thong_tin_bo_sung = {
         "ho_ten": ho_ten, "ngay_sinh": ngay_sinh, "gioi_tinh": gioi_tinh,
         "nghe_nghiep": nghe_nghiep, "cccd": cccd, "dia_chi": dia_chi,
@@ -359,11 +306,9 @@ async def dang_ky_the_ban_doc(
         "ma_nguoi_dung_dang_ky": user_id
     }
 
-    # 3. Lấy lệ phí
     loai_the_info = supabase_client.table("loaithe").select("lephi").eq("maloaithe", ma_loai_the).single().execute()
     le_phi = loai_the_info.data.get("lephi", 0) if loai_the_info.data else 0
 
-    # 4. Insert DB (Trạng thái ban đầu: dangXuLy)
     db_data = {
         "maloaithe": ma_loai_the,
         "mabandoc": None,
@@ -378,7 +323,6 @@ async def dang_ky_the_ban_doc(
     if not res.data: raise HTTPException(500, "Lỗi tạo hồ sơ")
     new_req = res.data[0]
 
-    # 5. Background Task (Logic thông báo nằm ở đây)
     background_tasks.add_task(
         process_card_application,
         ma_yeu_cau=new_req["mayeucauthe"],
@@ -425,7 +369,6 @@ def phe_duyet_yeu_cau_the(
                 "thoigianxuly": "now()", "thongtinbosung": to_json_safe(info)
             }).eq("mayeucauthe", maYeuCauThe).execute()
 
-            # Tìm bạn đọc để báo (nếu có)
             if user_id:
                 try:
                     bd = supabase_client.table("bandoc").select("mabandoc").eq("manguoidung", user_id).execute()
@@ -437,14 +380,12 @@ def phe_duyet_yeu_cau_the(
 
         # --- TRƯỜNG HỢP 2: DUYỆT (TẠO THẺ) ---
         if duyet_in.trang_thai == "daDuyet":
-            # 1. Đảm bảo Hồ sơ Bạn Đọc (Nếu bước Background đã tạo rồi thì lấy ID cũ, chưa thì tạo mới)
             ma_ban_doc = ensure_reader_exists(user_id, info)
 
-            # 2. Sinh số thẻ và Tạo Thẻ (Đây là bước quyết định)
             so_the_moi = generate_smart_card_number(request_data["maloaithe"])
             ngay_het_han = (datetime.now() + timedelta(days=365)).date()
             ngay_du_kien = (datetime.now() + timedelta(days=7)).isoformat()
-            info["thoi_gian_du_kien"] = ngay_du_kien # Update ngày hẹn mới nhất
+            info["thoi_gian_du_kien"] = ngay_du_kien
 
             new_card_data = {
                 "mabandoc": ma_ban_doc,
@@ -457,7 +398,6 @@ def phe_duyet_yeu_cau_the(
             }
             supabase_client.table("thebandoc").insert(to_json_safe(new_card_data)).execute()
 
-            # 3. Cập nhật Yêu cầu -> daDuyet
             info["ngay_xu_ly"] = datetime.now().isoformat()
             supabase_client.table(TABLE_NAME).update({
                 "trangthaiquytrinh": "daDuyet",
@@ -468,7 +408,6 @@ def phe_duyet_yeu_cau_the(
                 "thongtinbosung": to_json_safe(info)
             }).eq("mayeucauthe", maYeuCauThe).execute()
 
-            # 4. Gửi thông báo Nhận thẻ
             ngay_ht_str = datetime.fromisoformat(ngay_du_kien).strftime('%d/%m/%Y')
             send_notification(
                 ma_ban_doc,
@@ -498,9 +437,7 @@ def check_request_status(maYeuCauThe: int, current_user: dict = Depends(get_curr
         # LOGIC LẤY LÝ DO TỪ CHỐI (FIX LỖI 1)
         ly_do = None
         if trang_thai == "tuChoi":
-            # Ưu tiên lấy trong JSON (nếu nhân viên nhập tay)
             ly_do = info.get("ly_do_tu_choi")
-            # Nếu không có, lấy trong cột ghi chú (nếu hệ thống tự reject)
             if not ly_do:
                 ly_do = data.get("ghichu")
 
@@ -528,12 +465,7 @@ def check_request_status(maYeuCauThe: int, current_user: dict = Depends(get_curr
 def get_danh_sach_cho_duyet(
     current_staff: dict = Depends(get_current_staff_profile)
 ):
-    """
-    Lấy danh sách các yêu cầu có trạng thái 'choDuyet'.
-    Dữ liệu JSONB sẽ được làm phẳng (flatten) ra để Admin dễ xem.
-    """
     try:
-        # Query: Lấy yêu cầu + Join tên loại thẻ
         query = """
             mayeucauthe,
             thoigianbatdau,
@@ -542,13 +474,11 @@ def get_danh_sach_cho_duyet(
             loaithe (tenthe)
         """
 
-        # Lọc: Chỉ lấy 'choDuyet' và maBanDoc IS NULL (đăng ký mới)
-        # (Hoặc có thể bỏ điều kiện maBanDoc is null nếu muốn xem cả yêu cầu cấp lại thẻ)
         response = (
             supabase_client.table(TABLE_NAME)
             .select(query)
             .eq("trangthaiquytrinh", "choDuyet")
-            .order("thoigianbatdau", desc=False) # Cũ nhất lên đầu để duyệt trước
+            .order("thoigianbatdau", desc=False)
             .execute()
         )
 
@@ -557,7 +487,6 @@ def get_danh_sach_cho_duyet(
             info = item.get("thongtinbosung") or {}
             loai_the = item.get("loaithe") or {}
 
-            # Map dữ liệu vào Model trả về
             view_item = {
                 "ma_ho_so": item["mayeucauthe"],
                 "ho_ten": info.get("ho_ten", "Không tên"),
@@ -586,13 +515,7 @@ def get_chi_tiet_yeu_cau_the(
     maYeuCauThe: int,
     current_staff: dict = Depends(get_current_staff_profile)
 ):
-    """
-    Lấy thông tin chi tiết.
-    Hệ thống sẽ tự động lấy ID phường xã trong JSON, tra cứu tên Phường/Tỉnh
-    và trả về cho Admin xem (thay vì trả về số ID vô nghĩa).
-    """
     try:
-        # 1. Lấy thông tin yêu cầu
         query = "*, loaithe(tenthe)"
         response = supabase_client.table(TABLE_NAME).select(query).eq("mayeucauthe", maYeuCauThe).single().execute()
 
@@ -603,17 +526,14 @@ def get_chi_tiet_yeu_cau_the(
         loai_the = data.get("loaithe") or {}
         info = data.get("thongtinbosung") or {}
 
-        # 2. Xử lý Địa chỉ (Logic Mới)
-        # Lấy ID từ JSON
         ma_phuong_xa = info.get("ma_phuong_xa")
 
-        dia_chi_full = info.get("dia_chi", "") # Mặc định là số nhà
+        dia_chi_full = info.get("dia_chi", "")
         ten_phuong = ""
         ten_tinh = ""
 
         if ma_phuong_xa:
             try:
-                # Query bảng Phường Xã (kèm Tỉnh Thành)
                 px_res = supabase_client.table("phuongxa") \
                     .select("tenphuongxa, tinhthanhpho(tentinhthanhpho)") \
                     .eq("maphuongxa", ma_phuong_xa) \
@@ -624,18 +544,17 @@ def get_chi_tiet_yeu_cau_the(
                     tinh_data = px_res.data.get("tinhthanhpho") or {}
                     ten_tinh = tinh_data.get("tentinhthanhpho")
 
-                    # Gắn thêm thông tin hiển thị vào JSON trả về (không lưu vào DB)
                     info["ten_phuong_xa"] = ten_phuong
                     info["ten_tinh_thanh_pho"] = ten_tinh
                     info["dia_chi_hien_thi"] = f"{dia_chi_full}, {ten_phuong}, {ten_tinh}"
             except Exception:
-                pass # Nếu lỗi lấy địa chỉ thì vẫn trả về các thông tin khác
+                pass
 
         return {
             "mayeucauthe": data["mayeucauthe"],
             "thoigianbatdau": data["thoigianbatdau"],
             "tenloaithe": loai_the.get("tenthe", "Không xác định"),
-            "thongtinbosung": info, # JSON bây giờ đã có thêm tên phường/tỉnh
+            "thongtinbosung": info,
             "lephi": data.get("lephi") or 0,
             "trangthaiquytrinh": data["trangthaiquytrinh"]
         }
@@ -650,30 +569,18 @@ def get_chi_tiet_yeu_cau_the(
     summary="Tra cứu trạng thái yêu cầu thẻ & Thẻ hiện có (Công khai)"
 )
 def tra_cuu_yeu_cau_the(
-    search_in: TraCuuRequest # Nhận JSON Body
+    search_in: TraCuuRequest
 ):
-    """
-    API dành cho khách. Tra cứu dựa trên CCCD hoặc SĐT.
-    Method: POST
-    Body: { "keyword": "048203..." }
-    """
     result_list = []
-    keyword = search_in.keyword # Lấy keyword từ body
+    keyword = search_in.keyword
 
-    # Validate độ dài (Thay cho min_length của Query)
     if len(keyword) < 6:
-        # Trả về list rỗng hoặc lỗi tùy bạn. Ở đây trả rỗng cho an toàn.
         return []
 
     try:
-        # =========================================================
-        # PHẦN 1: KIỂM TRA THẺ ĐANG HOẠT ĐỘNG (Query bảng BanDoc)
-        # =========================================================
-
-        # Nếu keyword giống CCCD (chỉ chứa số và dài >= 9)
         if keyword.isdigit() and len(keyword) >= 9:
             try:
-                # Query BanDoc kèm thông tin Thẻ
+
                 existing_member = (
                     supabase_client.table("bandoc")
                     .select("hoten, cccd, thebandoc(sothe, trangthaithe, loaithe(tenthe))")
@@ -704,10 +611,6 @@ def tra_cuu_yeu_cau_the(
                                 result_list.append(active_card_item)
             except Exception as e:
                 logger.warning(f"Lỗi tìm thẻ active: {e}")
-
-        # =========================================================
-        # PHẦN 2: TRA CỨU LỊCH SỬ YÊU CẦU (Query bảng YeuCauThe)
-        # =========================================================
 
         filter_condition = f"thongtinbosung->>sdt.eq.{keyword},thongtinbosung->>cccd.eq.{keyword}"
 

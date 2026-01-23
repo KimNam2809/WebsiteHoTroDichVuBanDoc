@@ -18,7 +18,7 @@ const getGreeting = (userName) => {
 
 const getSuggestions = (role) => {
     const common = [
-        { label: "Tìm sách kinh tế", action: "Tìm sách kinh tế", icon: Book },
+        { label: "Tìm sách", action: "Tìm sách", icon: Book },
         { label: "Giờ mở cửa", action: "Thư viện mở cửa lúc nào?", icon: HelpCircle },
     ];
 
@@ -51,16 +51,14 @@ export default function ChatWidget({ user }) {
     const [sessionId, setSessionId] = useState(null);
 
     const scrollRef = useRef(null);
-    const router = useRouter(); // Dùng để điều hướng
+    const router = useRouter();
 
-    // Tự động cuộn
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages, isOpen]);
 
-    // Khởi tạo tin nhắn chào mừng
     useEffect(() => {
         if (isOpen && messages.length === 0) {
             const greeting = getGreeting(user?.hoten);
@@ -78,13 +76,11 @@ export default function ChatWidget({ user }) {
     const handleSend = async (text = input) => {
         if (!text.trim()) return;
 
-        // 1. UI: Thêm tin nhắn người dùng ngay lập tức
         const userMsg = { id: Date.now() + Math.random(), type: 'user', text: text };
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setIsLoading(true);
 
-        // 2. GỌI API THỰC TẾ
         const result = await sendChatMessageAction({
             userId: user?.id || user?.manguoidung || null,
             sessionId: sessionId,
@@ -93,14 +89,11 @@ export default function ChatWidget({ user }) {
 
         setIsLoading(false);
 
-        // 3. Xử lý phản hồi từ AI
         if (result.success) {
             const { reply, session_id, action } = result.data;
 
-            // Cập nhật Session ID cho lần chat sau
             if (session_id) setSessionId(session_id);
 
-            // Thêm tin nhắn của Bot
             const botMsg = {
                 id: Date.now() + Math.random(),
                 type: 'bot',
@@ -110,7 +103,6 @@ export default function ChatWidget({ user }) {
             setMessages(prev => [...prev, botMsg]);
 
         } else {
-            // Xử lý lỗi
             setMessages(prev => [...prev, {
                 id: Date.now() + Math.random(),
                 type: 'bot',
@@ -123,19 +115,16 @@ export default function ChatWidget({ user }) {
         handleSend(actionText);
     };
 
-    // Hàm xử lý khi click vào nút hành động (Navigation)
     const handleActionClick = (action) => {
         if (action.type === 'navigate' && action.payload?.url) {
-            setIsOpen(false); // Đóng chat
-            router.push(action.payload.url); // Chuyển trang
+            setIsOpen(false);
+            router.push(action.payload.url);
         }
     };
 
-    // Hàm render nội dung tin nhắn (Hỗ trợ xuống dòng cơ bản)
     const renderMessageText = (text) => {
-        if (!text) return null; // Thêm dòng này để an toàn
+        if (!text) return null;
         return text.split('\n').map((line, i) => (
-            // Key ở đây là đúng, nhưng lỗi là do cha bị trùng key
             <span key={i}>
                 {line}
                 <br />
@@ -143,10 +132,7 @@ export default function ChatWidget({ user }) {
         ));
     };
 
-    // --- COMPONENT CON: THẺ SÁCH MINI ---
     const BookCard = ({ book }) => {
-    // Mapping dữ liệu từ DB sang biến dùng trong UI
-    // Ưu tiên lấy tên cột DB (matacpham), nếu không có mới lấy tên cũ (id)
     const id = book.matacpham || book.id;
     const title = book.tentacpham || book.title;
     const author = book.tacgia || book.author;
@@ -156,7 +142,7 @@ export default function ChatWidget({ user }) {
         <div
             onClick={() => {
                 setIsOpen(false);
-                router.push(`/tai_lieu/${id}`); // Sửa thành biến id đã map
+                router.push(`/tai_lieu/${id}`);
             }}
             className="flex items-start gap-3 p-3 mt-2 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group max-w-[280px]"
         >

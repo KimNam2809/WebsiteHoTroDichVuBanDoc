@@ -262,7 +262,7 @@ export default function BookCopiesList({ copies, initialOwnedIds = [], initialRe
                                                         <UserCheck size={16} /> Đang sở hữu
                                                     </button>
                                                 ) : isReadyToBorrow ? (
-                                                    // ⭐ TRƯỜNG HỢP MỚI: Đã đặt trước + Hoàn thành -> Hiện nút Mượn ngay
+                                                    // TRƯỜNG HỢP MỚI: Đã đặt trước + Hoàn thành -> Hiện nút Mượn ngay
                                                     <button
                                                         onClick={() => openBorrowModal(copy)}
                                                         className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-blue-700 transition-all ml-auto animate-pulse"

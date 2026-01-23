@@ -23,11 +23,10 @@ class LibraryBrain:
             "card": {"url": "/dang_ky_the", "label": "Đăng ký thẻ"},
             "rules": {"url": "/dang_ky_the/noi_quy", "label": "Nội quy làm thẻ"},
             "room": {"url": "/dich_vu/dat_lich", "label": "Đặt phòng họp"},
-            "ship": {"url": "/services/delivery", "label": "Yêu cầu giao sách"}
+            "ship": {"url": "/van_chuyen/giao_sach", "label": "Yêu cầu giao sách"}
         }
 
     def call_llm_with_retry(self, prompt: str, max_retries: int = 3) -> str:
-        """Gọi LLM với cơ chế tự động thử lại khi gặp lỗi 429 (Rate Limit)."""
         for attempt in range(max_retries):
             try:
                 return self.llm.invoke(prompt).content
@@ -42,7 +41,6 @@ class LibraryBrain:
         return "Xin lỗi, hệ thống đang quá tải. Vui lòng thử lại sau giây lát."
 
     def extract_entities(self, query: str, history: str):
-        """Trích xuất đa tham số dưới dạng JSON sạch."""
         prompt = f"""
         Nhiệm vụ: Trích xuất thông tin từ câu hỏi.
         BẮT BUỘC: Chỉ trả về JSON, không giải thích.
@@ -79,10 +77,7 @@ class LibraryBrain:
         history = get_recent_history_as_text(user_id, session_id)
         q_lower = user_query.lower()
 
-        # 1. Trích xuất Entity
         entities = self.extract_entities(user_query, history)
-
-        # [LOGIC] Điều hướng thông minh
 
         # A. TRA CỨU NHÂN VIÊN (Staff)
         if any(w in q_lower for w in ["nhân viên", "ai quản lý", "trưởng phòng", "liên hệ ai"]):
@@ -183,4 +178,4 @@ class LibraryBrain:
         return {"reply": final_response, "action": None}
 
     def extract_target(self, query: str, history: str):
-        pass # Legacy placeholder
+        pass

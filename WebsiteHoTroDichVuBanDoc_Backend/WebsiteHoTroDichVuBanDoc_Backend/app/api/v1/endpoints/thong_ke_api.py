@@ -114,6 +114,49 @@ def get_detailed_report(type: str = "borrowing", current_staff: dict = Depends(g
                  })
              return result
 
+        # 4. Top Sách Mượn Nhiều (Top Borrowed Books) - NEW
+        elif type == "top_books":
+            start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+            
+            # Query mượn trả trong 30 ngày qua
+            res = supabase_client.table("muontra") \
+                .select("bansao(tacpham(ma_tac_pham, tentacpham, hinhanh, tacgia))") \
+                .gte("thoigianmuon", start_date) \
+                .execute()
+            
+            # Client-side Aggregation
+            book_counts = {}
+            book_info = {}
+            
+            for item in (res.data or []):
+                bs = item.get("bansao") or {}
+                tp = bs.get("tacpham") or {}
+                if not tp: continue
+                
+                mid = tp.get("ma_tac_pham")
+                if not mid: continue
+                
+                if mid not in book_counts:
+                    book_counts[mid] = 0
+                    book_info[mid] = tp
+                book_counts[mid] += 1
+            
+            # Sort Top 5
+            sorted_ids = sorted(book_counts, key=book_counts.get, reverse=True)[:5]
+            
+            result = []
+            for mid in sorted_ids:
+                info = book_info[mid]
+                result.append({
+                    "id": mid,
+                    "title": info.get("tentacpham"),
+                    "author": info.get("tacgia"),
+                    "image": info.get("hinhanh"),
+                    "count": book_counts[mid]
+                })
+            
+            return result
+
         return []
 
     except Exception as e:

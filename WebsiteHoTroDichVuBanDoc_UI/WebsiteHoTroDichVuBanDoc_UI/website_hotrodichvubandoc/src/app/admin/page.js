@@ -12,14 +12,11 @@ import { getDashboardStatsAction, getChartDataAction, getRecentActivityAction, g
 export default function AdminDashboardPage() {
     // Data State
     const [statsData, setStatsData] = useState(null);
-    const [chartData, setChartData] = useState([]);
+    const [topBooks, setTopBooks] = useState([]); // [NEW] Top Books State
     const [activities, setActivities] = useState([]);
     const [reportData, setReportData] = useState([]); // Report Data
     const [isLoading, setIsLoading] = useState(true);
     const [isReportLoading, setIsReportLoading] = useState(false);
-
-    // Filter State
-    const [chartRange, setChartRange] = useState('7d');
 
     // Modal State
     const [showReportModal, setShowReportModal] = useState(false);
@@ -29,14 +26,15 @@ export default function AdminDashboardPage() {
     useEffect(() => {
         async function load() {
             try {
-                const [stats, chart, acts] = await Promise.all([
+                // Thay getChartDataAction bằng getDetailedReportAction('top_books')
+                const [stats, books, acts] = await Promise.all([
                     getDashboardStatsAction(),
-                    getChartDataAction(chartRange),
+                    getDetailedReportAction('top_books'),
                     getRecentActivityAction()
                 ]);
 
                 setStatsData(stats);
-                setChartData(chart || []);
+                setTopBooks(books || []);
                 setActivities(acts || []);
             } catch (error) {
                 console.error("Dashboard Load Error", error);
@@ -45,7 +43,7 @@ export default function AdminDashboardPage() {
             }
         }
         load();
-    }, [chartRange]);
+    }, []); // Removed chartRange dependency
 
     // 2. Fetch Report Data when Modal Opens or Type Changes
     useEffect(() => {
@@ -68,8 +66,7 @@ export default function AdminDashboardPage() {
         loadReport();
     }, [showReportModal, selectedReportType]);
 
-    // Calculate Chart Max for Scaling
-    const maxChartValue = chartData.length > 0 ? Math.max(...chartData.map(d => d.value)) : 10;
+
 
     // Helper: Map API data to UI Cards
     const statsConfig = [
@@ -114,34 +111,29 @@ export default function AdminDashboardPage() {
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 pb-20">
 
-            {/* 1. HERO BANNER */}
-            <div className="relative rounded-3xl overflow-hidden bg-linear-to-r from-gray-900 to-blue-900 text-white shadow-xl">
-                <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px] translate-x-1/3 -translate-y-1/2"></div>
-
-                <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div>
-                        <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-blue-200 mb-3 border border-white/10">
-                            <Calendar size={12} />
-                            {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
-                        </div>
-                        <h1 className="text-3xl md:text-4xl font-extrabold mb-2 leading-tight">
-                            Tổng quan hệ thống
-                        </h1>
-                        <p className="text-gray-300 max-w-xl text-lg">
-                            Chào mừng quản trị viên. Dưới đây là báo cáo nhanh về tình hình hoạt động của thư viện hôm nay.
-                        </p>
+            {/* 1. HERO CONTENT (Transparent to overlay Layout Background) */}
+            <div className="mb-10 text-white flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pt-4">
+                <div>
+                    <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-blue-50 mb-3 border border-white/20 shadow-sm">
+                        <Calendar size={12} />
+                        {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </div>
-
-                    <button
-                        onClick={() => setShowReportModal(true)}
-                        className="group flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/30"
-                    >
-                        <FileText size={20} />
-                        Xem báo cáo chi tiết
-                        <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                    </button>
+                    <h1 className="text-3xl md:text-5xl font-extrabold mb-3 leading-tight drop-shadow-md">
+                        Tổng quan hệ thống
+                    </h1>
+                    <p className="text-blue-100 text-lg font-light max-w-xl leading-relaxed">
+                        Chào mừng quản trị viên. Dưới đây là báo cáo nhanh về tình hình hoạt động của thư viện hôm nay.
+                    </p>
                 </div>
+
+                <button
+                    onClick={() => setShowReportModal(true)}
+                    className="group flex items-center gap-2 px-6 py-3 bg-white text-blue-900 hover:bg-blue-50 rounded-full font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                >
+                    <FileText size={20} />
+                    Xem báo cáo
+                    <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                </button>
             </div>
 
             {/* 2. STATS GRID */}
@@ -149,7 +141,7 @@ export default function AdminDashboardPage() {
                 {statsConfig.map((stat, index) => (
                     <div
                         key={index}
-                        className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group"
+                        className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl shadow-blue-900/5 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group"
                     >
                         <div className="flex justify-between items-start mb-4">
                             <div className={`p-3 rounded-2xl ${stat.bg} ${stat.color} transition-transform group-hover:scale-110`}>
@@ -174,53 +166,71 @@ export default function AdminDashboardPage() {
             {/* 3. CHARTS & RECENT ACTIVITY */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-                {/* CHART */}
-                <div className="lg:col-span-2 bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden flex flex-col">
+                {/* TRENDING BOOKS (New Component) */}
+                <div className="lg:col-span-2 bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden flex flex-col">
                     <div className="p-6 border-b border-gray-50 flex justify-between items-center">
-                        <h2 className="font-bold text-gray-800 text-lg flex items-center gap-2">
-                            <BarChart3 className="text-blue-600" /> Biểu đồ mượn trả
-                        </h2>
-                        <select
-                            value={chartRange}
-                            onChange={(e) => setChartRange(e.target.value)}
-                            className="bg-gray-50 border border-gray-200 text-xs font-bold text-gray-600 rounded-lg px-3 py-1 outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="7d">7 ngày qua</option>
-                            <option value="30d">Tháng này</option>
-                        </select>
+                        <div>
+                            <h2 className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                                <TrendingUp className="text-blue-600" /> Xu hướng đọc
+                            </h2>
+                            <p className="text-xs text-gray-400 mt-1">Top sách được mượn nhiều nhất 30 ngày qua</p>
+                        </div>
                     </div>
 
-                    <div className="flex-1 min-h-[300px] flex flex-col items-center justify-end bg-linear-to-b from-white to-gray-50 p-8">
-                        <div className="w-full flex items-end justify-between gap-2 h-64">
-                            {chartData.length > 0 ? (
-                                chartData.map((item, index) => {
-                                    const heightPercent = maxChartValue > 0 ? (item.value / maxChartValue) * 100 : 0;
-                                    return (
-                                        <div key={index} className="flex-1 flex flex-col items-center group relative">
-                                            {/* Tooltip */}
-                                            <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-xs px-2 py-1 rounded pointer-events-none whitespace-nowrap z-10">
-                                                {item.fullDate}: {item.value} lượt
-                                            </div>
+                    <div className="flex-1 p-6">
+                        {topBooks.length > 0 ? (
+                            <div className="space-y-4">
+                                {topBooks.map((book, index) => (
+                                    <div key={book.id} className="flex items-center gap-4 group p-3 hover:bg-gray-50 rounded-2xl transition-all">
 
-                                            {/* Bar */}
-                                            <div
-                                                className="w-full max-w-40px bg-blue-500 rounded-t-lg transition-all duration-500 hover:bg-blue-600 relative overflow-hidden"
-                                                style={{ height: `${Math.max(heightPercent, 2)}%` }} // Min height 2% visibility
-                                            >
-                                                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform"></div>
-                                            </div>
-
-                                            {/* Label */}
-                                            <span className="text-[10px] text-gray-400 mt-2 font-medium">{item.date}</span>
+                                        {/* Rank Badge */}
+                                        <div className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm shrink-0 ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                                            index === 1 ? 'bg-gray-100 text-gray-700' :
+                                                index === 2 ? 'bg-orange-100 text-orange-700' :
+                                                    'bg-blue-50 text-blue-600'
+                                            }`}>
+                                            #{index + 1}
                                         </div>
-                                    );
-                                })
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-400 italic">
-                                    Chưa có dữ liệu biểu đồ.
+
+                                        {/* Image */}
+                                        <div className="w-12 h-16 shrink-0 rounded-lg overflow-hidden shadow-sm relative bg-gray-200">
+                                            {book.image ? (
+                                                <img
+                                                    src={book.image}
+                                                    alt={book.title}
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                                    <BookOpen size={16} />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="text-sm font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                                                {book.title}
+                                            </h3>
+                                            <p className="text-xs text-gray-500 truncate">{book.author}</p>
+                                        </div>
+
+                                        {/* Count */}
+                                        <div className="text-right">
+                                            <span className="block text-lg font-extrabold text-gray-800">{book.count}</span>
+                                            <span className="text-[10px] uppercase font-bold text-gray-400">Lượt</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-center py-10">
+                                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3 text-gray-300">
+                                    <BookOpen size={24} />
                                 </div>
-                            )}
-                        </div>
+                                <p className="text-gray-400 text-sm">Chưa có dữ liệu xu hướng.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 

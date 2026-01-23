@@ -12,6 +12,7 @@ import { getUnreadCountAction } from '@/app/actions/notification';
 const navItems = [
     { name: 'Trang chủ', href: '/' },
     { name: 'Danh mục sách', href: '/tim_kiem' },
+    { name: 'Bài Viết', href: '/bai_viet' },
     { name: 'Dịch vụ', href: '/dich_vu' },
     { name: 'Đăng ký thẻ', href: '/dang_ky_the' },
 ];

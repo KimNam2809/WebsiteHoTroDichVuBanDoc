@@ -12,9 +12,8 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 TABLE_NAME = "baiviet"
-STORAGE_BUCKET = "news_images" # Tên bucket chứa ảnh bài viết
+STORAGE_BUCKET = "news_images"
 
-# --- API LẤY DANH SÁCH BÀI VIẾT CÔNG KHAI (CHO TRANG CHỦ/TRANG TIN TỨC) ---
 @router.get("/", summary="Lấy danh sách bài viết (Phân trang & Lọc)")
 async def get_list_posts(
     page: int = Query(1, ge=1, description="Số trang hiện tại (bắt đầu từ 1)"),
@@ -34,11 +33,8 @@ async def get_list_posts(
     "hoat-dong": "hoạt động",
     "thong-bao": "thông báo",
     "noi-bat": "nổi bật",
-    # Thêm các mục khác nếu có
 }
     try:
-        # 1. Tính toán phạm vi (Range) cho Supabase
-        # Supabase dùng zero-based index (0 là dòng đầu tiên)
         start = (page - 1) * limit
         end = start + limit - 1
 

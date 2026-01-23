@@ -142,11 +142,8 @@ def generate_username_from_name(full_name: str) -> str:
     """
     Chuyển "Lê Công Phước" -> "bd_congphuoc"
     """
-    # 1. Loại bỏ dấu tiếng Việt
     text = unicodedata.normalize('NFKD', full_name).encode('ASCII', 'ignore').decode('utf-8')
-    # 2. Chuyển về chữ thường
     text = text.lower()
-    # 3. Tách từ
     words = text.split()
 
     if not words:
@@ -158,15 +155,13 @@ def generate_username_from_name(full_name: str) -> str:
     else:
         suffix = words[0]
 
-    # Thêm prefix bd_
-    # (Thêm timestamp nhỏ để tránh trùng lặp nếu có nhiều người cùng tên)
     return f"bd_{suffix}_{int(time.time()) % 1000}"
 
 def normalize_text(text: str):
     if not text: return ""
     return unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('utf-8').upper().strip()
 
-# Hàm logic xác thực (Tách ra để Background Task có thể gọi trực tiếp nếu muốn)
+# Hàm logic xác thực
 def perform_verification(cccd, ho_ten, ngay_sinh, sdt, filename):
     # 1. Giả lập Face Matching dựa trên tên file
     if "fail" in filename.lower():

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
-// Logic mở modal (Giữ nguyên từ code cũ)
+// Logic mở modal
 const showBookingForm = () => {
     const modal = document.getElementById('bookingModal');
     if (modal) {
