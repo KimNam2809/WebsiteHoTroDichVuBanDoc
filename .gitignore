@@ -14,6 +14,4 @@ env/
 venv/
 *.dll
 
-docs/
-
 export_images.bat

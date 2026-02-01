@@ -10,7 +10,7 @@
 
 <p align="center">
   <strong>Hệ thống quản lý thư viện thông minh tích hợp AI Chatbot</strong><br/>
-  <em>Graduation Project - Do Phu Huy & Le Kim Nam</em>
+  <em>Graduation Project - Do Phu Huy (Teacher) & Le Kim Nam</em>
 </p>
 
 ---
