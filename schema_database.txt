@@ -1,0 +1,1036 @@
+create table public.baiviet (
+  mabaiviet bigserial not null,
+  manhanvien bigint null,
+  tieude text not null,
+  noidung text not null,
+  anhdaidien text null,
+  ngaydang timestamp with time zone null default now(),
+  ngaycapnhat timestamp with time zone null,
+  trangthai boolean null default true,
+  soluotxem integer null default 0,
+  soluotchiase integer null default 0,
+  tukhoa text[] null,
+  ghichu text null,
+  updated_at timestamp with time zone null default now(),
+  constraint baiviet_pkey primary key (mabaiviet),
+  constraint baiviet_manhanvien_fkey foreign KEY (manhanvien) references nhanvien (manhanvien) on delete set null
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on baiviet for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.bandoc (
+  mabandoc bigserial not null,
+  manguoidung bigint null,
+  hoten text not null,
+  ngaysinh date not null,
+  gioitinh text not null,
+  cccd text not null,
+  diachi text not null,
+  maphuongxa bigint null,
+  nghenghiep text null,
+  thongtinbosung jsonb null,
+  ngaydangky timestamp with time zone null default now(),
+  solanvangmat smallint not null default '0'::smallint,
+  ngayhethancamdat timestamp with time zone null,
+  updated_at timestamp with time zone null default now(),
+  constraint bandoc_pkey primary key (mabandoc),
+  constraint bandoc_manguoidung_key unique (manguoidung),
+  constraint bandoc_manguoidung_fkey foreign KEY (manguoidung) references nguoidung (manguoidung),
+  constraint bandoc_maphuongxa_fkey foreign KEY (maphuongxa) references phuongxa (maphuongxa)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on bandoc for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.bansao (
+  mabansao bigserial not null,
+  matacpham bigint null,
+  mabansaonoibo text null,
+  vitri text null,
+  vitrikengan text null,
+  dinhdangbansao text null,
+  ngaymua date null,
+  trangthaivatly text null,
+  trangthaichomuon boolean null default true,
+  ngaynhap timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint bansao_pkey primary key (mabansao),
+  constraint bansao_mabansaonoibo_key unique (mabansaonoibo),
+  constraint bansao_matacpham_fkey foreign KEY (matacpham) references tacpham (matacpham)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on bansao for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.chongoi (
+  machongoi bigserial not null,
+  maphong bigint null,
+  tenchongoi text null,
+  loaichongoi text null,
+  trangthai text null default 'coSan'::tinhtrangchongoi,
+  chongoitructiep boolean null default false,
+  ghichu text null,
+  updated_at timestamp with time zone null default now(),
+  constraint chongoi_pkey primary key (machongoi),
+  constraint chongoi_maphong_fkey foreign KEY (maphong) references phong (maphong)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on chongoi for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.danhmuc (
+  madanhmuc bigserial not null,
+  tendanhmuc text not null,
+  madanhmuccha bigint null,
+  updated_at timestamp with time zone null default now(),
+  constraint danhmuc_pkey primary key (madanhmuc),
+  constraint danhmuc_madanhmuccha_fkey foreign KEY (madanhmuccha) references danhmuc (madanhmuc) on delete set null
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on danhmuc for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.datchongoi (
+  madatcho bigserial not null,
+  machongoi bigint null,
+  mabandoc bigint null,
+  manhanvien bigint null,
+  thoigianbatdau timestamp with time zone not null,
+  thoigianketthuc timestamp with time zone not null,
+  trangthaidatcho text null default 'kichHoat'::tinhtrangdatcho,
+  ngaykhoitao timestamp with time zone null default now(),
+  thoidiemhuy timestamp with time zone null,
+  nhanvienhuy bigint null,
+  updated_at timestamp with time zone null default now(),
+  constraint datchongoi_pkey primary key (madatcho),
+  constraint datchongoi_mabandoc_fkey foreign KEY (mabandoc) references bandoc (mabandoc),
+  constraint datchongoi_machongoi_fkey foreign KEY (machongoi) references chongoi (machongoi),
+  constraint datchongoi_manhanvien_fkey foreign KEY (manhanvien) references nhanvien (manhanvien),
+  constraint datchongoi_nhanvienhuy_fkey foreign KEY (nhanvienhuy) references nhanvien (manhanvien)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on datchongoi for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.datphong (
+  madatphong bigserial not null,
+  maphong bigint null,
+  nguoitochuc text not null,
+  sodienthoai text not null,
+  thoigianbatdau timestamp with time zone not null,
+  thoigianketthuc timestamp with time zone not null,
+  mucdichsudung text null,
+  songuoithamdudukien integer null default 0,
+  trangthai text null default 'kichHoat'::tinhtrangdatphong,
+  manhanvien bigint null,
+  ngaykhoitao timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint datphong_pkey primary key (madatphong),
+  constraint datphong_manhanvien_fkey foreign KEY (manhanvien) references nhanvien (manhanvien),
+  constraint datphong_maphong_fkey foreign KEY (maphong) references phong (maphong)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on datphong for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.dattruoc (
+  madattruoc bigserial not null,
+  mabansao bigint null,
+  mabandoc bigint null,
+  thoidiemdattruoc timestamp with time zone null default now(),
+  trangthaidattruoc text null default 'kichHoat'::tinhtrangdattruoc,
+  hinhthucthongbao text null,
+  thoidiemhoanthanh timestamp with time zone null,
+  ghichu text null,
+  updated_at timestamp with time zone null default now(),
+  constraint dattruoc_pkey primary key (madattruoc),
+  constraint dattruoc_mabandoc_fkey foreign KEY (mabandoc) references bandoc (mabandoc),
+  constraint dattruoc_mabansao_fkey foreign KEY (mabansao) references bansao (mabansao)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on dattruoc for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.giahan (
+  magiahan bigserial not null,
+  mamuontra bigint null,
+  manhanvien bigint null,
+  thoidiemgiahan timestamp with time zone null default now(),
+  ngaytramoi date null,
+  lydogiahan text null,
+  updated_at timestamp with time zone null default now(),
+  constraint giahan_pkey primary key (magiahan),
+  constraint giahan_mamuontra_fkey foreign KEY (mamuontra) references muontra (mamuontra),
+  constraint giahan_manhanvien_fkey foreign KEY (manhanvien) references nhanvien (manhanvien)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on giahan for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.lichsuchatbot (
+  id bigserial not null,
+  manguoidung bigint null,
+  vaitro text not null,
+  noidung text not null,
+  thoigian timestamp with time zone null default now(),
+  phiengiaodich text null,
+  session_id text null,
+  constraint lichSuChatBot_pkey primary key (id),
+  constraint lichSuChatBot_manguoidung_fkey foreign KEY (manguoidung) references nguoidung (manguoidung)
+) TABLESPACE pg_default;
+
+create index IF not exists idx_chat_history_session on public.lichsuchatbot using btree (session_id, thoigian desc) TABLESPACE pg_default;
+
+create table public.loaithe (
+  maloaithe smallserial not null,
+  tenthe text not null,
+  mota text null,
+  tailieumuontoida integer null default 3,
+  songaymuonmacdinh integer null default 14,
+  lephi numeric null default '0'::numeric,
+  updated_at timestamp with time zone null default now(),
+  constraint loaithe_pkey primary key (maloaithe),
+  constraint loaithe_tenthe_key unique (tenthe)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on loaithe for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.muontra (
+  mamuontra bigserial not null,
+  mabansao bigint null,
+  mabandoc bigint null,
+  manhanvien bigint null,
+  thoigianmuon timestamp with time zone null default now(),
+  ngaytra date null,
+  ngaytrathucte timestamp with time zone null,
+  trangthaimuon text null default 'daMuon'::tinhtrangmuon,
+  solangiahan smallint null default 0,
+  solangiahantoida smallint null default 2,
+  tienphat numeric(10, 2) null default 0,
+  ghichu text null,
+  updated_at timestamp with time zone null default now(),
+  constraint muontra_pkey primary key (mamuontra),
+  constraint muontra_mabandoc_fkey foreign KEY (mabandoc) references bandoc (mabandoc),
+  constraint muontra_mabansao_fkey foreign KEY (mabansao) references bansao (mabansao),
+  constraint muontra_manhanvien_fkey foreign KEY (manhanvien) references nhanvien (manhanvien)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on muontra for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.nguoidung (
+  manguoidung bigserial not null,
+  tendangnhap text not null,
+  email text null,
+  sodienthoai text null,
+  matkhau text not null,
+  vaitro text not null default 'banDoc'::loaivaitro,
+  trangthai boolean null default true,
+  ngaytao timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint nguoidung_pkey primary key (manguoidung),
+  constraint nguoidung_email_key unique (email),
+  constraint nguoidung_tendangnhap_key unique (tendangnhap)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on nguoidung for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.nhanvien (
+  manhanvien bigserial not null,
+  manguoidung bigint null,
+  hoten text not null,
+  manhanviennoibo text null,
+  phongban text null,
+  chucvu text null,
+  ngaytuyendung date null,
+  diachi text not null,
+  maphuongxa bigint null,
+  ghichu text null,
+  updated_at timestamp with time zone null default now(),
+  constraint nhanvien_pkey primary key (manhanvien),
+  constraint nhanvien_manguoidung_key unique (manguoidung),
+  constraint nhanvien_manhanviennoibo_key unique (manhanviennoibo),
+  constraint nhanvien_manguoidung_fkey foreign KEY (manguoidung) references nguoidung (manguoidung),
+  constraint nhanvien_maphuongxa_fkey foreign KEY (maphuongxa) references phuongxa (maphuongxa)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on nhanvien for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.phong (
+  maphong bigserial not null,
+  tenphong text not null,
+  loaiphong text null,
+  succhua integer null,
+  vitri text null,
+  trangthai text null default 'moCua'::tinhtrangphong,
+  thongtinthietbitaiphong jsonb null,
+  ghichu text null,
+  updated_at timestamp with time zone null default now(),
+  constraint phong_pkey primary key (maphong)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on phong for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.phuongxa (
+  maphuongxa bigserial not null,
+  tenphuongxa text not null,
+  matinhthanhpho bigint null,
+  updated_at timestamp with time zone null default now(),
+  constraint phuongxa_pkey primary key (maphuongxa),
+  constraint phuongxa_tenphuongxa_key unique (tenphuongxa),
+  constraint phuongxa_matinhthanhpho_fkey foreign KEY (matinhthanhpho) references tinhthanhpho (matinhthanhpho)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on phuongxa for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.rag_documents (
+  id bigint generated by default as identity not null,
+  source text null,
+  category text null,
+  content text null,
+  embedding public.vector null,
+  constraint rag_documents_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create index IF not exists rag_documents_embedding_idx on public.rag_documents using hnsw (embedding vector_cosine_ops) TABLESPACE pg_default;
+
+create table public.tacpham (
+  matacpham bigserial not null,
+  tentacpham text not null,
+  tacgia text null,
+  mota text null,
+  isbn text null,
+  namxuatban integer null,
+  ngaytao timestamp with time zone null default now(),
+  anhbia text null,
+  updated_at timestamp with time zone null default now(),
+  constraint tacpham_pkey primary key (matacpham),
+  constraint tacpham_isbn_key unique (isbn)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on tacpham for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.tacpham_danhmuc (
+  matacpham bigint not null,
+  madanhmuc bigint not null,
+  updated_at timestamp with time zone null default now(),
+  constraint tacpham_danhmuc_pkey primary key (matacpham, madanhmuc),
+  constraint tacpham_danhmuc_madanhmuc_fkey foreign KEY (madanhmuc) references danhmuc (madanhmuc),
+  constraint tacpham_danhmuc_matacpham_fkey foreign KEY (matacpham) references tacpham (matacpham)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on tacpham_danhmuc for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.tacpham_tukhoa (
+  matacpham bigint not null,
+  matukhoa bigint not null,
+  updated_at timestamp with time zone null default now(),
+  constraint tacpham_tukhoa_pkey primary key (matacpham, matukhoa),
+  constraint tacpham_tukhoa_matacpham_fkey foreign KEY (matacpham) references tacpham (matacpham),
+  constraint tacpham_tukhoa_matukhoa_fkey foreign KEY (matukhoa) references tukhoa (matukhoa)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on tacpham_tukhoa for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.thebandoc (
+  mathe bigserial not null,
+  mabandoc bigint null,
+  maloaithe smallint null,
+  sothe text not null,
+  manhanvien bigint null,
+  ngayphathanh timestamp with time zone null default now(),
+  ngayhethan date null,
+  phuongthucvanchuyen text null,
+  mavanchuyen bigint null,
+  trangthaithe boolean null default true,
+  thongtinbosung jsonb null,
+  updated_at timestamp with time zone null default now(),
+  constraint thebandoc_pkey primary key (mathe),
+  constraint thebandoc_sothe_key unique (sothe),
+  constraint thebandoc_mabandoc_fkey foreign KEY (mabandoc) references bandoc (mabandoc),
+  constraint thebandoc_maloaithe_fkey foreign KEY (maloaithe) references loaithe (maloaithe),
+  constraint thebandoc_manhanvien_fkey foreign KEY (manhanvien) references nhanvien (manhanvien),
+  constraint thebandoc_mavanchuyen_fkey foreign KEY (mavanchuyen) references vanchuyen (mavanchuyen)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on thebandoc for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.thietbi (
+  mathietbi bigserial not null,
+  mathietbinoibo text null,
+  tenthietbi text null,
+  loaithietbi text null,
+  maphong bigint null,
+  ngaymua date null,
+  hanbaohanh date null,
+  trangthai text null,
+  thongtinbosung jsonb null,
+  ghichu text null,
+  updated_at timestamp with time zone null default now(),
+  constraint thietbi_pkey primary key (mathietbi),
+  constraint thietbi_mathietbinoibo_key unique (mathietbinoibo),
+  constraint thietbi_maphong_fkey foreign KEY (maphong) references phong (maphong)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on thietbi for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.thongbao (
+  mathongbao bigserial not null,
+  mabandoc bigint null,
+  hinhthuc text null,
+  tieude text null,
+  noidung text null,
+  dulieugoc jsonb null,
+  thoigiangui timestamp with time zone null,
+  trangthai text null,
+  thamchieu text null,
+  solangui integer null default 0,
+  updated_at timestamp with time zone null default now(),
+  constraint thongbao_pkey primary key (mathongbao),
+  constraint thongbao_mabandoc_fkey foreign KEY (mabandoc) references bandoc (mabandoc)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on thongbao for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.tinhthanhpho (
+  matinhthanhpho bigserial not null,
+  tentinhthanhpho text not null,
+  updated_at timestamp with time zone null default now(),
+  constraint tinhthanhpho_pkey primary key (matinhthanhpho),
+  constraint tinhthanhpho_tentinhthanhpho_key unique (tentinhthanhpho)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on tinhthanhpho for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.tukhoa (
+  matukhoa bigserial not null,
+  tentukhoa text not null,
+  matukhoacha bigint null,
+  updated_at timestamp with time zone null default now(),
+  constraint tukhoa_pkey primary key (matukhoa),
+  constraint tukhoa_matukhoacha_fkey foreign KEY (matukhoacha) references tukhoa (matukhoa) on delete set null
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on tukhoa for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.vanchuyen (
+  mavanchuyen bigserial not null,
+  mayeucauthe bigint null,
+  donvivanchuyen text null,
+  matheodoi text null,
+  nguoigui text null,
+  nguoinhan text null,
+  diachinhan text null,
+  maphuongxa bigint null,
+  sodienthoainhanhang text null,
+  trangthai text null default 'dangChuanBi'::trangthaivanchuyen,
+  thoigiangiaohang timestamp with time zone null,
+  thoigiangiaohangthanhcong timestamp with time zone null,
+  chiphivanchuyen numeric(10, 2) null,
+  ghichu text null,
+  updated_at timestamp with time zone null default now(),
+  constraint vanchuyen_pkey primary key (mavanchuyen),
+  constraint vanchuyen_matheodoi_key unique (matheodoi),
+  constraint vanchuyen_maphuongxa_fkey foreign KEY (maphuongxa) references phuongxa (maphuongxa),
+  constraint vanchuyen_mayeucauthe_fkey foreign KEY (mayeucauthe) references yeucauthe (mayeucauthe)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on vanchuyen for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.yeucaugiao (
+  mayeucaugiao bigserial not null,
+  mabandoc bigint null,
+  mamuontra bigint null,
+  hinhthucyeucau text not null,
+  diachi text not null,
+  maphuongxa bigint null,
+  sodienthoai text null,
+  thoigianyeucau timestamp with time zone null default now(),
+  manhanvien bigint null,
+  trangthai text null default 'daYeuCau'::tinhtranggiao,
+  thoigiancothenhanhang timestamp with time zone null,
+  thoigiannhanhangthucte timestamp with time zone null,
+  lephi numeric(10, 2) null,
+  thongtinbosung jsonb null,
+  ghichu text null,
+  updated_at timestamp with time zone null default now(),
+  constraint yeucaugiao_pkey primary key (mayeucaugiao),
+  constraint yeucaugiao_mabandoc_fkey foreign KEY (mabandoc) references bandoc (mabandoc),
+  constraint yeucaugiao_mamuontra_fkey foreign KEY (mamuontra) references muontra (mamuontra),
+  constraint yeucaugiao_manhanvien_fkey foreign KEY (manhanvien) references nhanvien (manhanvien),
+  constraint yeucaugiao_maphuongxa_fkey foreign KEY (maphuongxa) references phuongxa (maphuongxa)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on yeucaugiao for EACH row
+execute FUNCTION update_updated_at_column ();
+
+create table public.yeucauthe (
+  mayeucauthe bigserial not null,
+  mabandoc bigint null,
+  maloaithe smallint null,
+  thoigianbatdau timestamp with time zone null default now(),
+  hinhthucyeucau text not null,
+  thongtinbosung jsonb null,
+  lephi numeric(10, 2) null default 0,
+  trangthaiquytrinh text null default 'daYeuCau'::loaiyeucauthe,
+  manhanvien bigint null,
+  thoigianxuly timestamp with time zone null,
+  noinhanthe text null,
+  maphuongxa bigint null,
+  thoigiandukien timestamp with time zone null,
+  ghichu text null,
+  updated_at timestamp with time zone null default now(),
+  constraint yeucauthe_pkey primary key (mayeucauthe),
+  constraint yeucauthe_mabandoc_fkey foreign KEY (mabandoc) references bandoc (mabandoc),
+  constraint yeucauthe_maloaithe_fkey foreign KEY (maloaithe) references loaithe (maloaithe),
+  constraint yeucauthe_manhanvien_fkey foreign KEY (manhanvien) references nhanvien (manhanvien),
+  constraint yeucauthe_maphuongxa_fkey foreign KEY (maphuongxa) references phuongxa (maphuongxa)
+) TABLESPACE pg_default;
+
+create trigger update_bandoc_modtime BEFORE
+update on yeucauthe for EACH row
+execute FUNCTION update_updated_at_column ();
+
+-- ==============================================
+--  CÁC BẢNG DỮ LIỆU
+-- ==============================================
+
+-- 1. TinhThanhPho
+CREATE TABLE TinhThanhPho (
+  maTinhThanhPho BIGSERIAL PRIMARY KEY,
+  tenTinhThanhPho TEXT UNIQUE NOT NULL
+);
+
+-- 2. PhuongXa
+CREATE TABLE PhuongXa (
+  maPhuongXa BIGSERIAL PRIMARY KEY,
+  tenPhuongXa TEXT UNIQUE NOT NULL,
+  maTinhThanhPho BIGINT REFERENCES TinhThanhPho(maTinhThanhPho)
+);
+
+-- 3. NguoiDung
+CREATE TABLE NguoiDung (
+  maNguoiDung BIGSERIAL PRIMARY KEY,
+  tenDangNhap TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE,
+  soDienThoai TEXT,
+  matKhau TEXT NOT NULL,
+  vaiTro TEXT NOT NULL DEFAULT 'nguoiDung',
+  trangThai BOOLEAN DEFAULT TRUE,
+  ngayTao TIMESTAMPTZ DEFAULT now()
+);
+
+-- 4. NhanVien
+CREATE TABLE NhanVien (
+  maNhanVien BIGSERIAL PRIMARY KEY,
+  maNguoiDung BIGINT UNIQUE REFERENCES NguoiDung(maNguoiDung),
+  hoTen TEXT NOT NULL,
+  maNhanVienNoiBo TEXT UNIQUE,
+  phongBan TEXT,
+  chucVu TEXT,
+  ngayTuyenDung DATE,
+  diaChi TEXT NOT NULL,
+  maPhuongXa BIGINT REFERENCES PhuongXa(maPhuongXa),
+  ghiChu TEXT
+);
+
+-- 5. BanDoc
+CREATE TABLE BanDoc (
+  maBanDoc BIGSERIAL PRIMARY KEY,
+  maNguoiDung BIGINT UNIQUE REFERENCES NguoiDung(maNguoiDung),
+  hoTen TEXT NOT NULL,
+  ngaySinh DATE NOT NULL,
+  gioiTinh TEXT NOT NULL,
+  cccd TEXT NOT NULL,
+  diaChi TEXT NOT NULL,
+  maPhuongXa BIGINT REFERENCES PhuongXa(maPhuongXa),
+  ngheNghiep TEXT,
+  thongTinBoSung JSONB,
+  ngayDangKy TIMESTAMPTZ DEFAULT now()
+);
+
+-- 6. LoaiThe
+CREATE TABLE LoaiThe (
+  maLoaiThe SMALLSERIAL PRIMARY KEY,
+  tenThe TEXT UNIQUE NOT NULL,
+  moTa TEXT,
+  taiLieuMuonToiDa INT DEFAULT 3,
+  soNgayMuonMacDinh INT DEFAULT 14
+);
+
+-- 7. YeuCauThe
+CREATE TABLE YeuCauThe (
+  maYeuCauThe BIGSERIAL PRIMARY KEY,
+  maBanDoc BIGINT REFERENCES BanDoc(maBanDoc),
+  maLoaiThe SMALLINT REFERENCES LoaiThe(maLoaiThe),
+  thoiGianBatDau TIMESTAMPTZ DEFAULT now(),
+  hinhThucYeuCau TEXT,
+  thongTinBoSung JSONB,
+  lePhi NUMERIC(10,2) DEFAULT 0,
+  trangThaiQuyTrinh text DEFAULT 'daYeuCau',
+  maNhanVien BIGINT REFERENCES NhanVien(maNhanVien),
+  thoiGianXuLy TIMESTAMPTZ,
+  noiNhanThe TEXT,
+  maPhuongXa BIGINT REFERENCES PhuongXa(maPhuongXa),
+  thoiGianDuKien TIMESTAMPTZ,
+  ghiChu TEXT
+);
+
+-- 8. VanChuyen
+CREATE TABLE VanChuyen (
+  maVanChuyen BIGSERIAL PRIMARY KEY,
+  maYeuCauThe BIGINT REFERENCES YeuCauThe(maYeuCauThe),
+  donViVanChuyen TEXT,
+  maTheoDoi TEXT UNIQUE,
+  nguoiGui TEXT,
+  nguoiNhan TEXT,
+  diaChiNhan TEXT,
+  maPhuongXa BIGINT REFERENCES PhuongXa(maPhuongXa),
+  soDienThoaiNhanHang TEXT,
+  trangThai TEXT DEFAULT 'dangChuanBi',
+  thoiGianGiaoHang TIMESTAMPTZ,
+  thoiGianGiaoHangThanhCong TIMESTAMPTZ,
+  chiPhiVanChuyen NUMERIC(10,2),
+  ghiChu TEXT
+);
+
+-- 9. TheBanDoc
+CREATE TABLE TheBanDoc (
+  maThe BIGSERIAL PRIMARY KEY,
+  maBanDoc BIGINT REFERENCES BanDoc(maBanDoc),
+  maLoaiThe SMALLINT REFERENCES LoaiThe(maLoaiThe),
+  soThe TEXT UNIQUE NOT NULL,
+  maNhanVien BIGINT REFERENCES NhanVien(maNhanVien),
+  ngayPhatHanh TIMESTAMPTZ DEFAULT now(),
+  ngayHetHan DATE,
+  phuongThucVanChuyen TEXT,
+  maVanChuyen BIGINT REFERENCES VanChuyen(maVanChuyen),
+  trangThaiThe BOOLEAN DEFAULT TRUE,
+  thongTinBoSung JSONB
+);
+
+-- 10. DanhMuc
+CREATE TABLE DanhMuc (
+  maDanhMuc BIGSERIAL PRIMARY KEY,
+  tenDanhMuc TEXT NOT NULL,
+  maDanhMucCha BIGINT REFERENCES DanhMuc(maDanhMuc) ON DELETE SET NULL
+);
+
+-- 11. TuKhoa
+CREATE TABLE TuKhoa (
+  maTuKhoa BIGSERIAL PRIMARY KEY,
+  tenTuKhoa TEXT NOT NULL,
+  maTuKhoaCha BIGINT REFERENCES TuKhoa(maTuKhoa) ON DELETE SET NULL
+);
+
+-- 12. TacPham
+CREATE TABLE TacPham (
+  maTacPham BIGSERIAL PRIMARY KEY,
+  tenTacPham TEXT NOT NULL,
+  tacGia TEXT,
+  moTa TEXT,
+  isbn TEXT UNIQUE,
+  namXuatBan INT,
+  ngayTao TIMESTAMPTZ DEFAULT now()
+);
+
+-- 13. TacPham_DanhMuc
+CREATE TABLE TacPham_DanhMuc (
+  maTacPham BIGINT REFERENCES TacPham(maTacPham),
+  maDanhMuc BIGINT REFERENCES DanhMuc(maDanhMuc),
+  PRIMARY KEY(maTacPham, maDanhMuc)
+);
+
+-- 14. TacPham_TuKhoa
+CREATE TABLE TacPham_TuKhoa (
+  maTacPham BIGINT REFERENCES TacPham(maTacPham),
+  maTuKhoa BIGINT REFERENCES TuKhoa(maTuKhoa),
+  PRIMARY KEY(maTacPham, maTuKhoa)
+);
+
+-- 15. BanSao
+CREATE TABLE BanSao (
+  maBanSao BIGSERIAL PRIMARY KEY,
+  maTacPham BIGINT REFERENCES TacPham(maTacPham),
+  maBanSaoNoiBo TEXT UNIQUE,
+  viTri TEXT,
+  viTriKeNgan TEXT,
+  dinhDangBanSao TEXT,
+  ngayMua DATE,
+  trangThaiVatLy TEXT,
+  trangThaiChoMuon BOOLEAN DEFAULT TRUE,
+  ngayNhap TIMESTAMPTZ DEFAULT now()
+);
+
+-- 16. MuonTra
+CREATE TABLE MuonTra (
+  maMuonTra BIGSERIAL PRIMARY KEY,
+  maBanSao BIGINT REFERENCES BanSao(maBanSao),
+  maBanDoc BIGINT REFERENCES BanDoc(maBanDoc),
+  maNhanVien BIGINT REFERENCES NhanVien(maNhanVien),
+  thoiGianMuon TIMESTAMPTZ DEFAULT now(),
+  ngayTra DATE,
+  ngayTraThucTe TIMESTAMPTZ,
+  trangThaiMuon TEXT DEFAULT 'daMuon',
+  soLanGiaHan SMALLINT DEFAULT 0,
+  soLanGiaHanToiDa SMALLINT DEFAULT 2,
+  tienPhat NUMERIC(10,2) DEFAULT 0,
+  ghiChu TEXT
+);
+
+-- 17. GiaHan
+CREATE TABLE GiaHan (
+  maGiaHan BIGSERIAL PRIMARY KEY,
+  maMuonTra BIGINT REFERENCES MuonTra(maMuonTra),
+  maNhanVien BIGINT REFERENCES NhanVien(maNhanVien),
+  thoiDiemGiaHan TIMESTAMPTZ DEFAULT now(),
+  ngayTraMoi DATE,
+  lyDoGiaHan TEXT
+);
+
+-- 18. DatTruoc
+CREATE TABLE DatTruoc (
+  maDatTruoc BIGSERIAL PRIMARY KEY,
+  maBanSao BIGINT REFERENCES BanSao(maBanSao),
+  maBanDoc BIGINT REFERENCES BanDoc(maBanDoc),
+  thoiDiemDatTruoc TIMESTAMPTZ DEFAULT now(),
+  trangThaiDatTruoc TEXT DEFAULT 'kichHoat',
+  hinhThucThongBao TEXT,
+  thoiDiemHoanThanh TIMESTAMPTZ,
+  ghiChu TEXT
+);
+
+-- 19. YeuCauGiao
+CREATE TABLE YeuCauGiao (
+  maYeuCauGiao BIGSERIAL PRIMARY KEY,
+  maBanDoc BIGINT REFERENCES BanDoc(maBanDoc),
+  maMuonTra BIGINT REFERENCES MuonTra(maMuonTra),
+  hinhThucYeuCau TEXT NOT NULL,
+  diaChi TEXT NOT NULL,
+  maPhuongXa BIGINT REFERENCES PhuongXa(maPhuongXa),
+  soDienThoai TEXT,
+  thoiGianYeuCau TIMESTAMPTZ DEFAULT now(),
+  maNhanVien BIGINT REFERENCES NhanVien(maNhanVien),
+  trangThai TEXT DEFAULT 'daYeuCau',
+  thoiGianCoTheNhanHang TIMESTAMPTZ,
+  thoiGianNhanHangThucTe TIMESTAMPTZ,
+  lePhi NUMERIC(10, 2),
+  thongTinBoSung JSONB,
+  ghiChu TEXT
+);
+
+-- 20. Phong
+CREATE TABLE Phong (
+  maPhong BIGSERIAL PRIMARY KEY,
+  tenPhong TEXT NOT NULL,
+  loaiPhong TEXT,
+  sucChua INT,
+  viTri TEXT,
+  trangThai TEXT DEFAULT 'moCua',
+  thongTinThietBiTaiPhong JSONB,
+  ghiChu TEXT
+);
+
+-- 21. ChoNgoi
+CREATE TABLE ChoNgoi (
+  maChoNgoi BIGSERIAL PRIMARY KEY,
+  maPhong BIGINT REFERENCES Phong(maPhong),
+  tenChoNgoi TEXT,
+  loaiChoNgoi TEXT,
+  trangThai TEXT DEFAULT 'coSan',
+  choNgoiTrucTiep BOOLEAN DEFAULT FALSE,
+  ghiChu TEXT
+);
+
+-- 22. DatChoNgoi
+CREATE TABLE DatChoNgoi (
+  maDatCho BIGSERIAL PRIMARY KEY,
+  maChoNgoi BIGINT REFERENCES ChoNgoi(maChoNgoi),
+  maBanDoc BIGINT REFERENCES BanDoc(maBanDoc),
+  maNhanVien BIGINT REFERENCES NhanVien(maNhanVien),
+  thoiGianBatDau TIMESTAMPTZ NOT NULL,
+  thoiGianKetThuc TIMESTAMPTZ NOT NULL,
+  trangThaiDatCho TEXT DEFAULT 'kichHoat',
+  ngayKhoiTao TIMESTAMPTZ DEFAULT now(),
+  thoiDiemHuy TIMESTAMPTZ,
+  nhanVienHuy BIGINT REFERENCES NhanVien(maNhanVien)
+);
+
+-- 23. DatPhong
+CREATE TABLE DatPhong (
+  maDatPhong BIGSERIAL PRIMARY KEY,
+  maPhong BIGINT REFERENCES Phong(maPhong),
+  nguoiToChuc TEXT NOT NULL,
+  soDienThoai TEXT NOT NULL,
+  thoiGianBatDau TIMESTAMPTZ NOT NULL,
+  thoiGianKetThuc TIMESTAMPTZ NOT NULL,
+  mucDichSuDung TEXT,
+  soNguoiThamDuDuKien INT DEFAULT 0,
+  trangThai TEXT DEFAULT 'kichHoat',
+  maNhanVien BIGINT REFERENCES NhanVien(maNhanVien),
+  ngayKhoiTao TIMESTAMPTZ DEFAULT now()
+);
+
+-- 24. ThietBi
+CREATE TABLE ThietBi (
+  maThietBi BIGSERIAL PRIMARY KEY,
+  maThietBiNoiBo TEXT UNIQUE,
+  tenThietBi TEXT,
+  loaiThietBi TEXT,
+  maPhong BIGINT REFERENCES Phong(maPhong),
+  ngayMua DATE,
+  hanBaoHanh DATE,
+  trangThai TEXT,
+  thongTinBoSung JSONB,
+  ghiChu TEXT
+);
+
+-- 25. ThongBao
+CREATE TABLE ThongBao (
+  maThongBao BIGSERIAL PRIMARY KEY,
+  maBanDoc BIGINT REFERENCES BanDoc(maBanDoc),
+  hinhThuc TEXT,
+  tieuDe TEXT,
+  noiDung TEXT,
+  duLieuGoc JSONB,
+  thoiGianGui TIMESTAMPTZ,
+  trangThai TEXT,
+  thamChieu TEXT,
+  soLanGui INT DEFAULT 0
+);
+
+-- 26. BaiViet
+CREATE TABLE BaiViet (
+  maBaiViet BIGSERIAL PRIMARY KEY,
+  maNhanVien BIGINT REFERENCES NhanVien(maNhanVien) ON DELETE SET NULL,
+  tieuDe TEXT NOT NULL,
+  noiDung TEXT NOT NULL,
+  anhDaiDien TEXT,
+  ngayDang TIMESTAMPTZ DEFAULT now(),
+  ngayCapNhat TIMESTAMPTZ,
+  trangThai BOOLEAN DEFAULT TRUE,
+  soLuotXem INT DEFAULT 0,
+  soLuotChiaSe INT DEFAULT 0,
+  tuKhoa TEXT[],
+  ghiChu TEXT
+);
+
+-- ==============================================
+--  INSERT DỮ LIỆU
+-- ==============================================
+-- Dữ liệu cho bảng TinhThanhPho (1)
+INSERT INTO TinhThanhPho (tenTinhThanhPho) VALUES
+('Đà Nẵng'),
+('Hà Nội'),
+('Hồ Chí Minh'),
+('Cần Thơ'),
+('Hải Phòng');
+
+-- Dữ liệu cho bảng PhuongXa (2)
+INSERT INTO PhuongXa (tenPhuongXa, maTinhThanhPho) VALUES
+('Phường Hòa Cường Bắc', 1),
+('Phường Hải Châu I', 1),
+('Phường Hoàn Kiếm', 2),
+('Phường Bến Nghé', 3),
+('Phường An Khánh', 4);
+
+-- Dữ liệu cho bảng NguoiDung (3)
+-- Vai trò: 'nguoiDung' cho bạn đọc, 'nhanVien' cho nhân viên
+INSERT INTO NguoiDung (tenDangNhap, email, soDienThoai, matKhau, vaiTro) VALUES
+('nv_anhtuan', 'anhtuan.nv@thuvien.edu.vn', '0905111222', 'hashed_password_nv1', 'nhanVien'),
+('nv_minhchau', 'minhchau.nv@thuvien.edu.vn', '0913333444', 'hashed_password_nv2', 'nhanVien'),
+('bd_thanhphong', 'thanhphong@gmail.com', '0987654321', 'hashed_password_bd1', 'nguoiDung'),
+('bd_hoaanh', 'hoaanh.le@outlook.com', '0978123456', 'hashed_password_bd2', 'nguoiDung'),
+('bd_baongoc', 'baongoc.tran@yahoo.com', '0912987654', 'hashed_password_bd3', 'nguoiDung'),
+('bd_quocbao', 'quocbao.pham@gmail.com', '0935123789', 'hashed_password_bd4', 'nguoiDung'),
+('bd_maiphuong', 'maiphuong.ng@gmail.com', '0945678123', 'hashed_password_bd5', 'nguoiDung');
+
+-- Dữ liệu cho bảng NhanVien (4)
+INSERT INTO NhanVien (maNguoiDung, hoTen, maNhanVienNoiBo, phongBan, chucVu, ngayTuyenDung, diaChi, maPhuongXa) VALUES
+(1, 'Nguyễn Anh Tuấn', 'NV001', 'Phòng Dịch vụ Bạn đọc', 'Thủ thư', '2022-08-15', '123 Lê Duẩn', 2),
+(2, 'Trần Minh Châu', 'NV002', 'Phòng Kỹ thuật', 'Quản trị hệ thống', '2021-05-20', '45 Nguyễn Văn Linh', 1);
+
+-- Dữ liệu cho bảng BanDoc (5)
+INSERT INTO BanDoc (maNguoiDung, hoTen, ngaySinh, gioiTinh, cccd, diaChi, maPhuongXa, ngheNghiep) VALUES
+(3, 'Lê Thành Phong', '2003-04-12', 'Nam', '048203001122', 'K1/1 Võ Văn Tần', 1, 'Sinh viên'),
+(4, 'Lý Họa Anh', '1999-11-25', 'Nữ', '048399002233', '200 Hùng Vương', 2, 'Nhân viên văn phòng'),
+(5, 'Trần Bảo Ngọc', '2005-07-01', 'Nữ', '048205003344', '30/2 Ông Ích Khiêm', 1, 'Học sinh'),
+(6, 'Phạm Quốc Bảo', '1985-02-10', 'Nam', '001085004455', '55 Nguyễn Chí Thanh', 3, 'Kỹ sư'),
+(7, 'Nguyễn Mai Phương', '2003-09-30', 'Nữ', '079303005566', '180 Trần Phú', 4, 'Sinh viên');
+
+-- Dữ liệu cho bảng LoaiThe (6)
+INSERT INTO LoaiThe (tenThe, moTa, taiLieuMuonToiDa, soNgayMuonMacDinh) VALUES
+('Thẻ Sinh viên', 'Dành cho sinh viên các trường đại học, cao đẳng', 5, 21),
+('Thẻ Phổ thông', 'Dành cho mọi đối tượng bạn đọc', 3, 14),
+('Thẻ Nghiên cứu', 'Dành cho nghiên cứu sinh, giảng viên', 10, 30),
+('Thẻ Thiếu nhi', 'Dành cho bạn đọc dưới 15 tuổi', 4, 14);
+
+-- Dữ liệu cho bảng YeuCauThe (7)
+-- trangThaiQuyTrinh: daYeuCau, daXuLy, daHuy
+INSERT INTO YeuCauThe (maBanDoc, maLoaiThe, hinhThucYeuCau, trangThaiQuyTrinh, maNhanVien, noiNhanThe, maPhuongXa) VALUES
+(1, 1, 'Online', 'daXuLy', 1, 'Tại thư viện', NULL),
+(2, 2, 'Online', 'daXuLy', 1, 'Giao hàng tận nơi', 2),
+(3, 4, 'Trực tiếp', 'daYeuCau', 1, 'Tại thư viện', NULL),
+(4, 3, 'Online', 'daYeuCau', 1, 'Giao hàng tận nơi', 3),
+(5, 1, 'Trực tiếp', 'daHuy', 2, 'Tại thư viện', NULL);
+
+-- Dữ liệu cho bảng VanChuyen (8)
+-- maYeuCauThe = 2 tương ứng với yêu cầu của bạn đọc Lý Họa Anh
+INSERT INTO VanChuyen (maYeuCauThe, donViVanChuyen, maTheoDoi, nguoiGui, nguoiNhan, diaChiNhan, maPhuongXa, soDienThoaiNhanHang, trangThai) VALUES
+(2, 'Giao Hàng Nhanh', 'GHN123456XYZ', 'Thư viện XYZ', 'Lý Họa Anh', '200 Hùng Vương', 2, '0978123456', 'daGiaoThanhCong');
+
+-- Dữ liệu cho bảng TheBanDoc (9)
+INSERT INTO TheBanDoc (maBanDoc, maLoaiThe, soThe, maNhanVien, ngayHetHan, phuongThucVanChuyen, maVanChuyen) VALUES
+(1, 1, 'SV20250001', 1, '2026-10-15', 'NhanTaiThuVien', NULL),
+(2, 2, 'PT20250002', 1, '2027-10-15', 'GiaoHang', 1),
+(4, 3, 'NC20250003', 2, '2026-01-01', 'NhanTaiThuVien', NULL),
+(5, 1, 'SV20250004', 1, '2026-05-20', 'NhanTaiThuVien', NULL);
+
+-- Dữ liệu cho bảng DanhMuc (10)
+INSERT INTO DanhMuc (tenDanhMuc, maDanhMucCha) VALUES
+('Khoa học máy tính', NULL),
+('Văn học', NULL),
+('Lịch sử', NULL),
+('Trí tuệ nhân tạo', 1),
+('Văn học Việt Nam', 2);
+
+-- Dữ liệu cho bảng TuKhoa (11)
+INSERT INTO TuKhoa (tenTuKhoa, maTuKhoaCha) VALUES
+('Lập trình', NULL),
+('Python', 1),
+('Machine Learning', NULL),
+('Chatbot', 3),
+('Nguyễn Nhật Ánh', NULL);
+
+-- Dữ liệu cho bảng TacPham (12)
+INSERT INTO TacPham (tenTacPham, tacGia, moTa, isbn, namXuatBan) VALUES
+('Giáo trình Trí tuệ nhân tạo', 'Stuart Russell, Peter Norvig', 'Cuốn sách nền tảng về AI.', '978-0136042594', 2020),
+('Cho tôi xin một vé đi tuổi thơ', 'Nguyễn Nhật Ánh', 'Tác phẩm văn học nổi tiếng.', '978-6042189689', 2010),
+('Lược sử loài người', 'Yuval Noah Harari', 'Hành trình lịch sử của loài người.', '978-0062316097', 2015),
+('Python for Data Analysis', 'Wes McKinney', 'Hướng dẫn thực hành về xử lý dữ liệu với Python.', '978-1491957660', 2017),
+('Dế mèn phiêu lưu ký', 'Tô Hoài', 'Tác phẩm kinh điển của văn học thiếu nhi Việt Nam.', '978-6042055595', 1941);
+
+-- Dữ liệu cho bảng TacPham_DanhMuc (13)
+INSERT INTO TacPham_DanhMuc (maTacPham, maDanhMuc) VALUES
+(1, 1), (1, 4),
+(2, 2), (2, 5),
+(3, 3),
+(4, 1),
+(5, 2), (5, 5);
+
+-- Dữ liệu cho bảng TacPham_TuKhoa (14)
+INSERT INTO TacPham_TuKhoa (maTacPham, maTuKhoa) VALUES
+(1, 3), (1, 4),
+(2, 5),
+(4, 1), (4, 2), (4, 3);
+
+-- Dữ liệu cho bảng BanSao (15)
+-- trangThaiChoMuon: TRUE (sẵn sàng), FALSE (đã có người mượn)
+INSERT INTO BanSao (maTacPham, maBanSaoNoiBo, viTri, trangThaiChoMuon) VALUES
+(1, 'AI.001', 'Kệ A1, Tầng 3', TRUE),
+(1, 'AI.002', 'Kệ A1, Tầng 3', FALSE),
+(2, 'VHVN.001', 'Kệ B2, Tầng 2', TRUE),
+(3, 'LS.001', 'Kệ C3, Tầng 1', TRUE),
+(4, 'IT.001', 'Kệ A2, Tầng 3', FALSE);
+
+-- Dữ liệu cho bảng MuonTra (16)
+-- trangThaiMuon: daMuon, daTra, quaHan
+INSERT INTO MuonTra (maBanSao, maBanDoc, maNhanVien, thoiGianMuon, ngayTra, ngayTraThucTe, trangThaiMuon, tienPhat) VALUES
+(2, 1, 1, '2025-10-01 09:30:00+07', '2025-10-22', NULL, 'daMuon', 0),
+(5, 2, 1, '2025-09-20 14:00:00+07', '2025-10-04', NULL, 'quaHan', 5000),
+(3, 4, 1, '2025-09-15 10:00:00+07', '2025-09-29', '2025-09-28 16:00:00+07', 'daTra', 0);
+
+-- Dữ liệu cho bảng GiaHan (17)
+INSERT INTO GiaHan (maMuonTra, maNhanVien, ngayTraMoi, lyDoGiaHan) VALUES
+(1, 1, '2025-11-12', 'Cần thêm thời gian để hoàn thành báo cáo.');
+
+-- Dữ liệu cho bảng DatTruoc (18)
+-- Bạn đọc 3 đặt trước bản sao mã 2 (AI.002) đang được bạn đọc 1 mượn
+INSERT INTO DatTruoc (maBanSao, maBanDoc, trangThaiDatTruoc, hinhThucThongBao) VALUES
+(2, 3, 'kichHoat', 'email');
+
+-- Dữ liệu cho bảng YeuCauGiao (19)
+INSERT INTO YeuCauGiao (maBanDoc, maMuonTra, hinhThucYeuCau, diaChi, maPhuongXa, soDienThoai, trangThai) VALUES
+(1, 1, 'Giao sách tận nơi', 'K1/1 Võ Văn Tần', 1, '0987654321', 'daYeuCau');
+
+-- Dữ liệu cho bảng Phong (20)
+INSERT INTO Phong (tenPhong, loaiPhong, sucChua, viTri, trangThai) VALUES
+('Phòng đọc chung Tầng 1', 'Chung', 100, 'Tầng 1', 'moCua'),
+('Phòng họp nhóm A', 'Họp nhóm', 8, 'Tầng 2', 'moCua'),
+('Phòng máy tính', 'Máy tính', 20, 'Tầng 3', 'moCua'),
+('Phòng nghiên cứu cá nhân', 'Nghiên cứu', 1, 'Tầng 4', 'dangBaoTri');
+
+-- Dữ liệu cho bảng ChoNgoi (21)
+INSERT INTO ChoNgoi (maPhong, tenChoNgoi, loaiChoNgoi, trangThai) VALUES
+(1, 'A1-01', 'Bàn đơn', 'coSan'),
+(1, 'A1-02', 'Bàn đơn', 'daDuocDat'),
+(2, 'PN-A-01', 'Bàn họp', 'coSan'),
+(3, 'PC-01', 'Máy tính', 'coSan'),
+(3, 'PC-02', 'Máy tính', 'dangSuDung');
+
+-- Dữ liệu cho bảng DatChoNgoi (22)
+-- Bạn đọc 2 đặt chỗ ngồi A1-02
+INSERT INTO DatChoNgoi (maChoNgoi, maBanDoc, maNhanVien, thoiGianBatDau, thoiGianKetThuc, trangThaiDatCho) VALUES
+(2, 2, 1, '2025-10-16 09:00:00+07', '2025-10-16 11:00:00+07', 'kichHoat');
+
+-- Dữ liệu cho bảng DatPhong (23)
+INSERT INTO DatPhong (maPhong, nguoiToChuc, soDienThoai, thoiGianBatDau, thoiGianKetThuc, mucDichSuDung, soNguoiThamDuDuKien, maNhanVien) VALUES
+(2, 'Nhóm sinh viên K21-IT', '0987654321', '2025-10-17 14:00:00+07', '2025-10-17 17:00:00+07', 'Làm bài tập lớn môn AI', 5, 2);
+
+-- Dữ liệu cho bảng ThietBi (24)
+INSERT INTO ThietBi (maThietBiNoiBo, tenThietBi, loaiThietBi, maPhong, trangThai) VALUES
+('PC-01-T3', 'Máy tính Dell OptiPlex', 'Máy tính để bàn', 3, 'hoatDong'),
+('PROJ-01-T2', 'Máy chiếu Epson EB-S05', 'Máy chiếu', 2, 'hoatDong'),
+('SCAN-01-T1', 'Máy scan HP ScanJet', 'Máy scan', 1, 'hongHoc');
+
+-- Dữ liệu cho bảng ThongBao (25)
+-- Thông báo cho bạn đọc 2 về sách sắp quá hạn
+INSERT INTO ThongBao (maBanDoc, hinhThuc, tieuDe, noiDung, duLieuGoc, trangThai, thamChieu) VALUES
+(2, 'email', 'Thông báo nhắc trả sách', 'Sách "Python for Data Analysis" (mã mượn 2) của bạn sẽ quá hạn vào ngày mai.', '{"maMuonTra": 2}', 'daGui', '/muontra/2'),
+(3, 'in-app', 'Thông báo sách đã có', 'Sách "Giáo trình Trí tuệ nhân tạo" bạn đặt trước đã có sẵn để mượn.', '{"maDatTruoc": 1}', 'chuaDoc', '/dat-truoc/1');
+
+-- Dữ liệu cho bảng BaiViet (26)
+INSERT INTO BaiViet (maNhanVien, tieuDe, noiDung, tuKhoa, trangThai) VALUES
+(1, 'Tuần lễ Sách và Văn hóa đọc 2025', 'Nội dung chi tiết về các hoạt động trong tuần lễ sách...', '{"sự kiện", "sách", "văn hóa đọc"}', TRUE),
+(2, 'Hướng dẫn sử dụng hệ thống tra cứu mới', 'Nội dung hướng dẫn bạn đọc cách tra cứu tài liệu hiệu quả trên website mới...', '{"hướng dẫn", "tra cứu"}', TRUE),
+(1, 'Top 5 cuốn sách AI nên đọc', 'Danh sách 5 cuốn sách hay nhất về lĩnh vực Trí tuệ nhân tạo có tại thư viện...', '{"AI", "sách hay"}', TRUE);

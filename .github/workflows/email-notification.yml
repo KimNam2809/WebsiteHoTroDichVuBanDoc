@@ -25,7 +25,7 @@ jobs:
           # Thông tin người nhận
           subject: "[GitHub Notification] ${{ github.repository }} - New Update"
           # Thay email của thầy bạn vào dòng dưới đây
-          to: huydophu@gmail.com
+          to: manmik2809@gmail.com
 
           # Nội dung email (Người gửi, nhánh nào, link commit)
           from: "Student Bot <${{ secrets.MAIL_USERNAME }}>"

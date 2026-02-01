@@ -1,267 +1,439 @@
-# 📚 Hệ Thống Quản Lý Thư Viện Thông Minh (Smart Library Management System)
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js" alt="Next.js"/>
+  <img src="https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi" alt="FastAPI"/>
+  <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase" alt="Supabase"/>
+  <img src="https://img.shields.io/badge/TailwindCSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css" alt="TailwindCSS"/>
+  <img src="https://img.shields.io/badge/LangChain-AI-FFA500?style=for-the-badge" alt="LangChain"/>
+</p>
 
-Chào mừng bạn đến với dự án Hệ thống Quản lý Thư viện Thông minh. Đây là giải pháp toàn diện kết hợp giữa quản lý thư viện truyền thống và công nghệ AI tiên tiến, giúp tự động hóa quy trình mượn trả, tra cứu tài liệu và hỗ trợ bạn đọc 24/7 thông qua Chatbot thông minh.
+<h1 align="center">📚 Website Hỗ Trợ Dịch Vụ Bạn Đọc</h1>
 
-## 🌟 Tính Năng Nổi Bật
+<p align="center">
+  <strong>Hệ thống quản lý thư viện thông minh tích hợp AI Chatbot</strong><br/>
+  <em>Graduation Project - Do Phu Huy & Le Kim Nam</em>
+</p>
 
-### 🤖 AI & Chatbot (RAG Agent)
+---
 
-Trợ lý ảo thông minh: Giải đáp thắc mắc về nội quy, giờ mở cửa, thủ tục làm thẻ.
+## 📋 Mục Lục
 
-Tra cứu ngữ nghĩa: Tìm sách theo mô tả, chủ đề (ví dụ: "Tìm sách về lập trình của bác Ánh").
+- [Giới Thiệu](#-giới-thiệu)
+- [Tính Năng Chính](#-tính-năng-chính)
+- [Công Nghệ Sử Dụng](#️-công-nghệ-sử-dụng)
+- [Sơ Đồ Cơ Sở Dữ Liệu](#-sơ-đồ-cơ-sở-dữ-liệu)
+- [Giao Diện Ứng Dụng](#-giao-diện-ứng-dụng)
+- [Hướng Dẫn Cài Đặt](#-hướng-dẫn-cài-đặt)
+- [Cấu Trúc Thư Mục](#-cấu-trúc-thư-mục)
+- [Tác Giả](#-tác-giả)
 
-Cá nhân hóa: Kiểm tra lịch sử mượn, nợ phạt, trạng thái thẻ ngay trong khung chat.
+---
 
-Điều hướng thông minh: Tự động chuyển hướng người dùng đến các trang chức năng (Đăng ký thẻ, Đặt phòng...).
+## 🌟 Giới Thiệu
 
-### 🏢 Nghiệp vụ Thư viện
+**Website Hỗ Trợ Dịch Vụ Bạn Đọc** là một hệ thống quản lý thư viện toàn diện, kết hợp giữa nghiệp vụ thư viện truyền thống và công nghệ AI tiên tiến. Hệ thống hỗ trợ:
 
-Quản lý Sách & Bản sao: Theo dõi chi tiết từng cuốn sách vật lý, trạng thái (Có sẵn/Đang mượn).
+- 🔍 **Tra cứu tài liệu thông minh** với tìm kiếm ngữ nghĩa
+- 🤖 **AI Chatbot 24/7** giải đáp thắc mắc và hỗ trợ bạn đọc
+- 📱 **Đăng ký dịch vụ online** (thẻ thư viện, mượn sách, đặt chỗ ngồi)
+- 👨‍💼 **Dashboard quản trị** cho nhân viên thư viện
 
-Mượn/Trả sách: Quy trình khép kín, hỗ trợ nhân viên đối chiếu hình ảnh người mượn và sách để tránh sai sót.
+---
 
-Đăng ký thẻ Online: Người dùng tự nộp hồ sơ, upload ảnh thẻ, hệ thống tính phí tự động.
+## ✨ Tính Năng Chính
 
-Phân quyền chặt chẽ: Hệ thống phân quyền chi tiết cho Bạn đọc, Thủ thư và Quản trị viên (Middleware & JWT).
+### 👤 Dành cho Bạn Đọc
+
+| Tính năng | Mô tả |
+|-----------|-------|
+| **Tra cứu tài liệu** | Tìm kiếm sách theo tên, tác giả, từ khóa hoặc mô tả |
+| **Đăng ký thẻ online** | Nộp hồ sơ, upload ảnh, chọn loại thẻ và thanh toán |
+| **Đặt mượn tài liệu** | Đặt trước bản sao sách, nhận thông báo khi sách sẵn sàng |
+| **Gia hạn tài liệu** | Gia hạn thời gian mượn trực tuyến |
+| **Đặt chỗ ngồi/phòng** | Đặt chỗ học tập hoặc phòng họp nhóm |
+| **Xem lịch sử mượn trả** | Theo dõi toàn bộ hoạt động mượn/trả |
+| **Xem bài viết thư viện** | Đọc tin tức, hướng dẫn và thông báo |
+
+### 🤖 AI Chatbot (RAG Agent)
+
+| Tính năng | Mô tả |
+|-----------|-------|
+| **Trợ lý ảo 24/7** | Giải đáp về nội quy, giờ mở cửa, thủ tục |
+| **Tra cứu ngữ nghĩa** | Tìm sách bằng mô tả tự nhiên |
+| **Cá nhân hóa** | Kiểm tra lịch sử mượn, nợ phạt, trạng thái thẻ |
+| **Điều hướng thông minh** | Tự động chuyển đến trang chức năng phù hợp |
+
+### 👨‍💼 Dành cho Nhân Viên Thư Viện
+
+| Tính năng | Mô tả |
+|-----------|-------|
+| **Phê duyệt đăng ký thẻ** | Xét duyệt hồ sơ đăng ký thẻ bạn đọc |
+| **Xác nhận mượn/trả** | Đối chiếu và xác nhận giao dịch mượn/trả sách |
+| **Quản lý bài viết** | Tạo, sửa, xóa tin tức và thông báo |
+| **Quản lý đặt chỗ** | Theo dõi và quản lý việc đặt chỗ ngồi/phòng |
+
+---
 
 ## 🛠️ Công Nghệ Sử Dụng
 
-Thành phần
+| Thành phần | Công nghệ |
+|------------|-----------|
+| **Frontend** | Next.js 14 (App Router), TailwindCSS, Supabase Auth Helper |
+| **Backend** | Python FastAPI, Pydantic, Uvicorn |
+| **Database** | Supabase (PostgreSQL), pgvector (Vector Search) |
+| **AI Core** | LangChain, Groq API (Llama 3), FlashRank (Reranking) |
+| **Storage** | Supabase Storage (lưu ảnh bìa sách, ảnh thẻ) |
+| **Authentication** | JWT, Supabase Auth |
 
-Công nghệ
+---
 
-Frontend
+## 🗄️ Sơ Đồ Cơ Sở Dữ Liệu
 
-Next.js 14 (App Router), Tailwind CSS, Supabase Auth Helper
+<p align="center">
+  <img src="docs/screenshots/database_schema.png" alt="Database Schema" width="100%"/>
+</p>
 
-Backend
+---
 
-Python FastAPI, Pydantic, Uvicorn
+## 🖥️ Giao Diện Ứng Dụng
 
-Database
+### 📱 Giao Diện Người Dùng
 
-Supabase (PostgreSQL), pgvector (Vector Search)
+<details>
+<summary><strong>🏠 Trang Chủ</strong></summary>
+<br/>
+<img src="docs/screenshots/homepage.png" alt="Homepage" width="100%"/>
+</details>
 
-AI Core
+<details>
+<summary><strong>📝 Đăng Ký Tài Khoản</strong></summary>
+<br/>
+<img src="docs/screenshots/register.png" alt="Register" width="100%"/>
+</details>
 
-LangChain, Groq API (Llama 3), OpenAI (Optional), FlashRank (Reranking)
+<details>
+<summary><strong>🔐 Đăng Nhập</strong></summary>
+<br/>
+<img src="docs/screenshots/login.png" alt="Login" width="100%"/>
+</details>
 
-Storage
+<details>
+<summary><strong>🔍 Tra Cứu Tài Liệu</strong></summary>
+<br/>
+<img src="docs/screenshots/search_documents.png" alt="Search Documents" width="100%"/>
+</details>
 
-Supabase Storage (Lưu ảnh bìa, ảnh thẻ)
+<details>
+<summary><strong>📰 Danh Sách Bài Viết</strong></summary>
+<br/>
+<img src="docs/screenshots/articles_list.png" alt="Articles List" width="100%"/>
+</details>
 
-## 🚀 Hướng Dẫn Cài Đặt & Triển Khai
+<details>
+<summary><strong>📄 Chi Tiết Bài Viết</strong></summary>
+<br/>
+<img src="docs/screenshots/article_detail.png" alt="Article Detail" width="100%"/>
+</details>
 
-Để chạy dự án, bạn cần mở 2 cửa sổ Terminal: một cho Backend và một cho Frontend.
+<details>
+<summary><strong>📖 Chi Tiết Tài Liệu</strong></summary>
+<br/>
+<img src="docs/screenshots/document_detail.png" alt="Document Detail" width="100%"/>
+</details>
 
-### 1️⃣ Cấu Hình Backend (FastAPI)
+<details>
+<summary><strong>💳 Đăng Ký Thẻ Thư Viện</strong></summary>
+<br/>
+<img src="docs/screenshots/card_registration.png" alt="Card Registration" width="100%"/>
+</details>
 
-Di chuyển vào thư mục backend:
+<details>
+<summary><strong>👤 Trang Cá Nhân Bạn Đọc</strong></summary>
+<br/>
+<img src="docs/screenshots/reader_profile.png" alt="Reader Profile" width="100%"/>
+</details>
 
-cd backend
+<details>
+<summary><strong>📚 Đặt Mượn Tài Liệu</strong></summary>
+<br/>
+<img src="docs/screenshots/borrow_document.png" alt="Borrow Document" width="100%"/>
+</details>
 
-Bước 1: Tạo môi trường ảo và cài đặt thư viện
+<details>
+<summary><strong>🔄 Gia Hạn Tài Liệu</strong></summary>
+<br/>
+<img src="docs/screenshots/renew_document.png" alt="Renew Document" width="100%"/>
+</details>
 
-- Tạo môi trường ảo (Windows)
+<details>
+<summary><strong>📋 Lịch Sử Mượn Trả</strong></summary>
+<br/>
+<img src="docs/screenshots/borrow_history.png" alt="Borrow History" width="100%"/>
+</details>
 
+<details>
+<summary><strong>💺 Đặt Chỗ Ngồi/Phòng</strong></summary>
+<br/>
+<img src="docs/screenshots/seat_booking.png" alt="Seat Booking" width="100%"/>
+</details>
+
+---
+
+### 👨‍💼 Giao Diện Quản Trị
+
+<details>
+<summary><strong>✅ Phê Duyệt Đăng Ký Thẻ</strong></summary>
+<br/>
+<img src="docs/screenshots/admin_card_approval.png" alt="Admin Card Approval" width="100%"/>
+</details>
+
+<details>
+<summary><strong>📥 Xác Nhận Mượn Tài Liệu</strong></summary>
+<br/>
+<img src="docs/screenshots/admin_borrow_confirm.png" alt="Admin Borrow Confirm" width="100%"/>
+</details>
+
+<details>
+<summary><strong>📤 Xác Nhận Trả Tài Liệu</strong></summary>
+<br/>
+<img src="docs/screenshots/admin_return_confirm.png" alt="Admin Return Confirm" width="100%"/>
+</details>
+
+<details>
+<summary><strong>📝 Quản Lý Bài Viết</strong></summary>
+<br/>
+<img src="docs/screenshots/admin_articles.png" alt="Admin Articles" width="100%"/>
+</details>
+
+<details>
+<summary><strong>🪑 Quản Lý Đặt Chỗ</strong></summary>
+<br/>
+<img src="docs/screenshots/admin_seat_booking.png" alt="Admin Seat Booking" width="100%"/>
+</details>
+
+---
+
+## 🚀 Hướng Dẫn Cài Đặt
+
+### Yêu Cầu Hệ Thống
+
+- **Node.js** >= 18.x
+- **Python** >= 3.10
+- **Git**
+- Tài khoản **Supabase** (miễn phí)
+
+---
+
+### 1️⃣ Clone Repository
+
+```bash
+git clone https://github.com/KimNam2809/WebsiteHoTroDichVuBanDoc.git
+cd WebsiteHoTroDichVuBanDoc
+```
+
+---
+
+### 2️⃣ Tạo Database với Supabase
+
+#### Bước 1: Tạo Project Supabase
+
+1. Truy cập [https://supabase.com](https://supabase.com) và đăng nhập
+2. Click **"New Project"** và điền thông tin:
+   - **Name**: `library-management` (hoặc tên tùy chọn)
+   - **Database Password**: Đặt mật khẩu mạnh (lưu lại để dùng sau)
+   - **Region**: Chọn vùng gần nhất
+
+3. Chờ project được khởi tạo (~2 phút)
+
+#### Bước 2: Lấy Connection String
+
+1. Vào **Project Settings** → **Database**
+2. Copy **Connection string** (URI) dạng:
+   ```
+   postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres
+   ```
+3. Thay `[PASSWORD]` bằng mật khẩu database của bạn
+
+#### Bước 3: Tạo Bảng và Dữ Liệu Mẫu
+
+1. Vào **SQL Editor** trên Supabase Dashboard
+2. Mở file `schema_database.txt` trong repository
+3. Copy toàn bộ nội dung và paste vào SQL Editor
+4. Click **Run** để tạo tất cả các bảng
+
+> ⚠️ **Lưu ý**: File `schema_database.txt` chứa toàn bộ schema database bao gồm:
+> - Các bảng chính: `nguoidung`, `bandoc`, `nhanvien`, `tacpham`, `bansao`, `muontra`, etc.
+> - Các trigger tự động cập nhật `updated_at`
+> - Vector index cho tìm kiếm ngữ nghĩa
+
+#### Bước 4: Kích Hoạt pgvector (Tùy chọn - cho AI Search)
+
+```sql
+-- Chạy trong SQL Editor
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+---
+
+### 3️⃣ Cấu Hình Backend (FastAPI)
+
+```bash
+# Di chuyển vào thư mục backend
+cd WebsiteHoTroDichVuBanDoc_Backend/WebsiteHoTroDichVuBanDoc_Backend
+```
+
+#### Bước 1: Tạo môi trường ảo
+
+```bash
+# Windows
 python -m venv venv
-
-- Kích hoạt môi trường ảo (Windows PowerShell)
-
-.\venv\Scripts\Activate.ps1
-
-- Hoặc Windows cmd
-
 .\venv\Scripts\activate
 
-- Hoặc Linux/macOS
-
+# Linux/macOS
+python3 -m venv venv
 source venv/bin/activate
+```
 
-- Cập nhật pip và cài đặt thư viện
+#### Bước 2: Cài đặt thư viện
 
+```bash
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+```
 
-Bước 2: Cấu hình biến môi trường
-Tạo file .env trong thư mục backend/ và điền thông tin cấu hình (tham khảo mẫu bên dưới):
+#### Bước 3: Cấu hình biến môi trường
 
---- DATABASE CONFIG ---
+Tạo file `.env` trong thư mục backend:
 
-SUPABASE_URL=your_supabase_url
+```env
+# ============ DATABASE CONFIG ============
+SUPABASE_URL=https://[PROJECT_REF].supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-SUPABASE_DB_STR=postgresql://postgres:[PASSWORD]@[HOST]:[PORT]/postgres
+SUPABASE_DB_STR=postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres
 
---- POSTGRESQL LOCAL (Optional) ---
-
-LOCAL_DB_NAME=library_db
-LOCAL_DB_USER=postgres
-LOCAL_DB_PASS=password
-LOCAL_DB_HOST=localhost
-LOCAL_DB_PORT=5432
-
---- JWT SECURITY ---
-
-JWT_SECRET_KEY=your_super_secret_key_change_this
+# ============ JWT SECURITY ============
+JWT_SECRET_KEY=your_super_secret_key_change_this_to_random_string
 JWT_ALGORITHM=HS256
 
---- AI SERVICES ---
-
+# ============ AI SERVICES ============
 GROQ_API_KEY=gsk_your_groq_api_key
-OPENAI_API_KEY=sk_your_openai_key (Optional)
-USE_OPENAI="false"
+# OPENAI_API_KEY=sk_your_openai_key  # Optional
+USE_OPENAI=false
 
---- 3RD PARTY ---
+# ============ 3RD PARTY (Optional) ============
+# SENDGRID_API_KEY=your_sendgrid_key
+# GOOGLE_API_KEY=your_google_api_key
+```
 
-SENDGRID_API_KEY=your_sendgrid_key
-GOOGLE_API_KEY=your_google_api_key
+> 💡 **Lấy API Keys**:
+> - **Supabase Keys**: Project Settings → API
+> - **Groq API Key**: [https://console.groq.com](https://console.groq.com)
 
-Bước 3: Khởi chạy Backend
+#### Bước 4: Khởi chạy Backend
 
+```bash
 uvicorn app.main:app --reload
+```
 
-🔥 Backend sẽ chạy tại: <http://127.0.0.1:8000> (Tài liệu API Swagger tại <http://127.0.0.1:8000/docs>)
+✅ Backend sẽ chạy tại: `http://127.0.0.1:8000`  
+📖 API Docs: `http://127.0.0.1:8000/docs`
 
-### 2️⃣ Cấu Hình Frontend (Next.js)
+---
 
-Mở một Terminal mới và di chuyển vào thư mục frontend:
+### 4️⃣ Cấu Hình Frontend (Next.js)
 
-cd frontend
+Mở terminal mới:
 
-Bước 1: Cài đặt thư viện Node.js
+```bash
+# Di chuyển vào thư mục frontend
+cd WebsiteHoTroDichVuBanDoc_UI/WebsiteHoTroDichVuBanDoc_UI/website_hotrodichvubandoc
+```
 
+#### Bước 1: Cài đặt dependencies
+
+```bash
 npm install
+```
 
-Bước 2: Cấu hình biến môi trường
-Tạo file .env.local trong thư mục frontend/ (ngang hàng package.json) và điền thông tin:
+#### Bước 2: Cấu hình biến môi trường
 
---- SUPABASE CLIENT ---
+Tạo file `.env.local`:
 
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+```env
+# ============ SUPABASE CLIENT ============
+NEXT_PUBLIC_SUPABASE_URL=https://[PROJECT_REF].supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 
---- BACKEND CONNECTION ---
+# ============ BACKEND CONNECTION ============
+FASTAPI_BACKEND_URL=http://127.0.0.1:8000
+FASTAPI_JWT_SECRET=your_super_secret_key_change_this_to_random_string  # Phải khớp với Backend
+```
 
-FASTAPI_BACKEND_URL=[http://127.0.0.1:8000](http://127.0.0.1:8000)
-FASTAPI_JWT_SECRET=your_super_secret_key_change_this (Phải khớp với Backend)
+#### Bước 3: Khởi chạy Frontend
 
-Bước 3: Cấu hình next.config.mjs (Để hiển thị ảnh)
-Đảm bảo file next.config.mjs đã được cấu hình cho phép load ảnh từ Supabase:
-
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-    images: {
-        remotePatterns: [
-            {
-                protocol: 'https',
-                hostname: 'via.placeholder.com',
-            },
-            {
-                protocol: 'https',
-                hostname: '*.supabase.co', // Cho phép tất cả project Supabase
-            }
-        ]
-    }
-};
-
-export default nextConfig;
-
-Bước 4: Khởi chạy Frontend
-
+```bash
 npm run dev
+```
 
-🌐 Website sẽ chạy tại: <http://localhost:3000>
+✅ Website sẽ chạy tại: `http://localhost:3000`
 
-## 🧪 Kịch Bản Kiểm Thử (Test Scenarios)
-
-Dưới đây là các luồng chính để bạn trải nghiệm hệ thống và kiểm tra các chức năng:
-
-### 🕵️ 1. Khách Vãng Lai (Tra cứu sách)
-
-Truy cập trang chủ.
-
-Vào menu "Danh mục sách" hoặc ô tìm kiếm.
-
-Gõ từ khóa (VD: "Python").
-
-Bấm xem chi tiết sách để xem trạng thái các bản sao.
-
-### 💳 2. Đăng Ký Thẻ Bạn Đọc
-
-Vào menu "Đăng ký thẻ".
-
-Điền thông tin cá nhân, chọn loại thẻ.
-
-Upload ảnh chân dung.
-
-Nhấn gửi hồ sơ -> Nhận mã hồ sơ & QR thanh toán.
-
-👮 3. Admin Phê Duyệt (Role: Nhân viên)
-
-Đăng nhập tài khoản nhân viên (VD: staff/123).
-
-Vào Dashboard -> "Phê duyệt thẻ".
-
-Tìm hồ sơ vừa đăng ký và nhấn "Duyệt".
-
-### 👤 4. Dashboard Cá Nhân (Role: Bạn đọc)
-
-Đăng nhập tài khoản bạn đọc (VD: student/123).
-
-Trang tự động chuyển về /tai_khoan.
-
-Kiểm tra thông tin: Số thẻ, Hạn thẻ, Sách đang mượn.
-
-Thử truy cập /admin -> Hệ thống sẽ chặn và đẩy về dashboard (Security Check).
-
-### 📚 5. Mượn Sách Online
-
-(Là Bạn đọc) Tìm sách "Đắc Nhân Tâm".
-
-Chọn bản sao có trạng thái "Có sẵn".
-
-Nhấn "Đăng ký mượn".
-
-Trạng thái bản sao chuyển thành "Bạn đang giữ". (Kiểm tra chéo: Tài khoản khác sẽ thấy "Đã có người mượn").
-
-### 🤖 6. Chatbot AI
-
-Bấm vào biểu tượng Chat góc dưới màn hình.
-
-Hỏi: "Thư viện mở cửa lúc nào?" (Kiểm tra RAG - Kiến thức chung).
-
-Hỏi: "Tôi đang mượn sách gì?" (Kiểm tra Personal Dashboard - Cần đăng nhập).
-
-Hỏi: "Tìm cho tôi sách về lập trình" (Kiểm tra SQL Search - Tìm kiếm nâng cao).
-
-Hỏi: "Tôi muốn làm thẻ" (Kiểm tra Navigation - Điều hướng).
+---
 
 ## 📂 Cấu Trúc Thư Mục
 
-Để giúp bạn dễ dàng nắm bắt mã nguồn:
+```
+WebsiteHoTroDichVuBanDoc/
+├── 📁 WebsiteHoTroDichVuBanDoc_Backend/
+│   └── 📁 WebsiteHoTroDichVuBanDoc_Backend/
+│       ├── 📁 app/
+│       │   ├── 📁 api/v1/endpoints/   # API routes (Auth, Sách, Mượn trả, Chatbot)
+│       │   ├── 📁 services/           # Business logic (RAG, AI Brain)
+│       │   ├── 📁 tools/              # AI Tools (DB queries, Actions)
+│       │   └── 📁 models/             # Pydantic schemas
+│       ├── 📁 ingest/                 # Scripts nạp dữ liệu Vector DB
+│       ├── 📁 rag_data/               # Dữ liệu RAG (nội quy, hướng dẫn)
+│       └── 📄 requirements.txt
+│
+├── 📁 WebsiteHoTroDichVuBanDoc_UI/
+│   └── 📁 WebsiteHoTroDichVuBanDoc_UI/
+│       └── 📁 website_hotrodichvubandoc/
+│           ├── 📁 src/
+│           │   ├── 📁 app/            # Next.js App Router
+│           │   │   ├── 📁 admin/      # Trang quản trị (protected)
+│           │   │   ├── 📁 tai_khoan/  # Trang cá nhân bạn đọc
+│           │   │   └── 📁 ...         # Các route khác
+│           │   ├── 📁 components/     # UI Components (Chatbot, Header, Table)
+│           │   └── 📁 lib/            # Supabase Client, Server Actions
+│           ├── 📄 middleware.js       # Auth & Role-based access control
+│           └── 📄 package.json
+│
+├── 📁 docs/
+│   ├── 📁 screenshots/                # Ảnh chụp giao diện
+│   ├── 📁 uml/                        # Sơ đồ UML (Use Case, Sequence, Class)
+│   └── 📁 sql/                        # SQL scripts
+│
+├── 📄 schema_database.txt             # Full database schema
+└── 📄 README.md
+```
 
-### Backend Structure (/backend)
+---
 
-app/api/v1/endpoints/: Chứa các API (Auth, Sách, Mượn trả, Chatbot...).
+## 👥 Tác Giả
 
-app/services/: Logic nghiệp vụ phức tạp (Brain AI, RAG Service, History Service).
+<table>
+  <tr>
+    <td align="center">
+      <strong>Đỗ Phú Huy</strong><br/>
+      <em>Backend Developer & AI Engineer</em>
+    </td>
+    <td align="center">
+      <strong>Lê Kim Nam</strong><br/>
+      <em>Frontend Developer & UI/UX</em>
+    </td>
+  </tr>
+</table>
 
-app/tools/: Các công cụ cho AI gọi xuống Database (DB Tools, Action Tools).
+---
 
-app/models/: Định nghĩa Schema dữ liệu (Pydantic Models).
-
-ingest/: Các script để nạp dữ liệu sách và nội quy vào Vector DB.
-
-### Frontend Structure (/frontend)
-
-src/app/: Sử dụng Next.js App Router (Mỗi thư mục là một route).
-
-admin/: Trang quản trị (được bảo vệ).
-
-tai_khoan/: Trang cá nhân bạn đọc.
-
-components/: Các UI tái sử dụng (Chatbot, Header, Table...).
-
-src/lib/: Cấu hình Supabase Client và Server Actions.
-
-middleware.js: Bộ lọc bảo mật, phân quyền truy cập dựa trên Role.
+<p align="center">
+  <strong>⭐ Nếu thấy project hữu ích, hãy cho chúng tôi một star nhé! ⭐</strong>
+</p>
