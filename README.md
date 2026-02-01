@@ -423,11 +423,11 @@ WebsiteHoTroDichVuBanDoc/
   <tr>
     <td align="center">
       <strong>Đỗ Phú Huy</strong><br/>
-      <em>Backend Developer & AI Engineer</em>
+      <em>Teacher</em>
     </td>
     <td align="center">
       <strong>Lê Kim Nam</strong><br/>
-      <em>Frontend Developer & UI/UX</em>
+      <em>Frontend Developer & Backend Developer & AI Engineer</em>
     </td>
   </tr>
 </table>
@@ -435,5 +435,5 @@ WebsiteHoTroDichVuBanDoc/
 ---
 
 <p align="center">
-  <strong>⭐ Nếu thấy project hữu ích, hãy cho chúng tôi một star nhé! ⭐</strong>
+  <strong>⭐ Nếu thấy project hữu ích, hãy cho tôi một star nhé! ⭐</strong>
 </p>
