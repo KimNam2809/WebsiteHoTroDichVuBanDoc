@@ -423,17 +423,46 @@ WebsiteHoTroDichVuBanDoc/
   <tr>
     <td align="center">
       <strong>Đỗ Phú Huy</strong><br/>
-      <em>Backend Developer & AI Engineer</em>
+      <em>Teacher</em>
     </td>
     <td align="center">
       <strong>Lê Kim Nam</strong><br/>
-      <em>Frontend Developer & UI/UX</em>
+      <em>Frontend Developer & Backend Developer & AI Engineer</em>
     </td>
   </tr>
 </table>
 
 ---
 
+## 🧪 Hướng Dẫn Chạy Test Tự Động (E2E)
+
+Hệ thống cung cấp sẵn các kịch bản kiểm thử (Test Cases) tự động hóa giao diện người dùng và kiểm tra tính chính xác của AI Chatbot sử dụng **Selenium** và **Pytest**.
+
+### Yêu Cầu Môi Trường
+1. Yêu cầu trang web phải đang chạy cục bộ tại `http://localhost:3000`.
+2. Yêu cầu Python >= 3.10.
+
+### Cài Đặt và Chạy Test
+
+Từ thư mục gốc của project, mở terminal và chạy:
+
+```bash
+# 1. Cài đặt các thư viện cần thiết cho môi trường test
+pip install -r tests/requirements_e2e.txt
+
+# 2. Chạy toàn bộ các bài test
+pytest tests/e2e/ -v
+
+# 3. Chạy riêng bài test Chatbot
+pytest tests/e2e/test_chatbot.py -v
+```
+
+Các Test Cases được tổ chức sẵn trong thư mục `tests/e2e/` bao gồm:
+- **`test_ui.py`**: Xác minh các luồng giao diện cơ bản (Truy cập trang chủ, Đăng nhập, Tra cứu sách).
+- **`test_chatbot.py`**: Xác minh khả năng giao tiếp của AI (Kiểm tra hiển thị Chatbot, hỏi đáp nội quy thư viện (RAG), và tìm kiếm ngữ nghĩa tác phẩm).
+
+---
+
 <p align="center">
-  <strong>⭐ Nếu thấy project hữu ích, hãy cho chúng tôi một star nhé! ⭐</strong>
+  <strong>⭐ Nếu thấy project hữu ích, hãy cho tôi một star nhé! ⭐</strong>
 </p>
