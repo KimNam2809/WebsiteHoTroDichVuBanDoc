@@ -214,14 +214,69 @@
 
 ## 🚀 Hướng Dẫn Cài Đặt
 
-### Yêu Cầu Hệ Thống
+### Yêu Cầu Hệ Thống Chung
 
 - **Node.js** >= 18.x
-- **Python** >= 3.10
+- **Python** >= 3.10 (Dành cho bản cũ)
+- **Java** 17+ (Dành cho bản mới Spring Boot)
 - **Git**
 - Tài khoản **Supabase** (miễn phí)
 
 ---
+
+### 🌟 BẢN MỚI: Spring Boot (Backend) + VueJS (Frontend)
+
+Đây là phiên bản được nâng cấp, chuyển đổi từ Next.js/FastAPI sang hệ sinh thái Vue 3 và Spring Boot. Dưới đây là hướng dẫn khởi chạy:
+
+#### 1️⃣ Khởi chạy Backend (Spring Boot Java)
+
+```bash
+# Di chuyển vào thư mục Backend của phiên bản mới
+cd WebsiteHoTroDichVuBanDoc/Backend
+```
+
+**Cấu hình biến môi trường:**
+Đảm bảo đã cấu hình các chuỗi kết nối Supabase và Groq API trong tệp `src/main/resources/application.yml`. (Bao gồm `supabase.url`, `supabase.service-role-key`, mật khẩu postgres `spring.datasource.password`, và `groq.api-key`).
+
+**Biên dịch và chạy ứng dụng:**
+Sử dụng Maven Wrapper (đã được tích hợp sẵn) để chạy mà không cần cài đặt Maven:
+```bash
+# Trên Windows
+.\mvnw.cmd spring-boot:run
+
+# Trên Linux/macOS
+./mvnw spring-boot:run
+```
+✅ Backend sẽ chạy tại cổng: `8000`
+
+#### 2️⃣ Khởi chạy Frontend (Vue 3 + Vite)
+
+```bash
+# Mở một terminal mới và di chuyển vào thư mục Frontend
+cd WebsiteHoTroDichVuBanDoc/Frontend
+```
+
+**Cấu hình biến môi trường:**
+Tạo file `.env` tại thư mục này với nội dung:
+```env
+VITE_SUPABASE_URL=https://[PROJECT_REF].supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key
+VITE_API_URL=http://localhost:8000/api/v1
+```
+
+**Cài đặt các gói thư viện và chạy ứng dụng:**
+```bash
+# Cài đặt thư viện Node modules
+npm install
+
+# Khởi chạy server phát triển (Development)
+npm run dev
+```
+✅ Website (Giao diện người dùng) sẽ chạy tại: `http://localhost:5173` (hoặc port do Vite chỉ định). Bạn có thể truy cập để kiểm thử trực tiếp!
+
+---
+
+### ⏳ BẢN CŨ: FastAPI (Backend) + Next.js (Frontend)
 
 ### 1️⃣ Clone Repository
 

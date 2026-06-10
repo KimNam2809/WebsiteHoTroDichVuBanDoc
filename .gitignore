@@ -1,17 +1,93 @@
-# Python
-__pycache__/
-*.pyc
+# ==========================================
+# 1. OS & System Files
+# ==========================================
+.DS_Store
+.DS_Store?
+Thumbs.db
+ehthumbs.db
+desktop.ini
+*.lnk
 
-# NextJS & Node
-node_modules/
-.next/
+# ==========================================
+# 2. IDE & Editor Files
+# ==========================================
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+# Eclipse
+.metadata/
+.classpath
+.project
+.settings/
+bin/
+# VS Code
+.vscode/
+# NetBeans
+nbproject/
+nbactions.xml
+nb-configuration.xml
 
-# Environment variables
+# ==========================================
+# 3. Environment & Secrets (DO NOT COMMIT)
+# ==========================================
 .env
+.env.*
+!.env.example
 *.env
-
 env/
 venv/
-*.dll
+# Local Spring Boot configuration profiles
+**/application-local.yml
+**/application-local.yaml
+**/application-local.properties
 
+# ==========================================
+# 4. Node & VueJS (Frontend)
+# ==========================================
+node_modules/
+dist/
+dist-ssr/
+package-lock.json.log
+yarn-error.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.eslintcache
+.stylelintcache
+.vite-inspect
+
+# ==========================================
+# 5. Java & Spring Boot (Backend)
+# ==========================================
+# Build directory
+target/
+# Compiled class files
+*.class
+# Log files
+*.log
+# Package files
+*.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+*.rar
+# Exception for maven wrapper jar if present
+!.mvn/wrapper/maven-wrapper.jar
+# Crash dumps
+hs_err_pid*
+replay_pid*
+
+# ==========================================
+# 6. Legacy Python & NextJS (from old stack)
+# ==========================================
+__pycache__/
+*.pyc
+.pytest_cache/
+.next/
+*.dll
 export_images.bat
